@@ -204,6 +204,11 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .divers, .grid2, .choices{display:block}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
+/* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
+   cannot undo. `manipulation` keeps normal taps and kills the zoom gesture. */
+button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label{
+  touch-action:manipulation}
+canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
 </style>
 
