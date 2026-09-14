@@ -482,27 +482,33 @@ function harvestAll(){
   return got;
 }
 
-/* ============================ RUSSIAN WORDS ============================ */
+/* ============================ RUSSIAN WORDS ============================
+   `tr` is a strict letter-for-letter transliteration, NOT how the word
+   sounds. вода is voda because the letter is о, even though it is said
+   closer to "vada". The soft sign ь is kept as ’ because dropping it
+   would teach a letter out of the word. Pronunciation is the speech
+   synthesiser's job; these letters have to match the alphabet.
+   ===================================================================== */
 const WORDS = [
-  {ru:'вода',    tr:'vada',      en:'water',   ic:'💧'},
+  {ru:'вода',    tr:'voda',      en:'water',   ic:'💧'},
   {ru:'рыба',    tr:'ryba',      en:'fish',    ic:'🐟'},
   {ru:'кит',     tr:'kit',       en:'whale',   ic:'🐳'},
   {ru:'краб',    tr:'krab',      en:'crab',    ic:'🦀'},
   {ru:'звезда',  tr:'zvezda',    en:'star',    ic:'⭐'},
   {ru:'дом',     tr:'dom',       en:'house',   ic:'🏠'},
   {ru:'ключ',    tr:'klyuch',    en:'key',     ic:'🔑'},
-  {ru:'дверь',   tr:'dver',      en:'door',    ic:'🚪'},
+  {ru:'дверь',   tr:'dver’',      en:'door',    ic:'🚪'},
   {ru:'свет',    tr:'svet',      en:'light',   ic:'💡'},
   {ru:'друг',    tr:'drug',      en:'friend',  ic:'🤝'},
-  {ru:'море',    tr:'morye',     en:'sea',     ic:'🌊'},
+  {ru:'море',    tr:'more',     en:'sea',     ic:'🌊'},
   {ru:'музыка',  tr:'muzyka',    en:'music',   ic:'🎵'},
   {ru:'танец',   tr:'tanets',    en:'dance',   ic:'💃'},
   {ru:'акула',   tr:'akula',     en:'shark',   ic:'🦈'},
-  {ru:'осьминог',tr:'asminog',   en:'octopus', ic:'🐙'},
-  {ru:'пузырь',  tr:'puzyr',     en:'bubble',  ic:'🫧'},
+  {ru:'осьминог',tr:'os’minog',   en:'octopus', ic:'🐙'},
+  {ru:'пузырь',  tr:'puzyr’',     en:'bubble',  ic:'🫧'},
   {ru:'лодка',   tr:'lodka',     en:'boat',    ic:'⛵'},
-  {ru:'солнце',  tr:'sontse',    en:'sun',     ic:'☀️'},
-  {ru:'камень',  tr:'kamen',     en:'rock',    ic:'🪨'},
+  {ru:'солнце',  tr:'solntse',    en:'sun',     ic:'☀️'},
+  {ru:'камень',  tr:'kamen’',     en:'rock',    ic:'🪨'},
   {ru:'цветок',  tr:'tsvetok',   en:'flower',  ic:'🌸'},
 ];
 
