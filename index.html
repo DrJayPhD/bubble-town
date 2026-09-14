@@ -378,6 +378,51 @@ window.LEGACY = !window.PointerEvent;
 </script>
 <script>
 "use strict";
+/* ---- keep the page locked at 1:1 -----------------------------------------
+   Fast taps on a control were read as double-tap-to-zoom, and once zoomed
+   there was no way back: the page is fixed and full screen, so there is
+   nothing to pinch or pan against. Three layers, because any one of them
+   can be defeated on its own:
+     1. block the pinch gesture outright
+     2. block a genuine double-tap (two taps, close in time AND position)
+     3. if the page ends up zoomed regardless, snap it back to 1:1
+   -------------------------------------------------------------------------- */
+(function(){
+  var vp = document.querySelector('meta[name=viewport]');
+  ['gesturestart','gesturechange','gestureend'].forEach(function(t){
+    document.addEventListener(t, function(e){ if(e.cancelable) e.preventDefault(); }, {passive:false});
+  });
+  var lt = 0, lx = 0, ly = 0;
+  document.addEventListener('touchend', function(e){
+    var n = Date.now(), t = e.changedTouches && e.changedTouches[0];
+    if(!t) return;
+    // only a real double-tap: same spot, twice, fast. Two quick taps on two
+    // different buttons must still both register.
+    if(n - lt < 350 && Math.abs(t.clientX-lx) < 40 && Math.abs(t.clientY-ly) < 40){
+      if(e.cancelable) e.preventDefault();
+    }
+    lt = n; lx = t.clientX; ly = t.clientY;
+  }, {passive:false});
+  document.addEventListener('dblclick', function(e){ if(e.cancelable) e.preventDefault(); });
+
+  function snapBack(){
+    if(!vp) return;
+    var orig = vp.getAttribute('content');
+    vp.setAttribute('content','width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+    setTimeout(function(){ vp.setAttribute('content', orig || 'width=device-width,initial-scale=1'); }, 350);
+  }
+  if(window.visualViewport){
+    var timer = null;
+    var check = function(){
+      if(window.visualViewport.scale > 1.02){
+        clearTimeout(timer); timer = setTimeout(snapBack, 150);
+      }
+    };
+    window.visualViewport.addEventListener('resize', check);
+    window.visualViewport.addEventListener('scroll', check);
+  }
+})();
+
 /* ==========================================================================
    BUBBLE TOWN — an underwater colony, built for two young divers
    One world, two play styles. Everything saves per diver.
