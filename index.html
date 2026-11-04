@@ -176,6 +176,13 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
 .choice2 .tile{width:100%;font-size:19px;padding:20px 14px}
 .choice2 .tile .big{font-size:46px}
 .choice2 .tile .cost{color:#9fd3e6;font-weight:600;font-size:13px}
+#bkPads{position:fixed;left:0;right:0;bottom:max(12px,env(safe-area-inset-bottom));z-index:4;
+  display:flex;justify-content:center;gap:10px;padding:0 10px}
+.bk{width:clamp(54px,13vw,76px);height:clamp(54px,13vw,76px);border-radius:50%;border:2px solid rgba(232,195,90,.7);
+  background:radial-gradient(circle at 38% 32%,#2d6f94,#0b3352);color:#ffe7a8;font-size:clamp(20px,5vw,28px);
+  box-shadow:0 6px 16px rgba(2,14,26,.5);cursor:pointer;touch-action:manipulation}
+.bk.down,.bk:active{transform:scale(.9);filter:brightness(1.25)}
+.bk.music{background:radial-gradient(circle at 38% 32%,#ffe7a8,#e8a83a);color:#3a2a10}
 hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
 .note{font-size:12.5px;color:#6fb2c8;line-height:1.6}
 .stat{font-family:var(--disp);font-weight:700;color:var(--pearl);font-variant-numeric:tabular-nums}
@@ -196,6 +203,8 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .key{height:120px}
   #toast{font-size:23px}
   .pad{width:88px;height:88px}
+  .bk{width:60px;height:60px;font-size:24px}
+  #bkPads > *{margin:0 5px}
   .pad.a{right:114px}
   .pad.b{bottom:80px}
   .layer{padding:14px}
@@ -232,6 +241,14 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <div class="pad b" id="padB">BONK</div>
 </div>
 
+<div id="bkPads" hidden>
+  <button class="bk" id="bkL" type="button" aria-label="Left">◀</button>
+  <button class="bk" id="bkT" type="button" aria-label="Turn">⟳</button>
+  <button class="bk" id="bkD" type="button" aria-label="Down">▼</button>
+  <button class="bk" id="bkH" type="button" aria-label="Drop">⤓</button>
+  <button class="bk" id="bkR" type="button" aria-label="Right">▶</button>
+  <button class="bk music" id="bkM" type="button" aria-label="Music">♫</button>
+</div>
 <div id="toast"></div>
 <button class="chip" id="introSkip" hidden
   style="position:fixed;right:14px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border:0">Skip ›</button>
@@ -619,9 +636,10 @@ const DOMES = [
   {id:'music', x:2270, y:740,  r:162, label:'Music Dome', ic:'🎵', hue:'#9d8cff'},
   {id:'build', x:980,  y:1430, r:150, label:'Coral Run',  ic:'🦀', hue:'#ffa45c'},
   {id:'draw',  x:2130, y:1400, r:150, label:'Draw Lab',   ic:'🎨', hue:'#6ee6a0'},
+  {id:'blocks',x:1900, y:390,  r:145, label:'Snow Palace', ic:'❄️', hue:'#8fd8ff'},
 ];
 const COVE = {x:360, y:1420, r:210};
-const LOCKED = {dance:1, music:1, build:1, draw:1};   // each dome has a word door
+const LOCKED = {dance:1, music:1, build:1, draw:1, blocks:1};   // each dome has a word door
 
 let scene = 'title';        // title | yard | tunnel | dive | ocean | build | show
 let overlay = null;         // id of open porthole, or null
@@ -1549,7 +1567,7 @@ function startRun(){
   // easy mode: urchins become harmless sponges' little cousins, i.e. gone
   if(easy) for(const row of run.tl) for(let c=0; c<row.length; c++) if(row[c] === 6) row[c] = 0;
   run.bg = runBackdrop();
-  scene = 'run'; openLayer(null); showHud(true);
+  scene = 'run'; openLayer(null); showHud(true); setSkip(null);
   toast('Coral Run!');
 }
 function runBackdrop(){
@@ -2837,6 +2855,8 @@ function startTunnel(){
     if(grid[r][c] !== 1 || tun.items.some(o=>o.c === c && o.r === r)) continue;
     tun.items.push({c, r, k:kinds[(r0() * kinds.length) | 0], got:false, ph:R(0, 9)}); i++;
   }
+  tun.crack = RI(5, ROWS - 5);
+  if(grid[tun.crack][COLS - 1] === 2){ grid[tun.crack][COLS - 1] = 1; tun.rocks = tun.rocks.filter(k=>!(k.c === COLS - 1 && k.r === tun.crack)); }
   tun.p = {c:mid, r:0, x:(mid + .5)*cs, y:.5*cs, tc:mid, tr:0, moving:false, soil:false, face:1, hurt:0, stun:0, lx:0, ly:0};
   buildSoil();
   for(let r=1; r<ROWS - 1; r++) for(let c=0; c<COLS; c++) if(grid[r][c] === 0){
@@ -2954,13 +2974,14 @@ function updateTunnel(dt){
       if(Math.abs(v.x) > Math.abs(v.y)) dx = Math.sign(v.x); else dy = Math.sign(v.y);
     } else if(T.goal){
       const gc = T.goal.c - p.c, gr = T.goal.r - p.r;
-      if(!gc && !gr) T.goal = null;
+      if(!gc && !gr){ if(T.goal.enter) dx = 1; T.goal = null; }
       else {
         const opts = Math.abs(gr) >= Math.abs(gc) ? [[0, Math.sign(gr)], [Math.sign(gc), 0]] : [[Math.sign(gc), 0], [0, Math.sign(gr)]];
         for(const o of opts) if((o[0] || o[1]) && tPass(p.c + o[0], p.r + o[1])){ dx = o[0]; dy = o[1]; break; }
         if(!dx && !dy) T.goal = null;
       }
     }
+    if(dx === 1 && p.c === T.COLS - 1 && p.r === T.crack && !T.mazeDone){ enterMaze(); return; }
     if((dx || dy) && tPass(p.c + dx, p.r + dy)){
       p.tc = p.c + dx; p.tr = p.r + dy; p.moving = true;
       const cell = T.grid[p.tr][p.tc];
@@ -3118,7 +3139,8 @@ function tunnelPoint(e){
   if(scene !== 'tunnel' || overlay || !tun) return;
   const z = tunZ(), ox = (VW - tun.W*z) / 2;
   const lx = (e.clientX - ox) / z, ly = e.clientY / z + tun.camY;
-  tun.goal = {c:clamp(Math.floor(lx / tun.cs), 0, tun.COLS - 1), r:clamp(Math.floor(ly / tun.cs), 0, tun.ROWS - 1)};
+  const r = clamp(Math.floor(ly / tun.cs), 0, tun.ROWS - 1);
+  tun.goal = {c:clamp(Math.floor(lx / tun.cs), 0, tun.COLS - 1), r, enter:lx >= tun.W && r === tun.crack};
 }
 cv.addEventListener('pointerdown', e=>{ if(scene === 'tunnel'){ tun && (tun.held = true); tunnelPoint(e); } });
 cv.addEventListener('pointermove', e=>{ if(scene === 'tunnel' && tun && tun.held) tunnelPoint(e); });
@@ -3169,6 +3191,19 @@ function drawTunnel(t){
 
   for(const it of T.items) if(!it.got) drawTreasure(g, it.k, (it.c + .5)*cs, (it.r + .5)*cs, cs*.28, t + it.ph);
   for(const k of T.rocks) if(k.state !== 'gone') drawRock(g, k, cs);
+  {                                                           // the glowing crack to the secret cave
+    const cy = (T.crack + .5)*cs, x = T.W, pl = Math.sin(t*3)*.5 + .5, done = T.mazeDone;
+    g.globalCompositeOperation = 'lighter';
+    const cg = g.createRadialGradient(x, cy, 2, x, cy, cs*1.3);
+    cg.addColorStop(0, done ? 'rgba(255,212,121,.5)' : 'rgba(120,255,220,' + (.45 + pl*.35) + ')'); cg.addColorStop(1, 'rgba(120,255,220,0)');
+    g.fillStyle = cg; g.beginPath(); g.arc(x, cy, cs*1.3, 0, 7); g.fill();
+    g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = done ? '#ffd479' : '#b8fff0'; g.lineWidth = cs*.08; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x - cs*.04, cy - cs*.42); g.lineTo(x + cs*.06, cy - cs*.12); g.lineTo(x - cs*.05, cy + cs*.1); g.lineTo(x + cs*.04, cy + cs*.42); g.stroke();
+    g.font = '700 ' + Math.round(cs*.26) + 'px Comfortaa, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillStyle = done ? '#ffd479' : '#b8fff0';
+    g.fillText(done ? '✓' : '→ ?', x + cs*.14, cy - cs*.62);
+  }
   for(const b of T.bugs) drawBug(g, b, cs, t, p.x, p.y);
   if(T.goal && !T.done){
     const pl = Math.sin(t*7)*.5 + .5;
@@ -3317,19 +3352,649 @@ function choose(eye, title, sub, a, b){
   openLayer('lChoice');
 }
 
+/* ======================================================================
+   GLOW MAZE: a secret cave off the side of the tunnels. Swim the glowing
+   corridors and gather every speck of glow-plankton while pufferfish
+   hunt you. Grab a big pearl and the puffers deflate and flee: touch
+   them then to bubble them away. Clear the cave to win, then climb back
+   out into the tunnels right where you left them.
+   ====================================================================== */
+const MAZE_HALF = [            // the left half plus the centre column; the right half is its mirror
+  '##########',
+  '#o.......#',
+  '#.##.###.#',
+  '#.........',
+  '#.##.#.###',
+  '#....#...#',
+  '####.###.#',
+  '.....#....',
+  '####.#.###',
+  '#.........',
+  '#.##.###.#',
+  '#o.#......',
+  '##.#.#.###',
+  '#....#...#',
+  '##########',
+];
+let mz = null;
+function enterMaze(){
+  const easy = save.mode === 'easy';
+  const rows = MAZE_HALF.map(h=>h + h.slice(0, 9).split('').reverse().join(''));
+  const H = rows.length, W = rows[0].length;
+  const wall = [], dots = [];
+  let left = 0;
+  for(let r=0; r<H; r++){
+    wall.push([]); dots.push([]);
+    for(let c=0; c<W; c++){
+      const ch = rows[r][c];
+      wall[r].push(ch === '#');
+      const d = ch === '.' ? 1 : ch === 'o' ? 2 : 0;
+      dots[r].push(d); if(d) left++;
+    }
+  }
+  dots[9][9] = 0; dots[7][9] = 0; left -= 2;
+  const cols = ['#ff6f9c','#ffb347','#9d8cff','#6ee6a0'];
+  mz = {W, H, wall, dots, left, easy, t:0, power:0, hearts:easy ? 0 : 3, got:0, done:false, parts:[],
+        p:{c:9, r:9, x:9, y:9, dir:[0,0], next:[0,0], face:1, hurt:0},
+        puff:[], cv:null};
+  for(let i=0; i<(easy ? 2 : 4); i++)
+    mz.puff.push({c:9, r:7, x:9, y:7, dir:[i % 2 ? 1 : -1, 0], col:cols[i], wait:i*2.2, gone:0, ph:i*1.7});
+  mzWalls();
+  scene = 'maze'; openLayer(null); showHud(true);
+  setSkip('Back to the tunnels ›', mazeExit);
+  toast('A secret glowing cave!');
+  Audio_.sweep(300, 1200, .5, 'sine', .1);
+}
+function mzCell(){ return Math.floor(Math.min((VW - 24) / mz.W, (VH - 130) / mz.H)); }
+function mzWalls(){
+  const cs = mzCell(); mz.cs = cs;
+  const c = mkCanvas(mz.W*cs, mz.H*cs, window.LEGACY ? 1 : Math.min(DPR, 2)), g = c.g;
+  mz.cv = c;
+  const W = mz.W, H = mz.H, wl = (cc, rr)=>rr < 0 || rr >= H || cc < 0 || cc >= W ? true : mz.wall[rr][cc];
+  for(let r=0; r<H; r++) for(let cc=0; cc<W; cc++){
+    if(!mz.wall[r][cc]) continue;
+    const x = cc*cs, y = r*cs;
+    const rg = g.createLinearGradient(x, y, x + cs, y + cs);
+    rg.addColorStop(0, '#1d3f5a'); rg.addColorStop(1, '#0d2238');
+    g.fillStyle = rg; g.fillRect(x - .5, y - .5, cs + 1, cs + 1);
+  }
+  // glowing edges wherever rock meets open water
+  g.lineCap = 'round';
+  for(const pass of [[7, 'rgba(90,240,220,.18)'], [2.5, 'rgba(150,255,235,.9)']]){
+    g.lineWidth = pass[0] * cs / 30; g.strokeStyle = pass[1];
+    for(let r=0; r<H; r++) for(let cc=0; cc<W; cc++){
+      if(!mz.wall[r][cc]) continue;
+      const x = cc*cs, y = r*cs, i = cs*.12;
+      g.beginPath();
+      if(!wl(cc, r - 1)){ g.moveTo(x + i, y + i); g.lineTo(x + cs - i, y + i); }
+      if(!wl(cc, r + 1)){ g.moveTo(x + i, y + cs - i); g.lineTo(x + cs - i, y + cs - i); }
+      if(!wl(cc - 1, r)){ g.moveTo(x + i, y + i); g.lineTo(x + i, y + cs - i); }
+      if(!wl(cc + 1, r)){ g.moveTo(x + cs - i, y + i); g.lineTo(x + cs - i, y + cs - i); }
+      g.stroke();
+    }
+  }
+}
+function mzOpen(c, r){
+  if(r < 0 || r >= mz.H) return false;
+  c = (c + mz.W) % mz.W;
+  return !mz.wall[r][c];
+}
+function mazeExit(){
+  if(scene !== 'maze') return;
+  persist(); setSkip(null); mz = null;
+  scene = 'tunnel'; openLayer(null); showHud(true);
+  setSkip('Skip ›', ()=>{ if(scene === 'tunnel') startDive(); });
+  const p = tun.p; p.moving = false; tun.goal = null;
+}
+function mazeTap(e){
+  if(scene !== 'maze' || overlay || !mz) return;
+  const cs = mz.cs, ox = (VW - mz.W*cs)/2, oy = (VH - mz.H*cs)/2 + 20;
+  const dx = (e.clientX - ox) / cs - (mz.p.x + .5), dy = (e.clientY - oy) / cs - (mz.p.y + .5);
+  if(Math.abs(dx) < .4 && Math.abs(dy) < .4) return;
+  mz.p.next = Math.abs(dx) > Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
+}
+cv.addEventListener('pointerdown', mazeTap);
+
+function mzMove(o, sp, dt, choose){
+  // glide along the grid; at each cell centre choose() picks the next direction
+  let left = sp * dt;
+  while(left > 0){
+    const atC = Math.abs(o.x - o.c) < 1e-6 && Math.abs(o.y - o.r) < 1e-6;
+    if(atC){
+      choose(o);
+      if(!o.dir[0] && !o.dir[1]) return;
+      if(!mzOpen(o.c + o.dir[0], o.r + o.dir[1])){ o.dir = [0, 0]; return; }
+      o.tc = o.c + o.dir[0]; o.tr = o.r + o.dir[1];
+    }
+    const tx = o.tc, ty = o.tr, d = Math.abs(tx - o.x) + Math.abs(ty - o.y);
+    if(d <= left){
+      left -= d; o.x = tx; o.y = ty;
+      o.c = ((tx % mz.W) + mz.W) % mz.W; o.r = ty; o.x = o.c; o.y = o.r;   // wrap through the side tunnel
+      if(o.onCell) o.onCell(o);
+    } else { o.x += Math.sign(tx - o.x) * left; o.y += Math.sign(ty - o.y) * left; left = 0; }
+  }
+}
+function updateMaze(dt){
+  const M = mz; if(!M || M.done) return;
+  M.t += dt;
+  if(M.power > 0) M.power -= dt;
+  if(M.p.hurt > 0) M.p.hurt -= dt;
+  for(let i=M.parts.length-1; i>=0; i--){ const q = M.parts[i]; q.t += dt; q.x += q.vx*dt; q.y += q.vy*dt; if(q.t > q.life) M.parts.splice(i, 1); }
+  const p = M.p, v = stickVec();
+  if(Math.abs(v.x) > .35 || Math.abs(v.y) > .35) p.next = Math.abs(v.x) > Math.abs(v.y) ? [Math.sign(v.x), 0] : [0, Math.sign(v.y)];
+  p.onCell = o=>{
+    const d = M.dots[o.r][o.c];
+    if(d){
+      M.dots[o.r][o.c] = 0; M.left--;
+      if(d === 2){ M.power = M.easy ? 9 : 7; Audio_.sweep(300, 900, .4, 'triangle', .12); toast('Big pearl! The puffers are scared!'); }
+      else if(Math.random() < .5) Audio_.tone(880 + (M.left % 4)*110, .05, 'sine', .05);
+      if(d === 2){ save.pearls += 2; M.got += 2; } else if(M.left % 6 === 0){ save.pearls++; M.got++; }
+      updateHud();
+      if(M.left <= 0) mazeWin();
+    }
+  };
+  mzMove(p, M.easy ? 4.2 : 5, dt, o=>{
+    if((o.next[0] || o.next[1]) && mzOpen(o.c + o.next[0], o.r + o.next[1])) o.dir = o.next;
+    if(o.dir[0]) o.face = o.dir[0];
+  });
+  // pufferfish
+  for(const f of M.puff){
+    if(f.wait > 0){ f.wait -= dt; continue; }
+    if(f.gone > 0){ f.gone -= dt; if(f.gone <= 0){ f.c = 9; f.r = 7; f.x = 9; f.y = 7; f.dir = [1, 0]; } continue; }
+    const scared = M.power > 0;
+    const sp = scared ? 2.4 : (M.easy ? 3.0 : 4.1);
+    mzMove(f, sp, dt, o=>{
+      const opts = [[1,0],[-1,0],[0,1],[0,-1]].filter(d=>mzOpen(o.c + d[0], o.r + d[1]) && !(d[0] === -o.dir[0] && d[1] === -o.dir[1]));
+      const all = opts.length ? opts : [[-o.dir[0], -o.dir[1]]];
+      const chase = !scared && Math.random() < (M.easy ? .45 : .8);
+      let best = null, bd = scared ? -1 : 1e9;
+      if(chase || scared){
+        for(const d of all){ const dd = Math.hypot(o.c + d[0] - p.x, o.r + d[1] - p.y);
+          if(scared ? dd > bd : dd < bd){ bd = dd; best = d; } }
+      }
+      o.dir = best || pick(all);
+    });
+    if(Math.hypot(f.x - p.x, f.y - p.y) < .7){
+      if(scared){
+        f.gone = 4; save.pearls += 5; M.got += 5; persist(); updateHud(); Audio_.pop(.16);
+        mzParts(f.x, f.y, f.col);
+        toast('Bubbled a puffer! +5');
+      } else if(p.hurt <= 0) mazeHurt();
+    }
+  }
+}
+function mzParts(x, y, col){
+  for(let i=0; i<16; i++){ const a = rnd(0, 6.28), s = rnd(1, 4);
+    mz.parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, t:0, life:rnd(.4, .8), c:pick([col, '#ffffff', '#bdf7ff'])}); }
+}
+function mazeHurt(){
+  const M = mz, p = M.p;
+  p.hurt = 2; Audio_.nope();
+  p.c = 9; p.r = 9; p.x = 9; p.y = 9; p.dir = [0, 0]; p.next = [0, 0];
+  if(M.easy){ toast('Puff! Back to the middle.'); return; }
+  M.hearts--;
+  if(M.hearts <= 0){
+    M.done = true; persist();
+    setTimeout(()=>result('🐡', 'The puffers got you this time', `You still kept the ${M.got} pearls you found. Back to the tunnels!`, mazeExit), 600);
+  } else toast('Ouch! Grab a big pearl, then chase them');
+}
+function mazeWin(){
+  const M = mz; M.done = true;
+  const bonus = M.easy ? 10 : 15;
+  save.pearls += bonus; persist(); updateHud(); Audio_.great();
+  if(tun) tun.mazeDone = true;
+  setTimeout(()=>result('✨', 'You lit up the whole cave!', `Pearls from the cave: +${M.got + bonus}. Back to the tunnels to finish the dig!`, mazeExit), 700);
+}
+function drawMaze(t){
+  const M = mz, g = ctx;
+  if(M.cs !== mzCell()) mzWalls();
+  const cs = M.cs, ox = (VW - M.W*cs)/2, oy = (VH - M.H*cs)/2 + 20;
+  const bg = g.createRadialGradient(VW/2, VH/2, 40, VW/2, VH/2, Math.max(VW, VH)*.7);
+  bg.addColorStop(0, '#0b2a40'); bg.addColorStop(1, '#020b16');
+  g.fillStyle = bg; g.fillRect(0, 0, VW, VH);
+  g.drawImage(M.cv, ox, oy, M.W*cs, M.H*cs);
+  g.save(); g.translate(ox, oy);
+  // glow-plankton and big pearls
+  for(let r=0; r<M.H; r++) for(let c=0; c<M.W; c++){
+    const d = M.dots[r][c]; if(!d) continue;
+    const x = (c + .5)*cs, y = (r + .5)*cs;
+    if(d === 1){
+      g.fillStyle = 'rgba(160,255,230,' + (.6 + .4*Math.sin(t*3 + c + r)) + ')';
+      g.beginPath(); g.arc(x, y, cs*.09, 0, 7); g.fill();
+    } else {
+      const pr = cs*(.26 + Math.sin(t*5)*.04);
+      const pg = g.createRadialGradient(x - pr*.3, y - pr*.3, 1, x, y, pr*1.6);
+      pg.addColorStop(0, '#ffffff'); pg.addColorStop(.45, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)');
+      g.fillStyle = pg; g.beginPath(); g.arc(x, y, pr*1.6, 0, 7); g.fill();
+    }
+  }
+  // pufferfish
+  for(const f of M.puff){
+    if(f.gone > 0 || f.wait > 0 && f.wait > 1.5) continue;
+    const x = (f.x + .5)*cs, y = (f.y + .5)*cs, scared = M.power > 0;
+    const flash = scared && M.power < 2 && Math.floor(t*6) % 2;
+    const col = scared ? (flash ? '#ffffff' : '#8fb8ff') : f.col;
+    const r = cs*(scared ? .3 : .4 + Math.sin(t*4 + f.ph)*.03);
+    g.save(); g.translate(x, y); g.scale(f.dir[0] < 0 ? -1 : 1, 1);
+    g.strokeStyle = shade(scared ? '#8fb8ff' : f.col, -50); g.lineWidth = cs*.05; g.lineCap = 'round';
+    if(!scared) for(let i=0; i<12; i++){ const a = i/12*6.28; g.beginPath(); g.moveTo(Math.cos(a)*r*.9, Math.sin(a)*r*.9); g.lineTo(Math.cos(a)*r*1.25, Math.sin(a)*r*1.25); g.stroke(); }
+    const pg = g.createRadialGradient(-r*.3, -r*.35, 1, 0, 0, r);
+    pg.addColorStop(0, shade(scared ? '#8fb8ff' : f.col, 60)); pg.addColorStop(1, shade(scared ? '#8fb8ff' : f.col, -40));
+    g.fillStyle = flash ? '#ffffff' : pg; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+    g.fillStyle = shade(scared ? '#8fb8ff' : f.col, -20);
+    g.beginPath(); g.moveTo(-r*.9, 0); g.lineTo(-r*1.45, -r*.45); g.lineTo(-r*1.45, r*.45); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(r*.35, -r*.25, r*.28, 0, 7); g.fill();
+    g.fillStyle = '#10202c'; g.beginPath(); g.arc(r*.42, -r*.22, r*.13, 0, 7); g.fill();
+    if(scared){ g.strokeStyle = '#ffffff'; g.lineWidth = cs*.04;
+      g.beginPath(); for(let i=0; i<5; i++) g.lineTo(-r*.4 + i*r*.2, r*.35 + (i % 2 ? -1 : 1)*r*.08); g.stroke(); }
+    g.restore();
+  }
+  // the diver
+  const p = M.p;
+  if(!(p.hurt > 0 && Math.floor(p.hurt*10) % 2)){
+    const px = (p.x + .5)*cs, py = (p.y + .5)*cs;
+    g.globalCompositeOperation = 'lighter';
+    const hl = g.createRadialGradient(px, py, 1, px, py, cs*2.2);
+    hl.addColorStop(0, 'rgba(255,240,190,.3)'); hl.addColorStop(1, 'rgba(255,240,190,0)');
+    g.fillStyle = hl; g.beginPath(); g.arc(px, py, cs*2.2, 0, 7); g.fill();
+    g.globalCompositeOperation = 'source-over';
+    g.save(); g.translate(px, py);
+    if(p.dir[1]) g.rotate(p.dir[1] * .5 * p.face);
+    drawDiver(g, 0, 0, cs/44, SUITS[save.suit], HAIRS[save.hair], t, p.face, p.dir[0] || p.dir[1] ? 1 : 0);
+    g.restore();
+  }
+  for(const q of M.parts){ g.globalAlpha = clamp(1 - q.t/q.life, 0, 1); g.fillStyle = q.c;
+    g.beginPath(); g.arc((q.x + .5)*cs, (q.y + .5)*cs, cs*.07, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  g.restore();
+  // hearts and how much is left
+  for(let i=0; i<(M.easy ? 0 : 3); i++){
+    const hx = 26 + i*30, hy = 76;
+    g.fillStyle = i < M.hearts ? '#ff5f7e' : 'rgba(255,255,255,.18)';
+    g.beginPath(); g.moveTo(hx, hy + 7);
+    g.bezierCurveTo(hx - 13, hy - 2, hx - 7, hy - 13, hx, hy - 5);
+    g.bezierCurveTo(hx + 7, hy - 13, hx + 13, hy - 2, hx, hy + 7); g.fill();
+  }
+  shadowText(g, M.left + ' glow specks left', VW/2, oy - 16, 16, '#bdf7ff');
+  if(M.t < 4){
+    g.globalAlpha = clamp((4 - M.t)/.8, 0, 1);
+    shadowText(g, HAS_TOUCH ? 'Tap the way you want to swim' : 'Arrow keys to swim', VW/2, VH*.5, Math.min(VW*.045, 26), '#ffffff');
+    g.globalAlpha = 1;
+  }
+}
+
+/* ======================================================================
+   MUSIC BOX: a tiny sequencer for looping tunes. Melodies are written
+   as "NOTE:beats" (R is a rest), played by a celesta-like voice over a
+   plucked bass, scheduled a moment ahead on the audio clock.
+   ====================================================================== */
+function noteHz(n){
+  const m = /^([A-G])(#|b)?(\d)$/.exec(n);
+  if(!m) return 0;
+  const s = {C:0, D:2, E:4, F:5, G:7, A:9, B:11}[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+  return 440 * Math.pow(2, (s + (+m[3] + 1)*12 - 69) / 12);
+}
+function parseTune(str){ return str.trim().split(/\s+/).map(tok=>{ const q = tok.split(':'); return [q[0] === 'R' ? 0 : noteHz(q[0]), +q[1]]; }); }
+function bassLine(roots, beatsPerBar){            // a root–octave bounce in eighth notes
+  const out = [];
+  for(const r of roots){ const f = noteHz(r); for(let i=0; i<beatsPerBar*2; i++) out.push([i % 2 ? f*2 : f, .5]); }
+  return out;
+}
+const TRACKS = [
+  { name:'Dance of the Sugar Plum Fairy', by:'Tchaikovsky · The Nutcracker', bpm:76, voice:'celesta',
+    mel:parseTune(`B4:.5 G4:.5 B4:.5 A#4:.5  F#4:.5 A#4:.5 A4:.5 F4:.5  A4:.5 G#4:.5 E4:.5 G#4:.5
+                   G4:.5 E4:.5 G4:.5 F#4:.5  D#4:.5 F#4:.5 E4:2 R:1
+                   B4:.5 G4:.5 B4:.5 A#4:.5  F#4:.5 A#4:.5 A4:.5 F4:.5  A4:.5 G#4:.5 E4:.5 G#4:.5
+                   G4:.5 E4:.5 G4:.5 F#4:.5  D#4:.5 F#4:.5 E4:2 R:1
+                   E5:.5 G5:.5 B5:.5 E6:.5  B5:.5 G5:.5 E5:1`),
+    bass:parseTune(Array(14).fill('E3:.5 R:.5 B2:.5 R:.5').join(' ')) },
+  { name:'Korobeiniki', by:'Russian folk song', bpm:144, voice:'pluck',
+    mel:parseTune(`E5:1 B4:.5 C5:.5 D5:1 C5:.5 B4:.5   A4:1 A4:.5 C5:.5 E5:1 D5:.5 C5:.5
+                   B4:1.5 C5:.5 D5:1 E5:1   C5:1 A4:1 A4:1 R:1
+                   R:.5 D5:1 F5:.5 A5:1 G5:.5 F5:.5   E5:1.5 C5:.5 E5:1 D5:.5 C5:.5
+                   B4:1 B4:.5 C5:.5 D5:1 E5:1   C5:1 A4:1 A4:1 R:1`),
+    bass:bassLine(['E2','A2','E2','A2','D2','C2','E2','A2'], 4) },
+];
+const Music = {
+  on:false, track:0, timer:null, voices:null, gain:null,
+  start(i){
+    this.stop();
+    if(typeof i === 'number') this.track = i;
+    Audio_.init(); const ac = Audio_.ac; if(!ac) return;
+    if(!this.gain){ this.gain = ac.createGain(); this.gain.gain.value = .55; this.gain.connect(ac.destination); }
+    const T = TRACKS[this.track], t0 = ac.currentTime + .1;
+    this.voices = [{notes:T.mel, i:0, t:t0, kind:T.voice}, {notes:T.bass, i:0, t:t0, kind:'bass'}];
+    this.on = true;
+    this.timer = setInterval(()=>this.tick(), 40);
+    this.tick();
+  },
+  stop(){ this.on = false; if(this.timer){ clearInterval(this.timer); this.timer = null; } },
+  next(){ this.start((this.track + 1) % TRACKS.length); },
+  tick(){
+    const ac = Audio_.ac; if(!ac || !this.on) return;
+    const T = TRACKS[this.track], spb = 60 / T.bpm, ahead = ac.currentTime + .2;
+    for(const v of this.voices){
+      if(v.t < ac.currentTime - .5) v.t = ac.currentTime + .05;      // the tab slept; catch up quietly
+      while(v.t < ahead){
+        const n = v.notes[v.i], dur = n[1]*spb;
+        if(n[0]) this.play(v.kind, n[0], v.t, dur);
+        v.t += dur; v.i = (v.i + 1) % v.notes.length;
+      }
+    }
+  },
+  play(kind, f, t, dur){
+    const ac = Audio_.ac, g = ac.createGain();
+    g.connect(this.gain);
+    const parts = kind === 'celesta' ? [[1, 'sine', .22], [4, 'sine', .05], [2, 'triangle', .04]]
+      : kind === 'pluck' ? [[1, 'triangle', .16], [2, 'square', .025]]
+      : [[1, 'triangle', .2]];
+    const len = kind === 'celesta' ? Math.max(.6, dur*1.4) : kind === 'bass' ? dur*.9 : dur*.95;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .008);
+    g.gain.exponentialRampToValueAtTime(.001, t + len);
+    for(const p of parts){
+      const o = ac.createOscillator(), og = ac.createGain();
+      o.type = p[1]; o.frequency.setValueAtTime(f*p[0], t); og.gain.value = p[2];
+      o.connect(og); og.connect(g); o.start(t); o.stop(t + len + .05);
+    }
+  },
+};
+addEventListener('visibilitychange', ()=>{ if(document.hidden) Music.stop(); else if(scene === 'blocks') Music.start(); });
+
+/* ======================================================================
+   CRYSTAL DROP: a falling-blocks puzzle in the Snow Palace dome, under
+   the onion domes of a sunken palace, to Russian music. Clear rows to
+   earn pearls and hear the number in Russian.
+   Easy: slower, and if the stack reaches the top the sea washes the
+   bottom half away instead of ending the game.
+   ====================================================================== */
+const PIECES = {
+  I:{m:['....','XXXX','....','....'], c:'#5fe3f5'}, O:{m:['XX','XX'], c:'#ffd45c'},
+  T:{m:['.X.','XXX','...'], c:'#c58cff'},         S:{m:['.XX','XX.','...'], c:'#6ee69a'},
+  Z:{m:['XX.','.XX','...'], c:'#ff6f86'},         J:{m:['X..','XXX','...'], c:'#5f9dff'},
+  L:{m:['..X','XXX','...'], c:'#ffa04f'},
+};
+const RU_NUM = [['один','odin'], ['два','dva'], ['три','tri'], ['четыре','chetyre']];
+let bk = null;
+function bkMatrix(m){ return m.map(r=>r.split('').map(ch=>ch === 'X')); }
+function bkRotate(m){ const n = m.length; return m.map((row, r)=>row.map((_, c)=>m[n - 1 - c][r])); }
+function bkBag(){ const b = Object.keys(PIECES); for(let i=b.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i + 1)); const t = b[i]; b[i] = b[j]; b[j] = t; } return b; }
+function startBlocks(){
+  const easy = save.mode === 'easy';
+  bk = {W:10, H:20, board:[], easy, bag:[], next:null, piece:null, t:0, drop:0, lock:0, lines:0, level:1,
+        got:0, clearing:null, done:false, flash:[], snow:[], best:save.bestBlocks || 0};
+  for(let r=0; r<bk.H; r++) bk.board.push(new Array(bk.W).fill(0));
+  for(let i=0; i<(window.LEGACY ? 30 : 70); i++) bk.snow.push({x:rnd(0, 1), y:rnd(0, 1), r:rnd(1, 3), sp:rnd(.02, .06), ph:rnd(0, 9)});
+  bk.next = bkTake();
+  bkSpawn();
+  scene = 'blocks'; openLayer(null); showHud(true); setSkip(null);
+  $('#bkPads').hidden = false;
+  Music.start();
+  toast('Crystal Drop!');
+}
+function bkTake(){ if(!bk.bag.length) bk.bag = bkBag(); return bk.bag.pop(); }
+function bkSpawn(){
+  const k = bk.next; bk.next = bkTake();
+  const m = bkMatrix(PIECES[k].m);
+  bk.piece = {k, m, x:Math.floor((bk.W - m.length)/2), y:k === 'I' ? -1 : 0};
+  bk.lock = 0;
+  if(bkHit(bk.piece.m, bk.piece.x, bk.piece.y)) bkTopOut();
+}
+function bkHit(m, x, y){
+  for(let r=0; r<m.length; r++) for(let c=0; c<m.length; c++){
+    if(!m[r][c]) continue;
+    const bx = x + c, by = y + r;
+    if(bx < 0 || bx >= bk.W || by >= bk.H) return true;
+    if(by >= 0 && bk.board[by][bx]) return true;
+  }
+  return false;
+}
+function bkMove(dx){
+  if(!bkLive()) return;
+  const p = bk.piece;
+  if(!bkHit(p.m, p.x + dx, p.y)){ p.x += dx; bk.lock = 0; Audio_.tone(520, .04, 'sine', .04); }
+}
+function bkTurn(){
+  if(!bkLive()) return;
+  const p = bk.piece; if(p.k === 'O') return;
+  const m = bkRotate(p.m);
+  for(const k of [[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1]])          // nudge it free of walls
+    if(!bkHit(m, p.x + k[0], p.y + k[1])){ p.m = m; p.x += k[0]; p.y += k[1]; bk.lock = 0; Audio_.tone(700, .05, 'triangle', .05); return; }
+}
+function bkSoft(){ if(!bkLive()) return; const p = bk.piece; if(!bkHit(p.m, p.x, p.y + 1)){ p.y++; bk.drop = 0; } }
+function bkHard(){
+  if(!bkLive()) return;
+  const p = bk.piece; let n = 0;
+  while(!bkHit(p.m, p.x, p.y + 1)){ p.y++; n++; }
+  Audio_.noise(.12, 900, 1, .14); bkPlace();
+}
+function bkLive(){ return bk && !bk.done && !bk.clearing && bk.piece && scene === 'blocks' && !overlay; }
+function bkPlace(){
+  const p = bk.piece, col = PIECES[p.k].c;
+  for(let r=0; r<p.m.length; r++) for(let c=0; c<p.m.length; c++)
+    if(p.m[r][c] && p.y + r >= 0) bk.board[p.y + r][p.x + c] = col;
+  bk.piece = null;
+  const full = [];
+  for(let r=0; r<bk.H; r++) if(bk.board[r].every(v=>v)) full.push(r);
+  if(full.length){ bk.clearing = {rows:full, t:0}; bkScore(full.length); }
+  else bkSpawn();
+}
+function bkScore(n){
+  const gain = [0, 1, 3, 5, 8][n];
+  bk.lines += n; bk.got += gain; save.pearls += gain; persist(); updateHud();
+  bk.level = 1 + Math.floor(bk.lines / 8);
+  const w = RU_NUM[n - 1];
+  toast(`${w[0]}! (${w[1]}) +${gain}`);
+  Audio_.say(w[0]);
+  [523.25, 659.25, 783.99, 1046.5].slice(0, n + 1).forEach((f, i)=>Audio_.tone(f, .3, 'triangle', .1, i*.06));
+}
+function bkTopOut(){
+  if(bk.easy){
+    for(let r=bk.H/2; r<bk.H; r++) bk.board[r].fill(0);
+    const keep = bk.board.slice(0, bk.H/2);
+    bk.board = Array.from({length:bk.H/2}, ()=>new Array(bk.W).fill(0)).concat(keep);
+    toast('A big wave washed half the blocks away!'); Audio_.sploosh();
+    const m = bkMatrix(PIECES[bk.piece.k].m);
+    bk.piece.m = m; bk.piece.y = 0;
+    return;
+  }
+  bk.done = true; Music.stop(); Audio_.nope();
+  save.bestBlocks = Math.max(save.bestBlocks || 0, bk.lines); persist();
+  setTimeout(()=>result('🧊', 'The palace is full!', `${bk.lines} rows cleared, best ever ${save.bestBlocks}. Pearls earned: +${bk.got}.`,
+    ()=>{ startBlocks(); }), 500);
+}
+function leaveBlocks(){
+  Music.stop(); $('#bkPads').hidden = true;
+  if(bk && bk.lines){ save.bestBlocks = Math.max(save.bestBlocks || 0, bk.lines); persist(); }
+  bk = null; leaveDome();
+}
+function updateBlocks(dt){
+  if(!bk || bk.done) return;
+  bk.t += dt;
+  for(const s of bk.snow){ s.y += s.sp*dt; s.x += Math.sin(bk.t*.5 + s.ph)*.004*dt; if(s.y > 1.02){ s.y = -.02; s.x = rnd(0, 1); } }
+  if(bk.clearing){
+    bk.clearing.t += dt;
+    if(bk.clearing.t > .32){
+      const rows = bk.clearing.rows;
+      bk.board = bk.board.filter((_, r)=>rows.indexOf(r) < 0);
+      while(bk.board.length < bk.H) bk.board.unshift(new Array(bk.W).fill(0));
+      bk.clearing = null; bkSpawn();
+    }
+    return;
+  }
+  const p = bk.piece; if(!p) return;
+  const fall = bk.easy ? Math.max(.42, 1.0 - (bk.level - 1)*.07) : Math.max(.09, .8 - (bk.level - 1)*.08);
+  if(bkHit(p.m, p.x, p.y + 1)){
+    bk.lock += dt;
+    if(bk.lock > .45) bkPlace();
+  } else {
+    bk.drop += dt;
+    if(bk.drop >= fall){ bk.drop = 0; p.y++; }
+  }
+}
+function bkLayout(){
+  const cs = Math.floor(Math.min((VH - 190) / bk.H, (VW - 40) / (bk.W + 6.5)));
+  const bw = bk.W*cs, side = cs*5.5, total = bw + 14 + side;
+  const ox = Math.round((VW - total)/2), oy = Math.round(Math.max(64, (VH - 120 - bk.H*cs)/2 + 50));
+  return {cs, ox, oy, sx:ox + bw + 14, bw};
+}
+function bkGem(g, x, y, s, col, alpha){
+  g.globalAlpha = alpha === undefined ? 1 : alpha;
+  const gr = g.createLinearGradient(x, y, x + s, y + s);
+  gr.addColorStop(0, shade(col, 60)); gr.addColorStop(.5, col); gr.addColorStop(1, shade(col, -55));
+  g.fillStyle = gr; roundRect(g, x + 1, y + 1, s - 2, s - 2, s*.18); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.45)';
+  g.beginPath(); g.moveTo(x + s*.18, y + s*.2); g.lineTo(x + s*.62, y + s*.2); g.lineTo(x + s*.2, y + s*.6); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1; roundRect(g, x + 1.5, y + 1.5, s - 3, s - 3, s*.18); g.stroke();
+  g.globalAlpha = 1;
+}
+function drawBlocks(t){
+  const g = ctx, L = bkLayout(), cs = L.cs;
+  // a sunken palace: deep water, onion domes, falling sea-snow
+  const bg = g.createLinearGradient(0, 0, 0, VH);
+  bg.addColorStop(0, '#0e3f66'); bg.addColorStop(.6, '#082a48'); bg.addColorStop(1, '#041626');
+  g.fillStyle = bg; g.fillRect(0, 0, VW, VH);
+  g.globalCompositeOperation = 'lighter';
+  for(let i=0; i<3; i++){
+    const x = VW*(.2 + i*.3) + Math.sin(t*.3 + i)*40;
+    const lg = g.createLinearGradient(x, 0, x, VH);
+    lg.addColorStop(0, 'rgba(150,230,255,.12)'); lg.addColorStop(1, 'rgba(150,230,255,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(x - 30, 0); g.lineTo(x + 30, 0); g.lineTo(x + 160, VH); g.lineTo(x - 160, VH); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+  const domes = [[.08, .55, 1, '#2a6f8f'], [.2, .62, .7, '#7a3f6f'], [.82, .5, 1.1, '#2f7f5f'], [.94, .62, .7, '#8a6a2f'], [.7, .66, .6, '#5a4f9a']];
+  for(const d of domes){
+    const x = VW*d[0], base = VH*d[1] + 120, s = Math.min(VW, VH)*.09*d[2];
+    g.fillStyle = 'rgba(10,40,60,.75)'; g.fillRect(x - s*.55, base - s*1.2, s*1.1, VH);
+    for(let w=0; w<3; w++){ g.fillStyle = 'rgba(255,220,140,' + (.25 + .2*Math.sin(t*2 + x + w)) + ')'; roundRect(g, x - s*.3 + w*s*.22, base - s*.7, s*.14, s*.3, s*.07); g.fill(); }
+    const dg = g.createLinearGradient(x - s*.7, 0, x + s*.7, 0);
+    dg.addColorStop(0, shade(d[3], -30)); dg.addColorStop(.4, shade(d[3], 40)); dg.addColorStop(1, shade(d[3], -50));
+    g.fillStyle = dg; g.globalAlpha = .85;
+    g.beginPath(); g.moveTo(x - s*.6, base - s*1.2);
+    g.bezierCurveTo(x - s*.9, base - s*1.8, x - s*.1, base - s*2.1, x, base - s*2.6);
+    g.bezierCurveTo(x + s*.1, base - s*2.1, x + s*.9, base - s*1.8, x + s*.6, base - s*1.2); g.fill();
+    g.globalAlpha = 1;
+    g.strokeStyle = '#e8c35a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, base - s*2.6); g.lineTo(x, base - s*2.95); g.stroke();
+    g.fillStyle = '#ffd96a'; g.beginPath(); g.arc(x, base - s*2.98, 3, 0, 7); g.fill();
+  }
+  for(const s of bk.snow){ g.fillStyle = 'rgba(240,250,255,' + (.35 + .3*Math.sin(t + s.ph)) + ')';
+    g.beginPath(); g.arc(s.x*VW, s.y*VH, s.r, 0, 7); g.fill(); }
+  // the well
+  const bw = L.bw, bh = bk.H*cs;
+  g.fillStyle = 'rgba(2,14,28,.72)'; roundRect(g, L.ox - 8, L.oy - 8, bw + 16, bh + 16, 14); g.fill();
+  g.strokeStyle = '#e8c35a'; g.lineWidth = 3; g.stroke();
+  g.strokeStyle = 'rgba(232,195,90,.35)'; g.lineWidth = 1; roundRect(g, L.ox - 3, L.oy - 3, bw + 6, bh + 6, 10); g.stroke();
+  g.strokeStyle = 'rgba(125,240,255,.06)';
+  for(let c=1; c<bk.W; c++){ g.beginPath(); g.moveTo(L.ox + c*cs, L.oy); g.lineTo(L.ox + c*cs, L.oy + bh); g.stroke(); }
+  for(let r=1; r<bk.H; r++){ g.beginPath(); g.moveTo(L.ox, L.oy + r*cs); g.lineTo(L.ox + bw, L.oy + r*cs); g.stroke(); }
+  for(let r=0; r<bk.H; r++){
+    const clearing = bk.clearing && bk.clearing.rows.indexOf(r) >= 0;
+    for(let c=0; c<bk.W; c++){
+      const v = bk.board[r][c]; if(!v) continue;
+      if(clearing){ g.fillStyle = 'rgba(255,255,255,' + (1 - bk.clearing.t/.32) + ')'; g.fillRect(L.ox + c*cs, L.oy + r*cs, cs, cs); }
+      else bkGem(g, L.ox + c*cs, L.oy + r*cs, cs, v);
+    }
+  }
+  const p = bk.piece;
+  if(p && !bk.done){
+    let gy = p.y; while(!bkHit(p.m, p.x, gy + 1)) gy++;
+    for(let r=0; r<p.m.length; r++) for(let c=0; c<p.m.length; c++){
+      if(!p.m[r][c]) continue;
+      if(gy + r >= 0){ g.strokeStyle = PIECES[p.k].c; g.globalAlpha = .45; g.lineWidth = 2;
+        roundRect(g, L.ox + (p.x + c)*cs + 3, L.oy + (gy + r)*cs + 3, cs - 6, cs - 6, cs*.15); g.stroke(); g.globalAlpha = 1; }
+      if(p.y + r >= 0) bkGem(g, L.ox + (p.x + c)*cs, L.oy + (p.y + r)*cs, cs, PIECES[p.k].c);
+    }
+  }
+  // side panel: next piece, rows, level, the music
+  const sx = L.sx, sw = cs*5.5;
+  g.fillStyle = 'rgba(2,14,28,.6)'; roundRect(g, sx, L.oy - 8, sw, cs*5.2, 12); g.fill();
+  g.strokeStyle = 'rgba(232,195,90,.6)'; g.lineWidth = 1.5; g.stroke();
+  g.font = '700 ' + Math.round(Math.max(11, cs*.42)) + 'px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#e8c35a'; g.fillText('NEXT', sx + sw/2, L.oy + cs*.4);
+  const nm = bkMatrix(PIECES[bk.next].m), ns = cs*.8, n = nm.length;
+  let minR = n, maxR = 0, minC = n, maxC = 0;
+  for(let r=0; r<n; r++) for(let c=0; c<n; c++) if(nm[r][c]){ minR = Math.min(minR, r); maxR = Math.max(maxR, r); minC = Math.min(minC, c); maxC = Math.max(maxC, c); }
+  const nx = sx + sw/2 - (maxC - minC + 1)*ns/2, ny = L.oy + cs*2.6 - (maxR - minR + 1)*ns/2;
+  for(let r=0; r<n; r++) for(let c=0; c<n; c++) if(nm[r][c]) bkGem(g, nx + (c - minC)*ns, ny + (r - minR)*ns, ns, PIECES[bk.next].c);
+  const ty = L.oy + cs*5.8;
+  g.fillStyle = 'rgba(2,14,28,.6)'; roundRect(g, sx, ty, sw, cs*4.2, 12); g.fill();
+  g.strokeStyle = 'rgba(232,195,90,.6)'; g.stroke();
+  g.fillStyle = '#bdf7ff'; g.fillText('ROWS', sx + sw/2, ty + cs*.6);
+  g.fillStyle = '#ffffff'; g.font = '700 ' + Math.round(cs*.9) + 'px Comfortaa, sans-serif'; g.fillText(bk.lines, sx + sw/2, ty + cs*1.5);
+  g.font = '700 ' + Math.round(Math.max(11, cs*.42)) + 'px Comfortaa, sans-serif';
+  g.fillStyle = '#bdf7ff'; g.fillText('LEVEL ' + bk.level, sx + sw/2, ty + cs*2.55);
+  g.fillStyle = '#e8c35a'; g.fillText('BEST ' + Math.max(bk.best, bk.lines), sx + sw/2, ty + cs*3.4);
+  const T = TRACKS[Music.track];
+  const my = ty + cs*4.8;
+  g.fillStyle = 'rgba(2,14,28,.6)'; roundRect(g, sx, my, sw, cs*3.3, 12); g.fill();
+  g.strokeStyle = 'rgba(232,195,90,.6)'; g.stroke();
+  g.fillStyle = Music.on ? '#ffd479' : 'rgba(255,255,255,.4)';
+  g.font = Math.round(cs*.8) + 'px serif'; g.fillText(Music.on ? '♫' : '♪', sx + sw/2, my + cs*.75);
+  g.font = '700 ' + Math.round(Math.max(10, cs*.34)) + 'px Comfortaa, sans-serif'; g.fillStyle = '#ffffff';
+  bkWrap(g, Music.on ? T.name : 'Music off', sx + sw/2, my + cs*1.6, sw - 12, cs*.42);
+  g.font = '600 ' + Math.round(Math.max(9, cs*.28)) + 'px Nunito, sans-serif'; g.fillStyle = '#9fd3e6';
+  if(Music.on) g.fillText(T.by, sx + sw/2, my + cs*2.85);
+}
+function bkWrap(g, text, x, y, maxW, lh){
+  const words = text.split(' '); let line = '', yy = y;
+  for(const w of words){
+    const tryL = line ? line + ' ' + w : w;
+    if(g.measureText(tryL).width > maxW && line){ g.fillText(line, x, yy); line = w; yy += lh; }
+    else line = tryL;
+  }
+  g.fillText(line, x, yy);
+}
+// on-screen buttons hold to repeat; the board itself takes taps and swipes
+(function(){
+  const rep = (el, fn)=>{
+    let timer = null, first = null;
+    const stop = ()=>{ clearTimeout(first); clearInterval(timer); first = timer = null; el.classList.remove('down'); };
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); Audio_.init(); el.classList.add('down'); fn();
+      first = setTimeout(()=>{ timer = setInterval(fn, 70); }, 190); });
+    el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop); el.addEventListener('pointerleave', stop);
+  };
+  rep($('#bkL'), ()=>bkMove(-1)); rep($('#bkR'), ()=>bkMove(1)); rep($('#bkD'), ()=>bkSoft());
+  $('#bkT').addEventListener('pointerdown', e=>{ e.preventDefault(); bkTurn(); });
+  $('#bkH').addEventListener('pointerdown', e=>{ e.preventDefault(); bkHard(); });
+  $('#bkM').addEventListener('pointerdown', e=>{ e.preventDefault(); if(!Music.on) Music.start(0); else if(Music.track < TRACKS.length - 1) Music.next(); else Music.stop(); });
+  let sw = null;
+  cv.addEventListener('pointerdown', e=>{ if(scene === 'blocks' && !overlay) sw = {x:e.clientX, y:e.clientY, lx:e.clientX, t:performance.now(), moved:false}; });
+  cv.addEventListener('pointermove', e=>{
+    if(!sw || scene !== 'blocks') return;
+    const cs = bkLayout().cs;
+    while(e.clientX - sw.lx > cs){ bkMove(1); sw.lx += cs; sw.moved = true; }
+    while(sw.lx - e.clientX > cs){ bkMove(-1); sw.lx -= cs; sw.moved = true; }
+  });
+  cv.addEventListener('pointerup', e=>{
+    if(!sw || scene !== 'blocks'){ sw = null; return; }
+    const dy = e.clientY - sw.y, dt = performance.now() - sw.t;
+    if(dy > 60 && dy / Math.max(1, dt) > .5) bkHard();
+    else if(!sw.moved && Math.abs(dy) < 20) bkTurn();
+    sw = null;
+  });
+  addEventListener('keydown', e=>{
+    if(scene !== 'blocks' || overlay) return;
+    const k = e.key;
+    if(k === 'ArrowLeft') bkMove(-1); else if(k === 'ArrowRight') bkMove(1);
+    else if(k === 'ArrowDown') bkSoft(); else if(k === 'ArrowUp' || k.toLowerCase() === 'x') bkTurn();
+    else if(k === ' ') bkHard(); else if(k === 'Escape') leaveBlocks();
+    else return;
+    e.preventDefault();
+  });
+})();
+
 /* ============================ OVERLAYS ============================ */
 function openLayer(id){
   $$('.layer').forEach(l=>l.classList.remove('on'));
   if(id){ $('#'+id).classList.add('on'); overlay = id; showPads(false); }
   else { overlay = null; showPads(padScene() && !$('#hud').hidden); }
 }
-const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel';
+const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel' || scene === 'maze';
 function showHud(on){
   $('#hud').hidden = !on;
   $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
   $('#chipUp').hidden = scene !== 'ocean';
   $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
-    : scene === 'run' ? '‹ Leave' : '🏠 Home';
+    : scene === 'run' || scene === 'blocks' ? '‹ Leave' : scene === 'maze' ? '‹ Tunnels' : '🏠 Home';
   showPads(on && padScene()); updateHud();
 }
 function showPads(on){
@@ -3337,12 +4002,15 @@ function showPads(on){
   // in the tunnels you touch where to dig, so the stick zone would only get in the way
   $('#stickz').hidden = scene === 'tunnel';
   $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : 'SWIM';
+  $('#padA').hidden = $('#padB').hidden = scene === 'maze';      // the maze is just steering
 }
 function updateHud(){ if(save) $('#pearlN').textContent = save.pearls; }
 
 $('#chipPearls').onclick = ()=>{ if(scene==='ocean') openHome(); };
 $('#chipBack').onclick = ()=>{
   if(scene === 'run'){ run = null; leaveDome(); }
+  else if(scene === 'blocks') leaveBlocks();
+  else if(scene === 'maze') mazeExit();
   else if(scene === 'yard') goTitle();
   else if(scene === 'tunnel') yardStart('back');
   else openHome();
@@ -3364,6 +4032,7 @@ function enterDome(d){
 }
 function runDome(id){
   if(id === 'build'){ startRun(); return; }
+  if(id === 'blocks'){ startBlocks(); return; }
   if(id === 'music') openMusic();
   if(id === 'dance') openDance();
   if(id === 'draw')  openDraw();
@@ -3885,7 +4554,7 @@ function buildTitle(){
     };
     nm.appendChild(pen);
     const mt = document.createElement('div'); mt.className = 'meta';
-    mt.innerHTML = `${d.age}<br>${s.introDone ? `🫧 ${s.pearls} pearls · ${s.words.length}/4 doors` : d.blurb}`;
+    mt.innerHTML = `${d.age}<br>${s.introDone ? `🫧 ${s.pearls} pearls · ${s.words.length}/${Object.keys(LOCKED).length} doors` : d.blurb}`;
     card.appendChild(nm); card.appendChild(mt);
     card.onclick = ()=>startProfile(d.id);
     box.appendChild(card);
@@ -3945,6 +4614,12 @@ function step(){
   } else if(scene === 'show'){
     if(!overlay) updateDance(dt, t);
     drawDance(t);
+  } else if(scene === 'maze'){
+    if(!overlay) updateMaze(dt);
+    if(mz) drawMaze(t);
+  } else if(scene === 'blocks'){
+    if(!overlay) updateBlocks(dt);
+    if(bk) drawBlocks(t);
   } else if(scene === 'run'){
     if(!overlay) updateRun(dt);
     if(run) drawRun(t);
