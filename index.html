@@ -597,7 +597,7 @@ function diverName(d){
   try{ return localStorage.getItem('bubbletown.name.'+d.id) || d.name; }catch(e){ return d.name; }
 }
 const SUITS = ['#ff6f9c','#ffd479','#57e0f0','#9d8cff','#6ee6a0','#ff9a5c'];
-const HAIRS = ['#3a2418','#6b4423','#c99a4e','#1a1a22','#d8d3cc'];
+const HAIRS = ['#f3d27a','#f8e6a6','#c99a4e','#6b4423','#3a2418','#1a1a22','#d8d3cc'];   // both girls are blonde: the first two
 
 const DEF = () => ({
   v:2, pearls:12, suit:2, hair:0, mode:'advanced',
@@ -725,7 +725,7 @@ wirePad($('#padB'), ()=>pressB());
 
 /* A — swim boost in water, jump in Coral Run, dash in the tunnels */
 function pressA(){
-  if(!overlay && scene === 'yard'){ yardTap(); return; }
+  if(!overlay && scene === 'yard'){ yardTap(null); return; }
   if(!overlay && scene === 'tunnel'){ tunnelDash(); return; }
   if(!overlay && scene === 'run'){ runJump(); return; }
   if(overlay || scene !== 'ocean') return;
@@ -778,53 +778,101 @@ function tickToast(){ if(toastT && now() > toastT){ $('#toast').classList.remove
 
 /* ============================ DIVER ART ============================ */
 function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
+  // a slim girl in a wetsuit: ponytail with a bow, mask pushed up on her forehead
   g.save(); g.translate(x, y); g.scale(face < 0 ? -s : s, s);
-  const wob = Math.sin(t * 3) * 0.05;
-  g.rotate(wob);
-  // fins
-  const fk = Math.sin(t * (kicking ? 15 : 6)) * 0.5;
-  for(const sgn of [-1, 1]){
-    g.save(); g.translate(-2, 13); g.rotate(fk * sgn * 0.6 + sgn * 0.25);
-    g.fillStyle = '#2ba7bd'; g.beginPath(); g.ellipse(-5, 7, 4.5, 10, 0, 0, 7); g.fill();
+  g.rotate(Math.sin(t * 3) * 0.04);
+  const kick = Math.sin(t * (kicking ? 14 : 5));
+  const hairD = shade(hair, -45), skin = '#f7dcc6';
+  // ponytail, streaming behind and swaying
+  const sw = Math.sin(t * 4) * 2;
+  g.fillStyle = hair; g.strokeStyle = hairD; g.lineWidth = .7;
+  g.beginPath(); g.moveTo(-4.5, -16.5);
+  g.bezierCurveTo(-12, -17 + sw*.3, -15.5, -9 + sw, -13 + sw*.6, 1.5 + sw);
+  g.bezierCurveTo(-11.5, -4 + sw*.5, -9, -9, -3.5, -12); g.closePath(); g.fill(); g.stroke();
+  // slim air tank
+  g.fillStyle = '#e8b33a'; roundRect(g, -9.6, -3.5, 4.2, 13, 2.1); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(-8.8, -2, 1, 10);
+  g.fillStyle = '#5d6870'; g.fillRect(-8.6, -5.6, 2.2, 2.4);
+  // legs with flippers, kicking in turn
+  for(const sg of [-1, 1]){
+    g.save(); g.translate(sg * 1.7, 11.5); g.rotate(kick * .26 * sg);
+    g.strokeStyle = shade(suit, -30); g.lineWidth = 3.1; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 8.5); g.stroke();
+    const fg = g.createLinearGradient(0, 8, 0, 19);
+    fg.addColorStop(0, '#45c4d8'); fg.addColorStop(1, '#1d8aa3');
+    g.fillStyle = fg;
+    g.beginPath(); g.moveTo(-1.8, 7.5); g.quadraticCurveTo(-3.8, 16, -.4, 19.5); g.lineTo(.4, 19.5);
+    g.quadraticCurveTo(3.8, 16, 1.8, 7.5); g.closePath(); g.fill();
     g.restore();
   }
-  // air tank on her back
-  g.fillStyle = '#e8b33a'; roundRect(g, -13.5, -5, 7, 19, 3.4); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(-12.2, -3, 1.6, 14);
-  g.fillStyle = '#5d6870'; g.fillRect(-11.5, -8, 3, 3.5);
-  // body, lit from above
-  const bg = g.createLinearGradient(-8, -8, 6, 18);
-  bg.addColorStop(0, shade(suit, 40)); bg.addColorStop(.5, suit); bg.addColorStop(1, shade(suit, -45));
+  // torso with a waist, lit from above
+  const bg = g.createLinearGradient(-6, -6, 5, 14);
+  bg.addColorStop(0, shade(suit, 45)); bg.addColorStop(.5, suit); bg.addColorStop(1, shade(suit, -40));
   g.fillStyle = bg;
-  g.beginPath(); g.ellipse(0, 5, 8.5, 13, 0, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(20,30,40,.35)'; g.lineWidth = 1.6;
-  g.beginPath(); g.moveTo(-7, -2); g.quadraticCurveTo(0, 2, 7, -1); g.stroke();
-  g.fillStyle = 'rgba(255,255,255,.22)';
-  g.beginPath(); g.ellipse(-3, 1, 3.4, 7, -.25, 0, 7); g.fill();
-  // arms
-  g.strokeStyle = suit; g.lineWidth = 4.2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-4.8, -4.2);
+  g.quadraticCurveTo(-5.6, -.5, -3.6, 4); g.quadraticCurveTo(-3.1, 6.5, -4.6, 9.6);
+  g.quadraticCurveTo(-4.4, 13, 0, 13); g.quadraticCurveTo(4.4, 13, 4.6, 9.6);
+  g.quadraticCurveTo(3.1, 6.5, 3.6, 4); g.quadraticCurveTo(5.6, -.5, 4.8, -4.2);
+  g.quadraticCurveTo(0, -6.4, -4.8, -4.2); g.fill();
+  // a swirl of colour across the suit, and a little frill at the hips
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.1;
+  g.beginPath(); g.moveTo(-4, -2.5); g.quadraticCurveTo(1, 1, 3.2, 5); g.stroke();
+  g.fillStyle = shade(suit, 55);
+  g.beginPath(); g.moveTo(-4.7, 9.4);
+  for(let i=0; i<=6; i++) g.quadraticCurveTo(-4.7 + i*1.57 - .8, 12.2, -4.7 + i*1.57, 10.2);
+  g.lineTo(4.7, 9.4); g.closePath(); g.fill();
+  // arms, slim
+  g.strokeStyle = shade(suit, 15); g.lineWidth = 2.5; g.lineCap = 'round';
+  let hR, hL;
   if(hold){                                   // both hands on something, e.g. a shovel
-    g.beginPath(); g.moveTo(4, -1); g.lineTo(hold.x, hold.y); g.stroke();
-    g.beginPath(); g.moveTo(-4, -1); g.quadraticCurveTo(2, hold.y + 4, hold.x - 2, hold.y + 1); g.stroke();
+    hR = [hold.x, hold.y]; hL = [hold.x - 2, hold.y + 1];
+    g.beginPath(); g.moveTo(3.8, -2.5); g.lineTo(hR[0], hR[1]); g.stroke();
+    g.beginPath(); g.moveTo(-3.8, -2.5); g.quadraticCurveTo(2, hold.y + 4, hL[0], hL[1]); g.stroke();
   } else {
     const aw = Math.sin(t * 4) * 0.35;
-    g.beginPath(); g.moveTo(4, -1); g.lineTo(12, 4 + aw * 6); g.stroke();
-    g.beginPath(); g.moveTo(-4, -1); g.lineTo(-11, 5 - aw * 6); g.stroke();
+    hR = [9.5, 3 + aw*5]; hL = [-8.5, 4 - aw*5];
+    g.beginPath(); g.moveTo(3.8, -2.5); g.quadraticCurveTo(7, 0, hR[0], hR[1]); g.stroke();
+    g.beginPath(); g.moveTo(-3.8, -2.5); g.quadraticCurveTo(-6.5, 0, hL[0], hL[1]); g.stroke();
   }
-  // head + hair
-  g.fillStyle = '#f6d7bd'; g.beginPath(); g.arc(0, -11, 8.2, 0, 7); g.fill();
-  g.fillStyle = hair;
-  g.beginPath(); g.arc(0, -12.6, 8.6, Math.PI * 1.02, Math.PI * 2.02); g.fill();
-  g.beginPath(); g.ellipse(-7.4, -9, 3.4, 7.6, .3, 0, 7); g.fill();
-  g.beginPath(); g.ellipse(7.4, -9, 3.4, 7.6, -.3, 0, 7); g.fill();
-  // mask
-  g.fillStyle = 'rgba(180,245,255,.5)'; g.strokeStyle = '#cfeef7'; g.lineWidth = 1.3;
-  g.beginPath(); g.ellipse(1.4, -11, 6.6, 5, 0, 0, 7); g.fill(); g.stroke();
-  g.fillStyle = '#08253a';
-  g.beginPath(); g.arc(3.2, -11.4, 1.5, 0, 7); g.fill();
-  g.beginPath(); g.arc(-1.2, -11.4, 1.5, 0, 7); g.fill();
-  g.fillStyle = 'rgba(255,255,255,.85)';
-  g.beginPath(); g.arc(3.7, -12, .55, 0, 7); g.fill();
+  g.fillStyle = skin;
+  g.beginPath(); g.arc(hR[0], hR[1], 1.35, 0, 7); g.fill();
+  g.beginPath(); g.arc(hL[0], hL[1], 1.35, 0, 7); g.fill();
+  // neck and face
+  g.fillStyle = skin; g.fillRect(-1.3, -7, 2.6, 3);
+  g.beginPath(); g.ellipse(.6, -12, 6.3, 6.8, 0, 0, 7); g.fill();
+  // hair: a smooth cap and side-swept bangs
+  const hg = g.createLinearGradient(0, -20, 0, -8);
+  hg.addColorStop(0, shade(hair, 30)); hg.addColorStop(1, hair);
+  g.fillStyle = hg; g.strokeStyle = hairD; g.lineWidth = .7;
+  g.beginPath(); g.moveTo(-5.8, -9);
+  g.bezierCurveTo(-7.5, -17, -2, -20.5, 2.5, -19.4);
+  g.bezierCurveTo(7, -18.5, 8.2, -14.5, 7, -12.2);
+  g.quadraticCurveTo(4, -16.4, -.6, -14.6);
+  g.quadraticCurveTo(-3.6, -13, -4.2, -8.5); g.closePath(); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(-5.8, -9); g.quadraticCurveTo(-6.6, -4, -4.6, -2.6); g.quadraticCurveTo(-4.9, -6, -4.2, -8.5); g.fill();
+  // a bow in her hair
+  const bow = /ff6f9c/i.test(suit) ? '#ffd479' : '#ff6f9c';
+  g.fillStyle = bow;
+  g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-7.6, -20.4); g.lineTo(-7.4, -15.6); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-.6, -20.6); g.lineTo(-1.2, -15.8); g.closePath(); g.fill();
+  g.fillStyle = shade(bow, -30); g.beginPath(); g.arc(-4, -17.6, 1.1, 0, 7); g.fill();
+  // mask, pushed up on her forehead
+  g.fillStyle = 'rgba(190,245,255,.55)'; g.strokeStyle = '#e8f8ff'; g.lineWidth = .9;
+  g.beginPath(); g.ellipse(2.2, -17.4, 4.4, 2.1, -.08, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(.4, -18.4, 1.6, .7);
+  // eyes with lashes, rosy cheeks, a smile
+  for(const ex of [-.4, 3.6]){
+    g.fillStyle = '#2a1f2e'; g.beginPath(); g.ellipse(ex, -11.6, .95, 1.35, 0, 0, 7); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(ex + .35, -12.1, .38, 0, 7); g.fill();
+    g.strokeStyle = '#2a1f2e'; g.lineWidth = .45;
+    g.beginPath(); g.moveTo(ex + .7, -12.7); g.lineTo(ex + 1.6, -13.5); g.stroke();
+    g.beginPath(); g.moveTo(ex + .2, -12.9); g.lineTo(ex + .7, -14); g.stroke();
+  }
+  g.fillStyle = 'rgba(255,120,140,.35)';
+  g.beginPath(); g.arc(-1.2, -9.4, 1.3, 0, 7); g.fill();
+  g.beginPath(); g.arc(4.9, -9.4, 1.3, 0, 7); g.fill();
+  g.strokeStyle = '#a4485a'; g.lineWidth = .65;
+  g.beginPath(); g.arc(1.8, -9.4, 1.5, .25*Math.PI, .8*Math.PI); g.stroke();
   g.restore();
 }
 
@@ -2223,32 +2271,114 @@ function yBucket(g, x, y, S){
 
 /* ---- the yard, frame by frame ---- */
 const yard = {phase:'arrive', t:0, off:0, dig:0, water:0, pile:0, glow:0, anim:-1, queue:0,
-              clods:[], need:10, finds:0, worm:null, asked:false, splashed:false, chirp:3, held:true};
+              clods:[], need:10, finds:0, worm:null, asked:false, splashed:false, chirp:3, held:true,
+              me:{x:0, y:0, tx:0, ty:0, mode:'walk', hop:null, after:null, wet:0, face:-1, moving:false}, ball:null, jfrom:null};
+/* free play in the yard: she walks where you tap, hops into the pool to swim, and digs at the X */
+function yStandFeet(){ const L = Y.L; return {x:L.stand.x, y:L.stand.y + 22*L.ds}; }
+function yScale(y){ const L = Y.L, k = (y - L.H) / (VH - L.H), base = (L.hole.y - L.H) / (VH - L.H); return (.45 + .55*k) / (.45 + .55*base); }
+function inPool(x, y){
+  const P = Y.L.pool, S = Y.L.S;
+  if(y <= P.y0 + 6*S || y >= P.y1 - 4*S) return false;
+  const f = (y - P.y0) / (P.y1 - P.y0), w = lerp(P.wT, P.wB, f)/2 - 8*S;
+  return Math.abs(x - P.cx) < w;
+}
+function yardHome(){ const f = yStandFeet(), m = yard.me; m.x = m.tx = f.x; m.y = m.ty = f.y; m.mode = 'walk'; m.hop = null; m.after = null; m.face = -1; m.moving = false; }
+function yardRoam(dt){
+  const m = yard.me, L = Y.L, S = L.S;
+  const v = stickVec();
+  if(Math.abs(v.x) > .2 || Math.abs(v.y) > .2){
+    m.tx = m.x + v.x*90*S; m.ty = m.y + v.y*60*S; m.after = null;
+    if(yard.anim >= 0 || yard.held){ yard.anim = -1; yard.queue = 0; yard.held = false; }
+  }
+  if(m.wet > 0){ m.wet -= dt; if(Math.random() < dt*12) sparks.push({x:m.x + rnd(-8, 8)*S, y:m.y - rnd(10, 40)*S*yScale(m.y),
+    vx:0, vy:rnd(60, 120), life:.4, t:0, c:'#bdf7ff', r:rnd(1.2, 2.4)*S}); }
+  if(m.mode === 'hop'){
+    const h = m.hop; h.t += dt / .42;
+    if(h.t >= 1){
+      m.x = h.x1; m.y = h.y1; m.mode = h.into;
+      if(h.into === 'swim'){ Audio_.sploosh(); for(let i=0; i<22; i++){ const a = rnd(Math.PI*1.1, Math.PI*1.9), sp = rnd(80, 260)*S;
+        yard.clods.push({x:m.x, y:m.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, r:rnd(1.4, 3.4)*S, c:pick(['#bdf7ff','#ffffff','#7df0ff']), water:true, floor:m.y + 4*S}); } }
+      else m.wet = 2.5;
+    }
+    return;
+  }
+  const dx = m.tx - m.x, dy = m.ty - m.y, d = Math.hypot(dx, dy);
+  m.moving = d > 3;
+  if(!m.moving){
+    if(m.after === 'dig'){ m.after = null; m.face = -1; yard.held = true; yard.anim = 0; Audio_.blip(500); }
+    return;
+  }
+  const sp = (m.mode === 'swim' ? 115 : 175) * S * yScale(m.y);
+  const st = Math.min(d, sp*dt), ux = dx/d, uy = dy/d;
+  const nx = m.x + ux*st, ny = m.y + uy*st;
+  if(Math.abs(dx) > 2) m.face = dx > 0 ? 1 : -1;
+  const wasIn = m.mode === 'swim', willIn = inPool(nx, ny);
+  if(wasIn !== willIn){                                   // the edge of the pool: hop in or climb out
+    let x1 = nx, y1 = ny, k = 0;
+    while(inPool(x1, y1) === !willIn && k++ < 60){ x1 += ux*3*S; y1 += uy*3*S; }
+    x1 += ux*(willIn ? 16 : 12)*S; y1 += uy*(willIn ? 16 : 12)*S;
+    if(willIn && !inPool(x1, y1)){ x1 -= ux*14*S; y1 -= uy*14*S; }
+    m.mode = 'hop'; m.hop = {t:0, x0:m.x, y0:m.y, x1, y1, into:willIn ? 'swim' : 'walk'};
+    Audio_.sweep(willIn ? 300 : 500, willIn ? 700 : 300, .25, 'triangle', .08);
+    return;
+  }
+  m.x = nx; m.y = ny;
+  if(m.mode === 'walk'){
+    m.y = clamp(m.y, L.H + 40*S, VH - 8); m.x = clamp(m.x, 10, VW - 10);
+    if(Math.floor(yard.t * 4.5) !== Math.floor((yard.t - dt) * 4.5)) Audio_.flop();
+  } else if(Math.random() < dt*3) Audio_.noise(.15, 1400, 1, .03, 'bandpass');
+}
+function yardBall(dt, t){
+  const P = Y.L.pool, S = Y.L.S, h = P.y1 - P.y0;
+  if(!yard.ball || yard.ball.key !== Y.key) yard.ball = {x:P.cx - P.wT*.12, y:P.y0 + h*.52, vx:0, vy:0, key:Y.key};
+  const b = yard.ball, m = yard.me;
+  if(m.mode === 'swim'){
+    const dx = b.x - m.x, dy = b.y - m.y, d = Math.hypot(dx, dy);
+    if(d < 30*S && d > .1){ b.vx += dx/d*160*S; b.vy += dy/d*110*S; if(Math.random() < .3) Audio_.pop(.06); }
+  }
+  b.vx *= Math.pow(.4, dt); b.vy *= Math.pow(.4, dt);
+  b.x += (b.vx + Math.sin(t*.25)*6*S)*dt; b.y += b.vy*dt;
+  if(!inPool(b.x, b.y)){ b.x -= b.vx*dt*2; b.y -= b.vy*dt*2; b.vx *= -.6; b.vy *= -.6;
+    if(!inPool(b.x, b.y)){ b.x = lerp(b.x, P.cx, .1); b.y = lerp(b.y, (P.y0 + P.y1)/2, .1); } }
+}
 function yardStart(mode){                 // 'arrive' | 'return' (up from the ocean) | 'back' (from the tunnels)
   yardPrep();
   scene = 'yard'; openLayer(null); sparks = [];
   Object.assign(yard, {t:0, dig:0, water:0, pile:0, glow:0, anim:-1, queue:0, clods:[], finds:0,
     worm:null, asked:false, splashed:false, held:true, off:0});
   yard.need = save.mode === 'easy' ? 8 : 11;
+  yardHome();
   if(mode === 'return'){ yard.phase = 'climb'; yard.dig = 1; yard.water = 1; yard.pile = 1; yard.held = false; }
   else if(mode === 'back'){ yard.phase = 'dig'; }
   else { yard.phase = 'arrive'; yard.off = VH * .85; }
   showHud(true);
   setSkip('Jump in ›', yardJump);
 }
-function yardTap(){
+function yardTap(e){
   if(scene !== 'yard' || overlay) return;
   Audio_.init();
-  if(yard.phase === 'arrive'){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; return; }
-  if(yard.phase !== 'dig' || yard.dig >= 1) return;
-  if(yard.anim < 0) yard.anim = 0;
-  else if(yard.queue < 2) yard.queue++;
+  if(yard.phase === 'arrive'){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; yardHome(); return; }
+  if(yard.phase !== 'dig') return;
+  const L = Y.L, S = L.S, m = yard.me;
+  const digAsk = !e || Math.hypot(e.clientX - L.hole.x, (e.clientY - L.hole.y)*2) < 110*S;
+  if(!digAsk){                                           // go wherever she was tapped: lawn, deck or pool
+    yard.anim = -1; yard.queue = 0; yard.held = false; m.after = null;
+    m.tx = clamp(e.clientX, 10, VW - 10); m.ty = clamp(e.clientY, L.H + 40*S, VH - 8);
+    return;
+  }
+  if(yard.dig >= 1) return;
+  const f = yStandFeet();
+  if(m.mode === 'walk' && Math.hypot(m.x - f.x, m.y - f.y) < 6 && yard.held){
+    if(yard.anim < 0) yard.anim = 0;
+    else if(yard.queue < 2) yard.queue++;
+  } else { m.tx = f.x; m.ty = f.y; m.after = 'dig'; }       // walk (or swim) back to the shovel first
 }
 function yardJump(){
   if(scene !== 'yard' || yard.phase === 'jump') return;
   openLayer(null); setSkip(null);
   if(yard.dig < 1){ yard.dig = 1; yard.pile = Math.max(yard.pile, .6); burst(Y.L.hole.x, Y.L.hole.y, 30, '#8a6a43'); Audio_.crunch(); }
   yard.water = 1; yard.glow = 1; yard.held = false;
+  const jp = yardPose(); yard.jfrom = {x:jp.x, y:jp.y};
   yard.phase = 'jump'; yard.t = 0; yard.splashed = false;
   Audio_.sweep(300, 700, .35, 'triangle', .1);
 }
@@ -2286,6 +2416,7 @@ function updateYard(dt){
     if(yard.t > 2.0 && Math.floor(yard.t * 3.2) !== Math.floor((yard.t - dt) * 3.2)) Audio_.flop();
     if(yard.t > 4.3){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; }
   } else if(yard.phase === 'dig'){
+    if(yard.anim < 0) yardRoam(dt);
     if(yard.anim >= 0){
       const prev = yard.anim;
       yard.anim += dt / (save.mode === 'easy' ? .5 : .46);
@@ -2324,14 +2455,15 @@ function updateYard(dt){
       if(yard.water <= 0) yard.dig = Math.max(0, yard.dig - dt * 1.1);
       yard.pile = yard.dig;
     }
-    if(yard.t > 1.6 && yard.dig <= 0){ yard.phase = 'dig'; yard.t = 0; yard.held = true; toast('Back in the backyard! Dig again?'); }
+    if(yard.t > 1.6 && yard.dig <= 0){ yard.phase = 'dig'; yard.t = 0; yard.held = true; yardHome(); toast('Back in the backyard! Dig, or go for a swim.'); }
   }
   if(yard.phase === 'dig' || yard.phase === 'reveal') yard.pile = lerp(yard.pile, yard.dig, Math.min(1, dt*3));
+  if(Y.L) yardBall(dt, yard.t);
   if(yard.worm){ yard.worm.t += dt; if(yard.worm.t > 6) yard.worm = null; }
   for(let i=yard.clods.length-1; i>=0; i--){
     const c = yard.clods[i];
     c.vy += 1400 * L.S * dt; c.x += c.vx * dt; c.y += c.vy * dt;
-    const floor = c.water ? L.hole.y + 30*L.S : L.pile.y - (8 + 30*yard.pile)*L.S*.6;
+    const floor = c.floor ? c.floor : c.water ? L.hole.y + 30*L.S : L.pile.y - (8 + 30*yard.pile)*L.S*.6;
     if(c.vy > 0 && c.y >= floor){
       if(!c.water) for(let k=0; k<2; k++) sparks.push({x:c.x, y:c.y, vx:rnd(-50, 50), vy:rnd(-60, -10), life:.4, t:0, c:'rgba(160,130,90,.6)', r:rnd(1, 2.4)*L.S});
       yard.clods.splice(i, 1);
@@ -2360,6 +2492,16 @@ function yardPose(){
     p.x = lerp(VW + 50*S, st.x, easeOut(u)); p.walk = u < 1;
     p.y = st.y - (p.walk ? Math.abs(Math.sin(yard.t * 10)) * 5*S : 0);
     p.a = 5.3; p.gdy = -8;
+  } else if(yard.phase === 'dig' && yard.anim < 0 && !(yard.held && yard.me.mode === 'walk' && !yard.me.moving)){
+    const m = yard.me; let fx = m.x, fy = m.y, lift = 0;
+    if(m.mode === 'hop'){ const h = m.hop, u = clamp(h.t, 0, 1); fx = lerp(h.x0, h.x1, u); fy = lerp(h.y0, h.y1, u); lift = Math.sin(u*Math.PI)*34*S; }
+    p.sc = yScale(fy);
+    p.x = fx; p.y = fy - 22*ds*p.sc - lift; p.face = m.face; p.held = false;
+    p.walk = m.mode === 'walk' && m.moving;
+    if(p.walk) p.y -= Math.abs(Math.sin(yard.t * 10)) * 3*S;
+    p.swim = m.mode === 'swim'; p.feet = fy;
+    if(p.swim){ p.y = fy - 6*S; p.kick = 1; }
+    if(m.mode === 'hop'){ p.rot = (m.hop.into === 'swim' ? 1 : -1) * Math.sin(clamp(m.hop.t, 0, 1)*Math.PI) * .5 * m.face; }
   } else if(yard.phase === 'dig' && yard.anim >= 0){
     const u = yard.anim;
     let k = 0; while(k < SHOVEL_KEYS.length - 2 && u > SHOVEL_KEYS[k+1][0]) k++;
@@ -2371,7 +2513,8 @@ function yardPose(){
     p.y -= Math.abs(Math.sin(yard.t * 7)) * 10*S * clamp(2 - yard.t, 0, 1);   // a happy hop
   } else if(yard.phase === 'jump'){
     const u = clamp(yard.t / .7, 0, 1);
-    p.x = lerp(st.x, L.hole.x, u); p.y = lerp(st.y, L.hole.y - 8*S, u) - Math.sin(u * Math.PI) * 90*S;
+    const jf = yard.jfrom || st;
+    p.x = lerp(jf.x, L.hole.x, u); p.y = lerp(jf.y, L.hole.y - 8*S, u) - Math.sin(u * Math.PI) * 90*S;
     p.rot = -u * 2.2; p.kick = 1;
     p.alpha = 1 - clamp((u - .82) / .18, 0, 1);
   } else if(yard.phase === 'climb'){
@@ -2455,7 +2598,7 @@ function drawYard(t, dt){
     shadowText(g, 'It all starts in the backyard...', VW/2, VH*.30 + big*.85, big*.34, '#f4fbff');
     g.globalAlpha = 1;
   } else if(yard.phase === 'dig'){
-    const msg = yard.dig === 0 ? 'Tap to dig a hole by the pool!' : yard.dig < .6 ? 'Keep digging!' : 'Almost... something is down there!';
+    const msg = yard.dig === 0 ? 'Tap the X to dig · tap the pool for a swim' : yard.dig < .6 ? 'Keep digging!' : 'Almost... something is down there!';
     shadowText(g, msg, VW/2, VH*.085 + 18, Math.min(VW*.055, 32), '#ffffff');
     const bw = Math.min(260, VW*.6), bx = VW/2 - bw/2, by = VH*.085 + 18 + Math.min(VW*.055, 32)*.9;
     g.fillStyle = 'rgba(8,37,58,.32)'; roundRect(g, bx, by, bw, 16, 8); g.fill();
@@ -2511,7 +2654,8 @@ function drawPoolLive(g, L, t){
   }
   g.globalCompositeOperation = 'source-over';
   // a beach ball bobbing on the water
-  const bx = P.cx - P.wT*.12 + Math.sin(t * .25) * 30*S, by = P.y0 + h*.52 + Math.sin(t * 1.4) * 2*S, br = 15*S;
+  const bb = yard.ball || {x:P.cx - P.wT*.12, y:P.y0 + h*.52};
+  const bx = bb.x, by = bb.y + Math.sin(t * 1.4) * 2*S, br = 15*S;
   g.fillStyle = 'rgba(0,50,80,.25)'; g.beginPath(); g.ellipse(bx - 4*S, by + br*.75, br*1.1, br*.35, 0, 0, 7); g.fill();
   g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.5*S;
   const rp = (t * .6) % 1;
@@ -2657,15 +2801,29 @@ function drawYardDiver(g, L, p, t){
   if(p.alpha <= 0) return;
   g.save(); g.globalAlpha = p.alpha;
   if(p.clip !== null){ g.beginPath(); g.rect(0, -VH, VW, p.clip + VH); g.clip(); }
-  if(p.clip === null && yard.phase !== 'jump'){             // shadow on the grass, falling away from the sun
+  const sc = p.sc || 1, feet = p.feet || L.stand.y + 22*ds;
+  if(p.swim){
+    g.translate(p.x, p.y); g.rotate(p.face * Math.PI/2);
+    drawDiver(g, 0, 0, ds*sc*.85, SUITS[save.suit], HAIRS[save.hair], t*2.2, p.face, 1);
+    g.restore();
+    g.save();                                               // the water over her body, and ripples
+    g.fillStyle = 'rgba(60,190,215,.42)';
+    g.beginPath(); g.ellipse(p.x - p.face*6*S*sc, p.y + 3*S, 26*ds*sc*.85*.75, 7*ds*sc*.85*.75, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.4*S;
+    const ph = (t*1.2) % 1;
+    g.globalAlpha = 1 - ph; g.beginPath(); g.ellipse(p.x, p.y + 2*S, (18 + ph*30)*S*sc, (5 + ph*8)*S*sc, 0, 0, 7); g.stroke();
+    g.restore();
+    return;
+  }
+  if(p.clip === null && yard.phase !== 'jump'){             // shadow on the ground, falling away from the sun
     g.fillStyle = 'rgba(25,45,15,.3)';
-    g.beginPath(); g.ellipse(p.x - 12*S, L.stand.y + 26*ds, 16*ds, 4*ds, -.08, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(p.x - 12*S*sc, feet + 4*ds*sc, 16*ds*sc, 4*ds*sc, -.08, 0, 7); g.fill();
   }
   if(p.rot){ g.translate(p.x, p.y); g.rotate(p.rot); g.translate(-p.x, -p.y); }
   const hands = {x:p.x + (p.face < 0 ? -9 : 9)*ds, y:p.y + 3*ds + p.gdy*S};
   const hold = p.held ? {x:9, y:3 + p.gdy*S/ds} : null;
   if(p.held) yard.tip = drawShovel(g, hands.x, hands.y, p.a, 30*ds, S, p.load);   // behind her, hands over the handle
-  drawDiver(g, p.x, p.y, ds, SUITS[save.suit], HAIRS[save.hair], p.walk ? t*2.5 : t, p.face, p.kick || p.walk ? 1 : 0, hold);
+  drawDiver(g, p.x, p.y, ds*sc, SUITS[save.suit], HAIRS[save.hair], p.walk ? t*2.5 : t, p.face, p.kick || p.walk ? 1 : 0, hold);
   g.restore();
 }
 
@@ -3340,7 +3498,7 @@ function drawBug(g, b, cs, t, px, py){
   }
   g.restore();
 }
-cv.addEventListener('pointerdown', ()=>{ if(scene === 'yard') yardTap(); });
+cv.addEventListener('pointerdown', e=>{ if(scene === 'yard') yardTap(e); });
 cv.addEventListener('pointerdown', e=>{
   if(scene !== 'ocean' || overlay) return;
   swimTo = {x: e.clientX + cam.x, y: e.clientY + cam.y};
