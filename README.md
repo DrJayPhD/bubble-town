@@ -33,6 +33,20 @@ domes, played to Russian music (the Sugar Plum Fairy from *The Nutcracker*, and 
 Korobeiniki). Each cleared row is counted in Russian. On Easy, a full well gets half washed away
 instead of ending the game.
 
+**The boat** floats at the top of the sea: swim up under its hull and climb the ladder. Sail the
+surface, hop the waves, collect pearls, catch message bottles (each holds a Cyrillic letter),
+dock at treasure islands, and toot the horn for the dolphins. Dive in to drop back into town.
+
+**The shark**, once tamed, is a friend to ride, do tricks with, race through hoops (levels, more
+pearls, and new outfits for her), and dress up in the Home dome.
+
+**The Music Dome** has Follow the lights (colour keys for little ones), Read the note (staff-reading
+levels), Learn a song (a scrolling staff that waits for each note; it can listen to a real piano)
+and Free play.
+
+**Cover Studio** (`studio/`) is a separate tool for grown-ups: it turns your own recordings into
+piano sheet music. See `studio/README.md`.
+
 Swim up the ladder at the top of the sea (or tap **⬆ Backyard**) to climb
 back out and dig again.
 
