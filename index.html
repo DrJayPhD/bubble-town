@@ -1330,8 +1330,10 @@ function updateOcean(dt, t){
 
   // dome entry — hold near the door and a ring fills
   let near = null;
-  for(const d of DOMES) if(Math.hypot(player.x-d.x, player.y-d.y) < d.r*.62) near = d;
-  if(Math.hypot(player.x - UP.x, player.y - 120) < 70) near = UP;
+  // a dome you just came out of stays shut until you have swum well clear of it
+  if(rearm && Math.hypot(player.x - rearm.x, player.y - (rearm === UP ? 120 : rearm.y)) > (rearm === UP ? 170 : rearm.r + 90)) rearm = null;
+  for(const d of DOMES) if(d !== rearm && Math.hypot(player.x-d.x, player.y-d.y) < d.r*.62) near = d;
+  if(rearm !== UP && Math.hypot(player.x - UP.x, player.y - 120) < 70) near = UP;
   if(near !== charging){ charging = near; chargeT = 0; }
   if(charging){
     chargeT += dt;
@@ -4023,6 +4025,12 @@ function goTitle(){
 
 /* ---- dome entry: word door first, then the activity ---- */
 let pendingDome = null;
+let rearm = null;            // the last dome entered; it can't pull you back in until you swim away
+function putOutside(d){      // come out of a dome's door, below it and clear of its name plate
+  player.x = d.x; player.y = Math.min(WORLD.h - 80, d.y + d.r + 80);
+  player.vx = 0; player.vy = 60; swimTo = null; charging = null; chargeT = 0;
+  rearm = d;
+}
 function enterDome(d){
   if(d.id === 'up'){ goUp(); return; }
   pendingDome = d;
@@ -4040,7 +4048,7 @@ function runDome(id){
 function leaveDome(){
   scene = 'ocean'; sparks = [];
   const d = DOMES.find(x=>x.id === (pendingDome ? pendingDome.id : 'home')) || DOMES[0];
-  player.x = d.x; player.y = d.y + d.r + 46; player.vx = 0; player.vy = 0;
+  putOutside(d);
   charging = null; chargeT = 0;
   openLayer(null); showHud(true);
 }
@@ -4499,7 +4507,11 @@ function openHome(){
 }
 $('#homeClose').onclick = ()=>{
   save.lastSeen = Date.now(); persist();
-  if(scene === 'ocean'){ openLayer(null); showHud(true); }
+  if(scene === 'ocean'){
+    const h = DOMES.find(x=>x.id === 'home');
+    if(Math.hypot(player.x - h.x, player.y - h.y) < h.r) putOutside(h);   // only if she was actually inside
+    openLayer(null); showHud(true);
+  }
   else leaveDome();
 };
 
