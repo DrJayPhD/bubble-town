@@ -173,6 +173,9 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
 /* controls show on every device: mouse drags the stick just fine */
 
 [hidden]{display:none !important}
+.choice2 .tile{width:100%;font-size:19px;padding:20px 14px}
+.choice2 .tile .big{font-size:46px}
+.choice2 .tile .cost{color:#9fd3e6;font-weight:600;font-size:13px}
 hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
 .note{font-size:12.5px;color:#6fb2c8;line-height:1.6}
 .stat{font-family:var(--disp);font-weight:700;color:var(--pearl);font-variant-numeric:tabular-nums}
@@ -218,7 +221,8 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 <canvas id="cv"></canvas>
 
 <div id="hud" hidden>
-  <div class="chip" id="chipBack">‹ Town</div>
+  <div class="chip" id="chipBack">🏠 Home</div>
+  <div class="chip" id="chipUp" hidden>⬆ Backyard</div>
   <div class="chip" id="chipPearls">🫧 <span id="pearlN">0</span></div>
 </div>
 
@@ -306,6 +310,17 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <hr class="rule">
   <p class="eyebrow">Your creatures</p>
   <div class="grid2" id="creatureList"></div>
+</div></div>
+
+<!-- CHOICE -->
+<div class="layer" id="lChoice"><div class="scrim"></div><div class="port" style="text-align:center">
+  <p class="eyebrow" id="choEye"></p>
+  <h2 id="choTitle"></h2>
+  <p class="sub" id="choSub" style="text-align:center"></p>
+  <div class="grid2 choice2">
+    <button class="tile" type="button" id="choA"></button>
+    <button class="tile" type="button" id="choB"></button>
+  </div>
 </div></div>
 
 <!-- RESULT -->
@@ -469,6 +484,40 @@ const Audio_ = {
   nope(){ this.tone(196,0.22,'sine',0.11); this.tone(165,0.3,'sine',0.09,0.09); },
   bonk(){ this.tone(110,0.3,'sawtooth',0.09); this.tone(70,0.42,'sine',0.14,0.02); },
   splash(){ for(let i=0;i<9;i++) this.tone(rnd(300,1400), 0.14, 'sine', 0.035, i*0.025); },
+  sweep(f1, f2, dur, type='sine', gain=0.12, when=0){
+    this.init(); if(!this.ac) return;
+    const t = this.ac.currentTime + when, o = this.ac.createOscillator(), g = this.ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.ac.destination); o.start(t); o.stop(t + dur + 0.05);
+  },
+  /* filtered white noise: dirt, splashes, thuds */
+  _nb:null,
+  noise(dur=0.15, f=800, q=1, gain=0.2, type='lowpass', when=0, f2=0){
+    this.init(); if(!this.ac) return;
+    const ac = this.ac, t = ac.currentTime + when;
+    if(!this._nb){
+      const n = ac.sampleRate, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+      for(let i=0;i<n;i++) d[i] = Math.random()*2 - 1;
+      this._nb = b;
+    }
+    const s = ac.createBufferSource(); s.buffer = this._nb;
+    const fl = ac.createBiquadFilter(); fl.type = type; fl.Q.value = q;
+    fl.frequency.setValueAtTime(f, t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(fl); fl.connect(g); g.connect(ac.destination);
+    s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+  },
+  crunch(){ this.noise(0.13, rnd(450, 900), 0.9, 0.2); this.tone(rnd(80, 120), 0.08, 'sine', 0.06); },
+  sploosh(){ this.noise(1.0, 3000, 0.6, 0.3, 'lowpass', 0, 260); this.noise(0.45, 700, 1.2, 0.18, 'bandpass', 0.04); },
+  thud(){ this.noise(0.3, 260, 1, 0.3); this.tone(55, 0.35, 'sine', 0.2); },
+  flop(){ this.noise(0.05, 1500, 1.5, 0.05, 'bandpass'); },
+  pop(gain=0.14){ this.sweep(380, 1300, 0.12, 'sine', gain); },
+  sparkle(){ [1318.5, 1568, 2093].forEach((f,i)=>this.tone(f, 0.25, 'sine', 0.06, i*0.05)); },
+  chirp(){ const b = rnd(2400, 3400); for(let i=0;i<rint(2,4);i++) this.sweep(b, b*1.25, 0.07, 'sine', 0.03, i*0.11); },
   ruVoice:null,
   say(word){
     try{
@@ -574,7 +623,7 @@ const DOMES = [
 const COVE = {x:360, y:1420, r:210};
 const LOCKED = {dance:1, music:1, build:1, draw:1};   // each dome has a word door
 
-let scene = 'title';        // title | intro | ocean | build | show
+let scene = 'title';        // title | yard | tunnel | dive | ocean | build | show
 let overlay = null;         // id of open porthole, or null
 const cam = {x:0, y:0};
 
@@ -620,7 +669,7 @@ const keys = {};
 addEventListener('keydown', e=>{
   keys[e.key.toLowerCase()] = true;
   if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
-  if(e.key === ' ') pressA();
+  if(e.key === ' ' || (e.key === 'Enter' && scene === 'yard')) pressA();
   if(e.key.toLowerCase() === 'e' || e.key === 'Shift') pressB();
   if(e.key === 'Escape' && scene === 'build') leaveDome();
 });
@@ -658,6 +707,8 @@ wirePad($('#padB'), ()=>pressB());
 
 /* A — swim boost in water, jump (chain of three) on dome floors */
 function pressA(){
+  if(!overlay && scene === 'yard'){ yardTap(); return; }
+  if(!overlay && scene === 'tunnel'){ tunnelDash(); return; }
   if(overlay || (scene !== 'ocean' && scene !== 'build')) return;
   Audio_.init();
   if(scene === 'build'){
@@ -690,6 +741,7 @@ function pressA(){
 }
 /* B — bonk: a shockwave that topples stacks and calms sharks */
 function pressB(){
+  if(!overlay && scene === 'tunnel'){ tunnelBonk(); return; }
   if(overlay || (scene !== 'ocean' && scene !== 'build')) return;
   if(now() - player.bonkT < 0.55) return;
   player.bonkT = now(); player.bonk = 1;
@@ -720,7 +772,7 @@ function toast(msg){
 function tickToast(){ if(toastT && now() > toastT){ $('#toast').classList.remove('on'); toastT = 0; } }
 
 /* ============================ DIVER ART ============================ */
-function drawDiver(g, x, y, s, suit, hair, t, face, kicking){
+function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
   g.save(); g.translate(x, y); g.scale(face < 0 ? -s : s, s);
   const wob = Math.sin(t * 3) * 0.05;
   g.rotate(wob);
@@ -738,9 +790,14 @@ function drawDiver(g, x, y, s, suit, hair, t, face, kicking){
   g.beginPath(); g.ellipse(-3, 1, 3.4, 7, -.25, 0, 7); g.fill();
   // arms
   g.strokeStyle = suit; g.lineWidth = 4.2; g.lineCap = 'round';
-  const aw = Math.sin(t * 4) * 0.35;
-  g.beginPath(); g.moveTo(4, -1); g.lineTo(12, 4 + aw * 6); g.stroke();
-  g.beginPath(); g.moveTo(-4, -1); g.lineTo(-11, 5 - aw * 6); g.stroke();
+  if(hold){                                   // both hands on something, e.g. a shovel
+    g.beginPath(); g.moveTo(4, -1); g.lineTo(hold.x, hold.y); g.stroke();
+    g.beginPath(); g.moveTo(-4, -1); g.quadraticCurveTo(2, hold.y + 4, hold.x - 2, hold.y + 1); g.stroke();
+  } else {
+    const aw = Math.sin(t * 4) * 0.35;
+    g.beginPath(); g.moveTo(4, -1); g.lineTo(12, 4 + aw * 6); g.stroke();
+    g.beginPath(); g.moveTo(-4, -1); g.lineTo(-11, 5 - aw * 6); g.stroke();
+  }
   // head + hair
   g.fillStyle = '#f6d7bd'; g.beginPath(); g.arc(0, -11, 8.2, 0, 7); g.fill();
   g.fillStyle = hair;
@@ -972,6 +1029,7 @@ function updateOcean(dt, t){
   // dome entry — hold near the door and a ring fills
   let near = null;
   for(const d of DOMES) if(Math.hypot(player.x-d.x, player.y-d.y) < d.r*.62) near = d;
+  if(Math.hypot(player.x - UP.x, player.y - 120) < 70) near = UP;
   if(near !== charging){ charging = near; chargeT = 0; }
   if(charging){
     chargeT += dt;
@@ -995,6 +1053,7 @@ function drawOceanScene(t){
   g.textAlign = 'center';
   g.fillText(shark.tame ? 'Shark Cove · tamed' : 'Shark Cove', COVE.x, COVE.y - COVE.r*.62 - 16);
 
+  drawUpHole(g, t);
   for(const d of DOMES) drawDome(d, t);
 
   for(const f of fish){                                   // fish
@@ -1173,125 +1232,1426 @@ function drawBuild(t){
   g.fillText('Jump three times in a row. Then BONK the towers.', VW/2, VH - 26);
 }
 
-/* ============================ INTRO: dig beside the pool ============================ */
-const intro = {phase:0, dig:0, t:0, tunnel:0};
-function updateIntro(dt){
-  intro.t += dt;
-  if(intro.phase === 0){
-    // check BEFORE the decay, or a full bar is always shaved back under 1
-    if(intro.dig >= 1){ intro.phase = 1; intro.t = 0; Audio_.splash(); }
-    else intro.dig = Math.max(0, intro.dig - dt * 0.012);
-  } else if(intro.phase === 1){
-    if(intro.t > 1.4){ intro.phase = 2; intro.t = 0; }
-  } else if(intro.phase === 2){
-    intro.tunnel += dt * 620;
-    if(intro.t > 3.6){ finishIntro(); }
+/* ======================================================================
+   BACKYARD: the front door of the game. A sunny yard and a pool. Dig
+   beside it until you hit water, then dig the tunnels down or just dive.
+   Swimming back up out of the ocean lands you here again, so there is
+   always more digging. The still parts of the yard are painted once per
+   screen size into an offscreen canvas; each frame only moves the sky,
+   the water, the hole and the diver.
+   ====================================================================== */
+function seeded(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function mkCanvas(w, h, sc){
+  sc = sc || DPR;
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * sc)); c.height = Math.max(1, Math.ceil(h * sc));
+  c.g = c.getContext('2d'); c.g.setTransform(sc, 0, 0, sc, 0, 0);
+  return c;
+}
+function shade(hex, amt){
+  const n = parseInt(hex.slice(1), 16);
+  const r = clamp((n >> 16) + amt, 0, 255), gr = clamp((n >> 8 & 255) + amt, 0, 255), b = clamp((n & 255) + amt, 0, 255);
+  return 'rgb(' + (r|0) + ',' + (gr|0) + ',' + (b|0) + ')';
+}
+const ease = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
+const easeOut = u => { u = clamp(u, 0, 1); return 1 - (1 - u) * (1 - u); };
+function trap(g, cx, y0, y1, wT, wB, r){            // a rounded trapezoid: a pool in perspective
+  const x0 = cx - wT/2, x1 = cx + wT/2, x2 = cx + wB/2, x3 = cx - wB/2;
+  g.beginPath(); g.moveTo(cx, y0);
+  g.arcTo(x1, y0, x2, y1, r); g.arcTo(x2, y1, x3, y1, r);
+  g.arcTo(x3, y1, x0, y0, r); g.arcTo(x0, y0, x1, y0, r);
+  g.closePath();
+}
+function shadowText(g, txt, x, y, size, col){
+  g.font = '700 ' + Math.round(size) + 'px Comfortaa, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(8,30,48,.38)'; g.fillText(txt, x + size*.06, y + size*.09);
+  g.fillStyle = col; g.fillText(txt, x, y);
+}
+
+/* One skip button, reused by every scene that can be skipped. */
+let skipFn = null;
+function setSkip(label, fn){
+  const b = $('#introSkip');
+  skipFn = fn || null; b.hidden = !label;
+  if(label) b.textContent = label;
+}
+$('#introSkip').onclick = ()=>{ if(skipFn) skipFn(); };
+
+function yardLayout(){
+  const port = VH > VW * 1.05;
+  const S = clamp(Math.min(VW, VH * 1.3) / 820, .5, 1.7);
+  const H = VH * (port ? .33 : .40);
+  const pool = port
+    ? {cx:VW*.40, y0:VH*.46, y1:VH*.61, wT:VW*.62, wB:VW*.74}
+    : {cx:VW*.30, y0:VH*.52, y1:VH*.76, wT:VW*.36, wB:VW*.45};
+  const hole = port ? {x:VW*.50, y:VH*.80} : {x:VW*.66, y:VH*.72};
+  const ds = 2.25 * S * (port ? 1.12 : 1);
+  const stand = {x:hole.x + 82*S + 12*ds, y:hole.y - 24*ds};
+  const pile  = {x:stand.x + 34*ds, y:hole.y + 6*S};
+  return {port, S, H, pool, hole, ds, stand, pile, sun:{x:VW*.80, y:VH*.12}};
+}
+
+const Y = {key:'', L:null, ground:null, clouds:[], birds:[], flies:[]};
+function yardPrep(){
+  const key = VW + 'x' + VH + '@' + DPR;
+  if(Y.key === key && Y.ground) return;
+  Y.key = key;
+  const L = Y.L = yardLayout(), S = L.S, H = L.H, LEG = window.LEGACY;
+  const r0 = seeded(7), R = (a, b)=>a + r0() * (b - a);
+  const c = Y.ground = mkCanvas(VW, VH), g = c.g;
+
+  // far hills, hazy with distance
+  g.fillStyle = '#a7c6c8';
+  g.beginPath(); g.moveTo(0, H);
+  for(let x=0; x<=VW+20; x+=20) g.lineTo(x, H - 78*S - Math.sin(x*.004 + 1)*26*S - Math.sin(x*.013)*9*S);
+  g.lineTo(VW, H); g.fill();
+
+  // two rows of trees: the far row pale with haze, the near row rich and sunlit
+  for(let row=0; row<2; row++){
+    const step = (row ? 58 : 44) * S, n = Math.ceil(VW / step) + 2;
+    for(let i=-1; i<n; i++){
+      const x = (i + R(-.35, .35)) * step;
+      const y = H - (row ? 58 : 80) * S - R(0, row ? 55 : 38) * S;
+      yTree(g, x, y, R(row ? 36 : 26, row ? 64 : 44) * S, row, R);
+    }
+  }
+
+  // wooden fence
+  const fT = H - 64*S, fB = H + 8*S, pw = 24*S;
+  for(let x = -R(0, pw); x < VW; x += pw){
+    const v = R(-14, 14), top = fT + R(-2, 2)*S;
+    const pg = g.createLinearGradient(x, 0, x + pw, 0);
+    pg.addColorStop(0, shade('#a77e58', v - 10)); pg.addColorStop(.55, shade('#c49b72', v)); pg.addColorStop(1, shade('#d9b38a', v + 8));
+    g.fillStyle = pg;
+    g.beginPath(); g.moveTo(x + 1, fB); g.lineTo(x + 1, top + 6*S); g.lineTo(x + pw/2, top);
+    g.lineTo(x + pw - 1, top + 6*S); g.lineTo(x + pw - 1, fB); g.fill();
+    g.strokeStyle = 'rgba(90,58,30,.16)'; g.lineWidth = 1;
+    for(let k=0; k<3; k++){ const gx = x + R(4, pw - 4); g.beginPath(); g.moveTo(gx, top + 9*S); g.lineTo(gx + R(-2, 2), fB); g.stroke(); }
+    g.fillStyle = 'rgba(55,35,18,.38)'; g.fillRect(x + pw - 1.6, top + 6*S, 1.6, fB - top);
+  }
+  g.fillStyle = 'rgba(70,45,25,.16)'; g.fillRect(0, fT + 17*S, VW, 5*S); g.fillRect(0, fB - 20*S, VW, 5*S);
+
+  // lawn
+  const lawnTop = fB + 4*S;
+  const lg = g.createLinearGradient(0, lawnTop, 0, VH);
+  lg.addColorStop(0, '#86ab58'); lg.addColorStop(.35, '#62a03b'); lg.addColorStop(1, '#3c7a24');
+  g.fillStyle = lg; g.fillRect(0, lawnTop, VW, VH - lawnTop);
+  // mowing stripes, converging on a far vanishing point
+  const vx = VW * .5, vy = H - VH * .9;
+  g.fillStyle = 'rgba(255,255,240,.05)';
+  for(let i=-16; i<16; i+=2){
+    const xa = vx + i * VW * .12, xb = vx + (i + 1) * VW * .12;
+    const k = (lawnTop - vy) / (VH - vy);
+    g.beginPath(); g.moveTo(vx + (xa - vx)*k, lawnTop); g.lineTo(vx + (xb - vx)*k, lawnTop);
+    g.lineTo(xb, VH); g.lineTo(xa, VH); g.fill();
+  }
+  // the fence shades the lawn right behind it
+  const fs = g.createLinearGradient(0, lawnTop, 0, lawnTop + 34*S);
+  fs.addColorStop(0, 'rgba(20,40,10,.32)'); fs.addColorStop(1, 'rgba(20,40,10,0)');
+  g.fillStyle = fs; g.fillRect(0, lawnTop, VW, 34*S);
+
+  // flower bed and shrubs along the fence
+  g.fillStyle = '#4b3826'; g.fillRect(0, fB - 5*S, VW, 11*S);
+  for(let x = R(0, 20)*S; x < VW + 30*S; x += R(34, 70)*S) yBush(g, x, fB + 2*S, R(13, 24)*S, R);
+  const fl = ['#ff6f9c','#ffd479','#ffffff','#ff9a5c','#c08cff','#ff5a5a'];
+  for(let i=0; i<VW/(5*S); i++){
+    const x = R(0, VW), y = fB + R(-16, 5)*S, r = R(1.5, 3.2)*S;
+    g.fillStyle = fl[(R(0, fl.length))|0]; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,240,170,.9)'; g.beginPath(); g.arc(x, y, r*.35, 0, 7); g.fill();
+  }
+
+  // grass blades, small and dense far away, long and lush up close
+  const N = LEG ? 2200 : 7500;
+  g.lineCap = 'round';
+  for(let i=0; i<N; i++){
+    const d = Math.sqrt(r0()), y = lawnTop + 8*S + d * (VH - lawnTop);
+    const x = R(-5, VW + 5), len = (2 + 13*d) * S * R(.6, 1.35), lean = R(-.55, .55) * len, k = r0();
+    g.strokeStyle = k < .42 ? 'rgba(42,90,26,.55)' : k < .84 ? 'rgba(110,160,66,.5)' : 'rgba(178,214,112,.55)';
+    g.lineWidth = (.6 + 1.6*d) * S;
+    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + lean*.3, y - len*.6, x + lean, y - len); g.stroke();
+  }
+
+  // the pool: deck, coping, water, tiles
+  const P = L.pool;
+  g.fillStyle = 'rgba(20,40,10,.22)';
+  trap(g, P.cx - 6*S, P.y0 - 22*S, P.y1 + 50*S, P.wT + 118*S, P.wB + 166*S, 30*S); g.fill();
+  trap(g, P.cx, P.y0 - 28*S, P.y1 + 42*S, P.wT + 110*S, P.wB + 156*S, 28*S);
+  const dg = g.createLinearGradient(0, P.y0 - 28*S, 0, P.y1 + 42*S);
+  dg.addColorStop(0, '#d3cab7'); dg.addColorStop(1, '#ece5d4');
+  g.fillStyle = dg; g.fill();
+  g.save(); trap(g, P.cx, P.y0 - 28*S, P.y1 + 42*S, P.wT + 110*S, P.wB + 156*S, 28*S); g.clip();
+  for(let i=0; i<(LEG ? 500 : 1600); i++){
+    g.fillStyle = r0() < .5 ? 'rgba(120,108,88,.16)' : 'rgba(255,255,255,.22)';
+    g.fillRect(R(0, VW), R(P.y0 - 30*S, P.y1 + 44*S), R(.8, 2)*S, R(.8, 2)*S);
+  }
+  g.strokeStyle = 'rgba(120,108,88,.22)'; g.lineWidth = 1;
+  for(let k=1; k<5; k++){
+    const yy = lerp(P.y0 - 28*S, P.y1 + 42*S, k/5);
+    g.beginPath(); g.moveTo(0, yy); g.lineTo(VW, yy); g.stroke();
+  }
+  for(let k=-6; k<=6; k++){
+    g.beginPath(); g.moveTo(P.cx + k*P.wT*.16, P.y0 - 28*S); g.lineTo(P.cx + k*P.wB*.16, P.y1 + 42*S); g.stroke();
+  }
+  g.restore();
+  // coping stone, with a bevel
+  trap(g, P.cx, P.y0 - 9*S, P.y1 + 13*S, P.wT + 26*S, P.wB + 38*S, 18*S);
+  g.fillStyle = '#f7f3ea'; g.fill();
+  g.strokeStyle = 'rgba(110,100,80,.25)'; g.lineWidth = 1.5*S; g.stroke();
+  // water body
+  trap(g, P.cx, P.y0, P.y1, P.wT, P.wB, 14*S);
+  const wg = g.createLinearGradient(0, P.y0, 0, P.y1);
+  wg.addColorStop(0, '#2c9fc1'); wg.addColorStop(.18, '#45bfd8'); wg.addColorStop(1, '#7cdbe9');
+  g.fillStyle = wg; g.fill();
+  g.save(); trap(g, P.cx, P.y0, P.y1, P.wT, P.wB, 14*S); g.clip();
+  // the far wall shows through, topped by a strip of mosaic tile at the waterline
+  g.fillStyle = 'rgba(12,82,122,.35)'; g.fillRect(0, P.y0, VW, 15*S);
+  for(let x = P.cx - P.wT/2, k = 0; x < P.cx + P.wT/2; x += 6*S, k++){
+    g.fillStyle = k % 3 === 0 ? '#1f5f8c' : k % 3 === 1 ? '#2d7cad' : '#3b93c2';
+    g.fillRect(x, P.y0 + 1*S, 5.2*S, 4.5*S);
+  }
+  const sg = g.createLinearGradient(0, P.y0, 0, P.y0 + 26*S);
+  sg.addColorStop(0, 'rgba(0,40,70,.35)'); sg.addColorStop(1, 'rgba(0,40,70,0)');
+  g.fillStyle = sg; g.fillRect(0, P.y0, VW, 26*S);
+  // floor tile grid, faint through the water
+  g.strokeStyle = 'rgba(20,90,130,.12)'; g.lineWidth = 1;
+  for(let k=-8; k<=8; k++){ g.beginPath(); g.moveTo(P.cx + k*P.wT*.07, P.y0 + 14*S); g.lineTo(P.cx + k*P.wB*.07, P.y1); g.stroke(); }
+  for(let k=1; k<8; k++){ const yy = lerp(P.y0 + 14*S, P.y1, k/8); g.beginPath(); g.moveTo(0, yy); g.lineTo(VW, yy); g.stroke(); }
+  g.restore();
+
+  // a bucket by the digging spot
+  yBucket(g, L.hole.x - 104*S, L.hole.y + 30*S, S);
+
+  // warm afternoon light washing in from the sun's side
+  g.globalCompositeOperation = 'source-atop';
+  const sw = g.createRadialGradient(L.sun.x, L.sun.y, 0, L.sun.x, L.sun.y, Math.max(VW, VH) * 1.1);
+  sw.addColorStop(0, 'rgba(255,232,180,.24)'); sw.addColorStop(1, 'rgba(255,232,180,0)');
+  g.fillStyle = sw; g.fillRect(0, 0, VW, VH);
+  g.globalCompositeOperation = 'source-over';
+
+  // cloud sprites: soft puffs, shaded underneath
+  Y.clouds = [];
+  for(let i=0; i<(LEG ? 3 : 5); i++){
+    const w = R(170, 320) * S, h = w * .45, cc = mkCanvas(w, h, LEG ? 1 : Math.min(DPR, 1.5)), cg = cc.g;
+    for(let k=0; k<16; k++){
+      const x = R(w*.14, w*.86), r = R(h*.17, h*.34);
+      const y = h*.66 - Math.sin((x / w) * Math.PI) * h*.26 + R(-.06, .06)*h;
+      const rg = cg.createRadialGradient(x, y - r*.3, r*.1, x, y, r);
+      rg.addColorStop(0, 'rgba(255,255,255,.96)'); rg.addColorStop(.72, 'rgba(246,250,255,.82)'); rg.addColorStop(1, 'rgba(235,243,252,0)');
+      cg.fillStyle = rg; cg.beginPath(); cg.arc(x, y, r, 0, 7); cg.fill();
+    }
+    cg.globalCompositeOperation = 'source-atop';
+    const sh = cg.createLinearGradient(0, 0, 0, h);
+    sh.addColorStop(.42, 'rgba(150,172,205,0)'); sh.addColorStop(1, 'rgba(150,172,205,.5)');
+    cg.fillStyle = sh; cg.fillRect(0, 0, w, h);
+    Y.clouds.push({c:cc, w, h, x:R(-w, VW), y:R(VH*.02, H*.5), sp:R(5, 13)*S});
+  }
+  Y.flies = [0, 1].map(i=>({x:R(VW*.1, VW*.9), y:R(lawnTop + 30*S, VH*.95), ph:R(0, 9),
+    c:['#ffd479','#ff8ac0'][i], vx:0, vy:0}));
+  Y.birds = [];
+}
+function yTree(g, x, y, r, near, R){
+  const pal = near ? ['#2b5228','#3d7034','#558c43','#7fb35d'] : ['#6c9482','#7ca48c','#90b79b','#a6c8ac'];
+  g.fillStyle = near ? '#4a3726' : '#7b8e83'; g.fillRect(x - r*.08, y, r*.16, r*1.3);
+  for(let k=0; k<4; k++){
+    g.fillStyle = pal[k];
+    const m = [10, 8, 6, 4][k];
+    for(let j=0; j<m; j++){
+      const a = R(0, Math.PI*2), d = R(0, r*.62) * (1 - k*.12);
+      const cx = x + Math.cos(a)*d + k*r*.10, cy = y + Math.sin(a)*d*.8 - k*r*.12;  // lit side faces the sun
+      g.beginPath(); g.arc(cx, cy, r * R(.28, .46) * (1 - k*.16), 0, 7); g.fill();
+    }
   }
 }
-function introTap(){
-  if(scene !== 'intro') return;
+function yBush(g, x, y, r, R){
+  const pal = ['#2f5a2a','#43793a','#62994b','#8cc067'];
+  for(let k=0; k<4; k++){
+    g.fillStyle = pal[k];
+    for(let j=0; j<[6, 5, 4, 2][k]; j++){
+      const cx = x + R(-r*.7, r*.7) + k*r*.12, cy = y - r*.5 + R(-r*.35, r*.25) - k*r*.14;
+      g.beginPath(); g.arc(cx, cy, r * R(.32, .5) * (1 - k*.15), 0, 7); g.fill();
+    }
+  }
+}
+function yBucket(g, x, y, S){
+  g.fillStyle = 'rgba(25,45,15,.3)'; g.beginPath(); g.ellipse(x - 6*S, y + 2*S, 22*S, 6*S, 0, 0, 7); g.fill();
+  const bg = g.createLinearGradient(x - 16*S, 0, x + 16*S, 0);
+  bg.addColorStop(0, '#c9283b'); bg.addColorStop(.6, '#ff5468'); bg.addColorStop(1, '#e03549');
+  g.fillStyle = bg;
+  g.beginPath(); g.moveTo(x - 17*S, y - 30*S); g.lineTo(x + 17*S, y - 30*S); g.lineTo(x + 13*S, y); g.lineTo(x - 13*S, y); g.fill();
+  g.beginPath(); g.ellipse(x, y, 13*S, 3.5*S, 0, 0, 7); g.fill();
+  g.fillStyle = '#8f1526'; g.beginPath(); g.ellipse(x, y - 30*S, 17*S, 4.6*S, 0, 0, 7); g.fill();
+  g.fillStyle = '#5c3a1c'; g.beginPath(); g.ellipse(x, y - 29*S, 14*S, 3.2*S, 0, 0, 7); g.fill();
+  g.strokeStyle = '#d9d9d9'; g.lineWidth = 1.6*S;
+  g.beginPath(); g.ellipse(x, y - 30*S, 16*S, 17*S, 0, Math.PI*1.05, Math.PI*1.95); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x - 11*S, y - 25*S, 3*S, 20*S);
+}
+
+/* ---- the yard, frame by frame ---- */
+const yard = {phase:'arrive', t:0, off:0, dig:0, water:0, pile:0, glow:0, anim:-1, queue:0,
+              clods:[], need:10, finds:0, worm:null, asked:false, splashed:false, chirp:3, held:true};
+function yardStart(mode){                 // 'arrive' | 'return' (up from the ocean) | 'back' (from the tunnels)
+  yardPrep();
+  scene = 'yard'; openLayer(null); sparks = [];
+  Object.assign(yard, {t:0, dig:0, water:0, pile:0, glow:0, anim:-1, queue:0, clods:[], finds:0,
+    worm:null, asked:false, splashed:false, held:true, off:0});
+  yard.need = save.mode === 'easy' ? 8 : 11;
+  if(mode === 'return'){ yard.phase = 'climb'; yard.dig = 1; yard.water = 1; yard.pile = 1; yard.held = false; }
+  else if(mode === 'back'){ yard.phase = 'dig'; }
+  else { yard.phase = 'arrive'; yard.off = VH * .85; }
+  showHud(true);
+  setSkip('Jump in ›', yardJump);
+}
+function yardTap(){
+  if(scene !== 'yard' || overlay) return;
   Audio_.init();
-  if(intro.phase === 0){
-    intro.dig = clamp(intro.dig + 0.11, 0, 1);
-    Audio_.tone(rnd(150, 260), 0.09, 'sawtooth', 0.05);
-    for(let i=0;i<6;i++) sparks.push({
-      x: VW*.5 + rnd(-40,40), y: VH*.62, vx:rnd(-180,180), vy:rnd(-380,-140),
-      life:rnd(.4,.8), t:0, c:pick(['#8a6a43','#6b5334','#a68a5c']), r:rnd(2,5)});
+  if(yard.phase === 'arrive'){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; return; }
+  if(yard.phase !== 'dig' || yard.dig >= 1) return;
+  if(yard.anim < 0) yard.anim = 0;
+  else if(yard.queue < 2) yard.queue++;
+}
+function yardJump(){
+  if(scene !== 'yard' || yard.phase === 'jump') return;
+  openLayer(null); setSkip(null);
+  if(yard.dig < 1){ yard.dig = 1; yard.pile = Math.max(yard.pile, .6); burst(Y.L.hole.x, Y.L.hole.y, 30, '#8a6a43'); Audio_.crunch(); }
+  yard.water = 1; yard.glow = 1; yard.held = false;
+  yard.phase = 'jump'; yard.t = 0; yard.splashed = false;
+  Audio_.sweep(300, 700, .35, 'triangle', .1);
+}
+function yardDigHit(){
+  const L = Y.L, before = yard.dig;
+  yard.dig = clamp(yard.dig + 1 / yard.need, 0, 1);
+  Audio_.crunch();
+  for(let i=0; i<8; i++) sparks.push({x:L.hole.x + rnd(-30, 30)*L.S, y:L.hole.y + rnd(-6, 8)*L.S,
+    vx:rnd(-120, 120)*L.S, vy:rnd(-260, -60)*L.S, life:rnd(.35, .7), t:0, c:pick(['#8a6a43','#6b5334','#a68a5c']), r:rnd(1.6, 3.6)*L.S});
+  if(before < .34 && yard.dig >= .34){ yard.worm = {t:0}; toast('A wiggly worm!'); Audio_.sweep(500, 900, .2, 'sine', .08); }
+  if(before < .67 && yard.dig >= .67){
+    save.pearls++; persist(); updateHud(); toast('Something shiny! +1 pearl'); Audio_.sparkle();
+    burst(L.hole.x, L.hole.y - 10*L.S, 16, '#ffd479');
+  }
+  if(yard.dig > .6) yard.water = Math.max(yard.water, (yard.dig - .6) / .4 * .4);
+}
+function yardToss(){
+  const L = Y.L, tip = yard.tip;
+  if(!tip) return;
+  for(let i=0; i<7; i++){
+    const T = rnd(.5, .7);
+    yard.clods.push({x:tip.x + rnd(-6, 6)*L.S, y:tip.y + rnd(-4, 4)*L.S,
+      vx:(L.pile.x + rnd(-30, 30)*L.S - tip.x) / T, vy:-rnd(120, 300)*L.S,
+      r:rnd(2.2, 5)*L.S, c:pick(['#7a5a37','#5e4428','#8d6b45','#4f3a22'])});
+  }
+  Audio_.noise(.12, 1600, 1, .06, 'bandpass', .25);
+}
+function updateYard(dt){
+  const L = Y.L; if(!L) return;
+  yard.t += dt;
+  yard.chirp -= dt;
+  if(yard.chirp <= 0){ yard.chirp = rnd(3, 8); if(Audio_.ac && Audio_.ac.state === 'running') Audio_.chirp(); }
+  if(yard.phase === 'arrive'){
+    yard.off = VH * .85 * (1 - ease(yard.t / 2.6));
+    if(yard.t > 2.0 && Math.floor(yard.t * 3.2) !== Math.floor((yard.t - dt) * 3.2)) Audio_.flop();
+    if(yard.t > 4.3){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; }
+  } else if(yard.phase === 'dig'){
+    if(yard.anim >= 0){
+      const prev = yard.anim;
+      yard.anim += dt / (save.mode === 'easy' ? .5 : .46);
+      if(prev < .42 && yard.anim >= .42) yardDigHit();
+      if(prev < .72 && yard.anim >= .72) yardToss();
+      if(yard.anim >= 1){ if(yard.queue > 0){ yard.queue--; yard.anim = 0; } else yard.anim = -1; }
+    }
+    if(yard.dig >= 1 && yard.anim < 0){ yard.phase = 'reveal'; yard.t = 0; Audio_.sploosh(); }
+  } else if(yard.phase === 'reveal'){
+    yard.water = Math.max(yard.water, ease(yard.t / 1.6));
+    yard.glow = Math.min(1, yard.t / 1.2);
+    if(Math.random() < dt * 9) Audio_.pop(.04);
+    if(Math.random() < dt * 30) sparks.push({x:L.hole.x + rnd(-40, 40)*L.S, y:L.hole.y, vx:rnd(-20, 20), vy:rnd(-90, -30)*L.S,
+      life:rnd(.6, 1.2), t:0, c:'#d8fbff', r:rnd(1.5, 4)*L.S});
+    if(yard.t > 2.0 && !yard.asked){
+      yard.asked = true;
+      choose('The hole goes all the way down', 'How do you want to get to Bubble Town?',
+        'There are tunnels under the yard, full of treasure. Or you can jump straight in.',
+        {ic:'⛏️', label:'Dig the tunnels', desc:'Find treasure on the way down', fn:startTunnel},
+        {ic:'🌊', label:'Dive right in', desc:'Straight down to the water', fn:yardJump});
+    }
+  } else if(yard.phase === 'jump'){
+    if(yard.t >= .62 && !yard.splashed){
+      yard.splashed = true; Audio_.sploosh();
+      for(let i=0; i<46; i++){ const a = rnd(Math.PI*1.1, Math.PI*1.9), s = rnd(140, 460)*L.S;
+        yard.clods.push({x:L.hole.x + rnd(-20, 20)*L.S, y:L.hole.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+          r:rnd(1.6, 4.4)*L.S, c:pick(['#bdf7ff','#7df0ff','#ffffff','#5fd0e6']), water:true}); }
+    }
+    if(yard.t > 1.45) startDive();
+  } else if(yard.phase === 'climb'){
+    if(yard.t < 1.3 && Math.random() < dt * 30) sparks.push({x:yardPose().x + rnd(-14, 14)*L.S, y:yardPose().y + rnd(-10, 30)*L.S,
+      vx:rnd(-30, 30), vy:rnd(40, 120), life:rnd(.3, .6), t:0, c:'#9ff0ff', r:rnd(1.4, 3)*L.S});
+    if(yard.t > 1.6){                                     // the water sinks away and the hole fills back in
+      yard.water = Math.max(0, yard.water - dt * 1.4);
+      yard.glow = Math.max(0, yard.glow - dt * 2);
+      if(yard.water <= 0) yard.dig = Math.max(0, yard.dig - dt * 1.1);
+      yard.pile = yard.dig;
+    }
+    if(yard.t > 1.6 && yard.dig <= 0){ yard.phase = 'dig'; yard.t = 0; yard.held = true; toast('Back in the backyard! Dig again?'); }
+  }
+  if(yard.phase === 'dig' || yard.phase === 'reveal') yard.pile = lerp(yard.pile, yard.dig, Math.min(1, dt*3));
+  if(yard.worm){ yard.worm.t += dt; if(yard.worm.t > 6) yard.worm = null; }
+  for(let i=yard.clods.length-1; i>=0; i--){
+    const c = yard.clods[i];
+    c.vy += 1400 * L.S * dt; c.x += c.vx * dt; c.y += c.vy * dt;
+    const floor = c.water ? L.hole.y + 30*L.S : L.pile.y - (8 + 30*yard.pile)*L.S*.6;
+    if(c.vy > 0 && c.y >= floor){
+      if(!c.water) for(let k=0; k<2; k++) sparks.push({x:c.x, y:c.y, vx:rnd(-50, 50), vy:rnd(-60, -10), life:.4, t:0, c:'rgba(160,130,90,.6)', r:rnd(1, 2.4)*L.S});
+      yard.clods.splice(i, 1);
+    }
+  }
+  // butterflies drift about the lawn
+  for(const f of Y.flies){
+    const tt = yard.t + f.ph;
+    f.vx = lerp(f.vx, Math.cos(tt*.7 + f.ph)*60*L.S, dt*2); f.vy = lerp(f.vy, Math.sin(tt*1.1)*40*L.S, dt*2);
+    f.x += f.vx*dt; f.y += f.vy*dt;
+    f.x = clamp(f.x, 20, VW - 20); f.y = clamp(f.y, L.H + 30*L.S, VH - 30);
+  }
+  // now and then a bird crosses the sky
+  if(Math.random() < dt * .12 && Y.birds.length < 3)
+    Y.birds.push({x:-30, y:rnd(VH*.05, L.H*.55), sp:rnd(50, 90)*L.S, ph:rnd(0, 9), s:rnd(.7, 1.2)*L.S});
+  for(let i=Y.birds.length-1; i>=0; i--){ const b = Y.birds[i]; b.x += b.sp*dt; if(b.x > VW + 40) Y.birds.splice(i, 1); }
+}
+
+/* where the diver is, and what she is doing with the shovel */
+const SHOVEL_KEYS = [[0, 2.35, 0], [.28, 2.95, -10], [.42, 2.0, 8], [.72, 5.05, -16], [1, 2.35, 0]];
+function yardPose(){
+  const L = Y.L, S = L.S, ds = L.ds, st = L.stand;
+  const p = {x:st.x, y:st.y, face:-1, rot:0, alpha:1, a:2.35, gdy:0, load:false, held:yard.held, kick:0, clip:null, walk:false};
+  if(yard.phase === 'arrive'){
+    const u = clamp((yard.t - 1.7) / 2.4, 0, 1);
+    p.x = lerp(VW + 50*S, st.x, easeOut(u)); p.walk = u < 1;
+    p.y = st.y - (p.walk ? Math.abs(Math.sin(yard.t * 10)) * 5*S : 0);
+    p.a = 5.3; p.gdy = -8;
+  } else if(yard.phase === 'dig' && yard.anim >= 0){
+    const u = yard.anim;
+    let k = 0; while(k < SHOVEL_KEYS.length - 2 && u > SHOVEL_KEYS[k+1][0]) k++;
+    const A = SHOVEL_KEYS[k], B = SHOVEL_KEYS[k+1], f = ease((u - A[0]) / (B[0] - A[0]));
+    p.a = lerp(A[1], B[1], f); p.gdy = lerp(A[2], B[2], f);
+    p.load = u > .42 && u < .72;
+    p.y += Math.sin(u * Math.PI * 2) * 2*S;
+  } else if(yard.phase === 'reveal'){
+    p.y -= Math.abs(Math.sin(yard.t * 7)) * 10*S * clamp(2 - yard.t, 0, 1);   // a happy hop
+  } else if(yard.phase === 'jump'){
+    const u = clamp(yard.t / .7, 0, 1);
+    p.x = lerp(st.x, L.hole.x, u); p.y = lerp(st.y, L.hole.y - 8*S, u) - Math.sin(u * Math.PI) * 90*S;
+    p.rot = -u * 2.2; p.kick = 1;
+    p.alpha = 1 - clamp((u - .82) / .18, 0, 1);
+  } else if(yard.phase === 'climb'){
+    const u = yard.t;
+    if(u < .6){                                           // pop up out of the water
+      p.x = L.hole.x; p.y = L.hole.y + lerp(30, -40, easeOut(u / .6))*S - 10*ds; p.face = 1; p.kick = 1;
+      p.clip = L.hole.y + 6*S;
+    } else {                                              // and hop out onto the grass
+      const v = clamp((u - .6) / .6, 0, 1);
+      p.x = lerp(L.hole.x, st.x, v); p.y = lerp(L.hole.y - 40*S - 10*ds, st.y, v) - Math.sin(v * Math.PI) * 50*S;
+      p.face = v < 1 ? 1 : -1;
+    }
+  }
+  return p;
+}
+
+function drawYard(t, dt){
+  yardPrep();
+  const L = Y.L, S = L.S, g = ctx, off = yard.off;
+  // sky
+  const sk = g.createLinearGradient(0, off - VH*.8, 0, L.H + off);
+  sk.addColorStop(0, '#2a76c9'); sk.addColorStop(.55, '#74b5e8'); sk.addColorStop(1, '#dcf0fb');
+  g.fillStyle = sk; g.fillRect(0, 0, VW, VH);
+  // the sun and its bloom
+  const sx = L.sun.x, sy = L.sun.y + off * .35;
+  g.globalCompositeOperation = 'lighter';
+  const sg = g.createRadialGradient(sx, sy, 0, sx, sy, 320*S);
+  sg.addColorStop(0, 'rgba(255,250,228,.95)'); sg.addColorStop(.08, 'rgba(255,246,214,.62)');
+  sg.addColorStop(.3, 'rgba(255,236,192,.18)'); sg.addColorStop(1, 'rgba(255,236,192,0)');
+  g.fillStyle = sg; g.fillRect(sx - 320*S, sy - 320*S, 640*S, 640*S);
+  g.globalCompositeOperation = 'source-over';
+  g.fillStyle = '#fffdf3'; g.beginPath(); g.arc(sx, sy, 24*S, 0, 7); g.fill();
+  // clouds and birds
+  for(const c of Y.clouds){
+    c.x += c.sp * dt; if(c.x > VW + 20) c.x = -c.w - 20;
+    g.drawImage(c.c, c.x, c.y + off * .5, c.w, c.h);
+  }
+  g.strokeStyle = 'rgba(30,40,55,.7)'; g.lineCap = 'round';
+  for(const b of Y.birds){
+    const f = Math.sin(t * 9 + b.ph) * 5 * b.s, y = b.y + off*.5;
+    g.lineWidth = 1.8 * b.s;
+    g.beginPath(); g.moveTo(b.x - 9*b.s, y - f); g.quadraticCurveTo(b.x - 4*b.s, y - 3*b.s, b.x, y);
+    g.quadraticCurveTo(b.x + 4*b.s, y - 3*b.s, b.x + 9*b.s, y - f); g.stroke();
+  }
+  // the yard
+  g.drawImage(Y.ground, 0, off, VW, VH);
+  g.save(); g.translate(0, off);
+  drawPoolLive(g, L, t);
+  drawHole(g, L, t);
+  drawPile(g, L);
+  if(yard.worm) drawWorm(g, L, t);
+  const p = yardPose();
+  if(!p.held){                                            // the shovel, dropped on the grass
+    drawShovel(g, L.pile.x - 30*S, L.hole.y + 26*S, .12, 30*L.ds, S, false);
+  }
+  drawYardDiver(g, L, p, t);
+  for(const c of yard.clods){
+    g.fillStyle = c.c; g.beginPath(); g.arc(c.x, c.y, c.r, 0, 7); g.fill();
+  }
+  drawSparks(g);
+  for(const f of Y.flies){                                // butterflies
+    const w = Math.abs(Math.sin(t * 16 + f.ph)) * 7*S + 1;
+    g.fillStyle = f.c;
+    g.beginPath(); g.ellipse(f.x - w*.6, f.y, w, 5*S, -.3, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(f.x + w*.6, f.y, w, 5*S, .3, 0, 7); g.fill();
+    g.fillStyle = '#3a2a1a'; g.fillRect(f.x - .8*S, f.y - 4*S, 1.6*S, 8*S);
+  }
+  g.restore();
+
+  // a soft vignette pulls the eye to the middle
+  const vg = g.createRadialGradient(VW/2, VH*.55, Math.min(VW, VH)*.35, VW/2, VH*.55, Math.max(VW, VH)*.82);
+  vg.addColorStop(0, 'rgba(10,25,10,0)'); vg.addColorStop(1, 'rgba(10,25,10,.32)');
+  g.fillStyle = vg; g.fillRect(0, 0, VW, VH);
+
+  // words
+  const big = Math.min(VW * .1, 74);
+  if(yard.phase === 'arrive'){
+    const a = clamp(yard.t / .8, 0, 1) * clamp((3.2 - yard.t) / .8, 0, 1);
+    g.globalAlpha = a;
+    shadowText(g, 'Bubble Town', VW/2, VH*.30 - (1 - ease(yard.t)) * 20, big, '#ffffff');
+    shadowText(g, 'It all starts in the backyard...', VW/2, VH*.30 + big*.85, big*.34, '#f4fbff');
+    g.globalAlpha = 1;
+  } else if(yard.phase === 'dig'){
+    const msg = yard.dig === 0 ? 'Tap to dig a hole by the pool!' : yard.dig < .6 ? 'Keep digging!' : 'Almost... something is down there!';
+    shadowText(g, msg, VW/2, VH*.085 + 18, Math.min(VW*.055, 32), '#ffffff');
+    const bw = Math.min(260, VW*.6), bx = VW/2 - bw/2, by = VH*.085 + 18 + Math.min(VW*.055, 32)*.9;
+    g.fillStyle = 'rgba(8,37,58,.32)'; roundRect(g, bx, by, bw, 16, 8); g.fill();
+    const fg = g.createLinearGradient(bx, 0, bx + bw, 0);
+    fg.addColorStop(0, '#a5784a'); fg.addColorStop(.6, '#7a5636'); fg.addColorStop(1, '#2ba7bd');
+    g.fillStyle = fg; roundRect(g, bx + 3, by + 3, Math.max(10, (bw - 6) * yard.dig), 10, 5); g.fill();
+  } else if(yard.phase === 'reveal'){
+    shadowText(g, 'Water! And tunnels going down...', VW/2, VH*.085 + 18, Math.min(VW*.055, 32), '#ffffff');
+  } else if(yard.phase === 'climb' && yard.t > .4 && yard.t < 2.4){
+    g.globalAlpha = clamp((2.4 - yard.t) / .5, 0, 1);
+    shadowText(g, 'Back up in the sunshine!', VW/2, VH*.085 + 18, Math.min(VW*.055, 32), '#ffffff');
+    g.globalAlpha = 1;
   }
 }
-cv.addEventListener('pointerdown', introTap);
-$('#introSkip').onclick = ()=>{ if(scene === 'intro') finishIntro(); };
+
+function drawPoolLive(g, L, t){
+  const P = L.pool, S = L.S, h = P.y1 - P.y0, LEG = window.LEGACY;
+  g.save(); trap(g, P.cx, P.y0, P.y1, P.wT, P.wB, 14*S); g.clip();
+  // caustics: two families of wavy lines whose crossings make the light net
+  g.globalCompositeOperation = 'lighter';
+  g.lineWidth = 2*S; g.lineJoin = 'round';
+  const x0 = P.cx - P.wB/2 - 10, w = P.wB + 20, n = LEG ? 5 : 10;
+  for(let i=0; i<n; i++){
+    const yy = P.y0 + 12*S + (i + .5) / n * (h - 12*S);
+    g.strokeStyle = 'rgba(225,255,255,' + (.06 + .07 * i / n) + ')';
+    g.beginPath();
+    for(let x=0; x<=w; x+=12*S){
+      const y = yy + Math.sin(x*.035/S + t*1.3 + i*1.7)*4*S + Math.sin(x*.09/S - t*2.1 + i)*2*S;
+      x === 0 ? g.moveTo(x0 + x, y) : g.lineTo(x0 + x, y);
+    }
+    g.stroke();
+  }
+  const m = LEG ? 6 : 13;
+  for(let i=0; i<m; i++){
+    const xx = x0 + (i + .5) / m * w;
+    g.strokeStyle = 'rgba(225,255,255,.07)';
+    g.beginPath();
+    for(let y=P.y0; y<=P.y1; y+=10*S){
+      const x = xx + (y - P.y0) * .25 + Math.sin(y*.06/S + t*1.6 + i*2.3)*5*S;
+      y === P.y0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  // sun glints, twinkling on the far side of the water
+  for(let i=0; i<(LEG ? 4 : 9); i++){
+    const a = Math.sin(t * 2.6 + i * 2.1);
+    if(a < .35) continue;
+    const gx = P.cx + P.wT * (.05 + .42 * ((i * 37) % 10) / 10), gy = P.y0 + h * (.12 + .45 * ((i * 53) % 10) / 10);
+    const r = (2 + 4 * a) * S;
+    g.fillStyle = 'rgba(255,255,255,' + (a * .85) + ')';
+    g.beginPath(); g.moveTo(gx - r, gy); g.lineTo(gx, gy - r*.25); g.lineTo(gx + r, gy); g.lineTo(gx, gy + r*.25); g.fill();
+    g.beginPath(); g.moveTo(gx, gy - r*.6); g.lineTo(gx + r*.15, gy); g.lineTo(gx, gy + r*.6); g.lineTo(gx - r*.15, gy); g.fill();
+  }
+  g.globalCompositeOperation = 'source-over';
+  // a beach ball bobbing on the water
+  const bx = P.cx - P.wT*.12 + Math.sin(t * .25) * 30*S, by = P.y0 + h*.52 + Math.sin(t * 1.4) * 2*S, br = 15*S;
+  g.fillStyle = 'rgba(0,50,80,.25)'; g.beginPath(); g.ellipse(bx - 4*S, by + br*.75, br*1.1, br*.35, 0, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 1.5*S;
+  const rp = (t * .6) % 1;
+  g.globalAlpha = 1 - rp; g.beginPath(); g.ellipse(bx, by + br*.7, br*(1.2 + rp*1.4), br*(.35 + rp*.4), 0, 0, 7); g.stroke();
+  g.globalAlpha = 1;
+  g.save(); g.beginPath(); g.arc(bx, by, br, 0, 7); g.clip();
+  const cols = ['#ff4d5e','#ffffff','#ffd23f','#ffffff','#2f8fff','#ffffff'];
+  const spin = t * .3;
+  for(let k=0; k<6; k++){
+    g.fillStyle = cols[k];
+    g.beginPath(); g.moveTo(bx, by); g.arc(bx, by, br + 1, spin + k * Math.PI/3, spin + (k + 1) * Math.PI/3); g.fill();
+  }
+  const sh = g.createRadialGradient(bx - br*.4, by - br*.45, br*.1, bx, by, br*1.05);
+  sh.addColorStop(0, 'rgba(255,255,255,.55)'); sh.addColorStop(.5, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,30,60,.38)');
+  g.fillStyle = sh; g.fillRect(bx - br, by - br, br*2, br*2);
+  g.restore();
+  g.restore();
+  // ladder rails, chrome
+  const lx = P.cx + P.wT*.30, ly = P.y0 - 4*S;
+  for(const dx of [0, 22*S]){
+    g.strokeStyle = 'rgba(40,60,70,.45)'; g.lineWidth = 4.4*S;
+    g.beginPath(); g.moveTo(lx + dx, ly + 10*S); g.quadraticCurveTo(lx + dx + 4*S, ly - 22*S, lx + dx + 14*S, ly - 10*S); g.lineTo(lx + dx + 14*S, ly + 24*S); g.stroke();
+    g.strokeStyle = '#eef4f7'; g.lineWidth = 2.8*S;
+    g.beginPath(); g.moveTo(lx + dx, ly + 10*S); g.quadraticCurveTo(lx + dx + 4*S, ly - 22*S, lx + dx + 14*S, ly - 10*S); g.lineTo(lx + dx + 14*S, ly + 24*S); g.stroke();
+  }
+}
+
+function drawHole(g, L, t){
+  const S = L.S, hx = L.hole.x, hy = L.hole.y, d = yard.dig;
+  if(d <= .001){                                          // X marks the spot
+    const pl = Math.sin(t * 4) * .5 + .5;
+    g.fillStyle = 'rgba(110,80,45,.55)'; g.beginPath(); g.ellipse(hx, hy, 34*S, 13*S, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,' + (.35 + pl*.5) + ')'; g.lineWidth = 3*S;
+    g.beginPath(); g.ellipse(hx, hy, (40 + pl*10)*S, (15 + pl*4)*S, 0, 0, 7); g.stroke();
+    g.strokeStyle = '#6b4a2a'; g.lineWidth = 4*S; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(hx - 12*S, hy - 5*S); g.lineTo(hx + 12*S, hy + 5*S); g.moveTo(hx + 12*S, hy - 5*S); g.lineTo(hx - 12*S, hy + 5*S); g.stroke();
+    return;
+  }
+  const grow = easeOut(d / .45);
+  const rx = (24 + 58*grow) * S, ry = rx * .42, depth = (6 + 50*d) * S;
+  // churned soil around the mouth
+  g.fillStyle = '#6a4f31';
+  g.beginPath();
+  for(let i=0; i<=48; i++){
+    const a = i / 48 * Math.PI * 2, j = 1.15 + .05*Math.sin(a*3 + 1) + .035*Math.sin(a*7 + 2);
+    const px = hx + Math.cos(a)*rx*j, py = hy + Math.sin(a)*ry*(j + .1);
+    i ? g.lineTo(px, py) : g.moveTo(px, py);
+  }
+  g.fill();
+  g.fillStyle = 'rgba(140,105,65,.6)';
+  for(let i=0; i<10; i++){ const a = i*2.4, j = 1.1 + (i % 3)*.05;
+    g.beginPath(); g.arc(hx + Math.cos(a)*rx*j, hy + Math.sin(a)*ry*j, (1.5 + i % 3)*S, 0, 7); g.fill(); }
+  // the pit itself
+  g.save(); g.beginPath(); g.ellipse(hx, hy, rx, ry, 0, 0, 7); g.clip();
+  const wg = g.createLinearGradient(0, hy - ry, 0, hy + ry);
+  wg.addColorStop(0, '#80603d'); wg.addColorStop(.45, '#4f3720'); wg.addColorStop(1, '#22160b');
+  g.fillStyle = wg; g.fillRect(hx - rx, hy - ry, rx*2, ry*2);
+  for(let k=1; k<4; k++){                                 // strata on the far wall
+    g.strokeStyle = k % 2 ? 'rgba(170,120,70,.35)' : 'rgba(30,18,8,.35)'; g.lineWidth = 2*S;
+    g.beginPath(); g.ellipse(hx, hy - ry + depth * k/4 + ry*.2, rx*(1 - .06*k), ry, 0, Math.PI*1.08, Math.PI*1.92); g.stroke();
+  }
+  const fy = hy - ry*.1 + Math.min(depth, ry*.9) * .6, frx = rx*.72, fry = ry*.6;
+  g.fillStyle = '#1b1209'; g.beginPath(); g.ellipse(hx, fy, frx, fry, 0, 0, 7); g.fill();
+  const w = yard.water;
+  if(w > 0){
+    const e = ease(w), wy = lerp(fy, hy + 1*S, e), wrx = lerp(frx*.55, rx*.97, e), wry = wrx * .42;
+    const wg2 = g.createRadialGradient(hx - wrx*.3, wy - wry*.4, 1, hx, wy, wrx);
+    wg2.addColorStop(0, '#b8f6ff'); wg2.addColorStop(.45, '#36bdd8'); wg2.addColorStop(1, '#0d6a8a');
+    g.globalAlpha = clamp(w * 3, 0, 1);
+    g.fillStyle = wg2; g.beginPath(); g.ellipse(hx, wy, wrx, wry, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.5*S;
+    for(let k=0; k<2; k++){
+      const ph = (t * .8 + k * .5) % 1;
+      g.globalAlpha = (1 - ph) * clamp(w * 3, 0, 1) * .7;
+      g.beginPath(); g.ellipse(hx, wy, Math.max(.5, wrx*ph), Math.max(.5, wry*ph), 0, 0, 7); g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+  g.restore();
+  // the near lip catches the light
+  g.strokeStyle = 'rgba(160,122,76,.95)'; g.lineWidth = 3*S;
+  g.beginPath(); g.ellipse(hx, hy, rx, ry, 0, .15, Math.PI - .15); g.stroke();
+  if(yard.glow > 0){                                      // light from Bubble Town, far below
+    g.globalCompositeOperation = 'lighter';
+    const gl = g.createRadialGradient(hx, hy, 0, hx, hy, rx * 2.2);
+    gl.addColorStop(0, 'rgba(120,235,255,' + (.5 * yard.glow) + ')'); gl.addColorStop(1, 'rgba(120,235,255,0)');
+    g.fillStyle = gl; g.beginPath(); g.ellipse(hx, hy, rx*2.2, rx*1.3, 0, 0, 7); g.fill();
+    g.globalCompositeOperation = 'source-over';
+  }
+}
+function drawPile(g, L){
+  const p = yard.pile; if(p <= .01) return;
+  const S = L.S, x = L.pile.x, y = L.pile.y, w = (26 + 46*p)*S, h = (6 + 30*p)*S;
+  g.fillStyle = 'rgba(25,45,15,.3)'; g.beginPath(); g.ellipse(x - 10*S, y + 3*S, w*1.12, h*.32 + 4*S, 0, 0, 7); g.fill();
+  const pg = g.createLinearGradient(x + w*.4, y - h, x - w*.6, y + h*.2);
+  pg.addColorStop(0, '#a3804f'); pg.addColorStop(.55, '#7a5836'); pg.addColorStop(1, '#4e3720');
+  g.fillStyle = pg;
+  g.beginPath(); g.moveTo(x - w, y);
+  g.bezierCurveTo(x - w*.55, y - h*.9, x - w*.2, y - h*1.05, x + w*.05, y - h);
+  g.bezierCurveTo(x + w*.4, y - h*.95, x + w*.7, y - h*.5, x + w, y);
+  g.quadraticCurveTo(x, y + h*.35, x - w, y); g.fill();
+  const r = seeded(3);
+  for(let i=0; i<Math.floor(8 + 26*p); i++){
+    const u = r()*2 - 1, px = x + u*w*.9, top = y - h*(1 - u*u)*.95, py = lerp(top, y, r()*.9);
+    g.fillStyle = r() < .5 ? 'rgba(60,40,20,.55)' : 'rgba(190,150,100,.5)';
+    g.beginPath(); g.arc(px, py, (1.2 + r()*2.4)*S, 0, 7); g.fill();
+  }
+}
+function drawWorm(g, L, t){
+  const S = L.S, u = yard.worm.t, x = L.pile.x - 40*S + u*6*S, y = L.pile.y + 10*S;
+  g.globalAlpha = clamp((6 - u) / .6, 0, 1) * clamp(u / .3, 0, 1);
+  g.strokeStyle = '#e88a9a'; g.lineWidth = 4.5*S; g.lineCap = 'round';
+  g.beginPath();
+  for(let i=0; i<=8; i++){ const px = x + i*3*S, py = y + Math.sin(t*8 + i*.9)*2.6*S; i ? g.lineTo(px, py) : g.moveTo(px, py); }
+  g.stroke();
+  g.fillStyle = '#2a1a10'; g.beginPath(); g.arc(x + 24*S, y + Math.sin(t*8 + 7.2)*2.6*S - 1*S, 1*S, 0, 7); g.fill();
+  g.globalAlpha = 1;
+}
+function drawShovel(g, x, y, a, len, S, load){
+  const dx = Math.cos(a), dy = Math.sin(a);
+  const bx = x - dx*len*.16, by = y - dy*len*.16, nx = x + dx*len*.62, ny = y + dy*len*.62;
+  g.lineCap = 'round';
+  g.strokeStyle = '#7d4f24'; g.lineWidth = 3.6*S;
+  g.beginPath(); g.moveTo(bx, by); g.lineTo(nx, ny); g.stroke();
+  g.strokeStyle = 'rgba(255,215,160,.5)'; g.lineWidth = 1.1*S;
+  g.beginPath(); g.moveTo(bx - dy*.8*S, by + dx*.8*S); g.lineTo(nx - dy*.8*S, ny + dx*.8*S); g.stroke();
+  g.strokeStyle = '#2e2e2e'; g.lineWidth = 2.4*S;
+  g.beginPath(); g.arc(bx - dx*4*S, by - dy*4*S, 4.4*S, 0, 7); g.stroke();
+  g.save(); g.translate(nx, ny); g.rotate(a);
+  const bl = len*.36, bw = len*.15;
+  const mg = g.createLinearGradient(0, -bw, 0, bw);
+  mg.addColorStop(0, '#f1f5f7'); mg.addColorStop(.5, '#9ba7af'); mg.addColorStop(1, '#5d6870');
+  g.fillStyle = mg;
+  g.beginPath(); g.moveTo(0, -bw*.5); g.lineTo(bl*.7, -bw); g.quadraticCurveTo(bl*1.18, 0, bl*.7, bw); g.lineTo(0, bw*.5); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(40,50,56,.5)'; g.lineWidth = 1*S; g.stroke();
+  if(load){ g.fillStyle = '#5b4128'; g.beginPath(); g.ellipse(bl*.6, -bw*.45, bl*.42, bw*.62, 0, 0, 7); g.fill();
+            g.fillStyle = '#7a5836'; g.beginPath(); g.ellipse(bl*.5, -bw*.7, bl*.22, bw*.32, 0, 0, 7); g.fill(); }
+  g.restore();
+  return {x:nx + dx*bl*.9, y:ny + dy*bl*.9};
+}
+function drawYardDiver(g, L, p, t){
+  const S = L.S, ds = L.ds;
+  if(p.alpha <= 0) return;
+  g.save(); g.globalAlpha = p.alpha;
+  if(p.clip !== null){ g.beginPath(); g.rect(0, -VH, VW, p.clip + VH); g.clip(); }
+  if(p.clip === null && yard.phase !== 'jump'){             // shadow on the grass, falling away from the sun
+    g.fillStyle = 'rgba(25,45,15,.3)';
+    g.beginPath(); g.ellipse(p.x - 12*S, L.stand.y + 26*ds, 16*ds, 4*ds, -.08, 0, 7); g.fill();
+  }
+  if(p.rot){ g.translate(p.x, p.y); g.rotate(p.rot); g.translate(-p.x, -p.y); }
+  const hands = {x:p.x + (p.face < 0 ? -9 : 9)*ds, y:p.y + 3*ds + p.gdy*S};
+  const hold = p.held ? {x:9, y:3 + p.gdy*S/ds} : null;
+  if(p.held) yard.tip = drawShovel(g, hands.x, hands.y, p.a, 30*ds, S, p.load);   // behind her, hands over the handle
+  drawDiver(g, p.x, p.y, ds, SUITS[save.suit], HAIRS[save.hair], p.walk ? t*2.5 : t, p.face, p.kick || p.walk ? 1 : 0, hold);
+  g.restore();
+}
+
+/* ======================================================================
+   THE DIVE: falling down the shaft from the yard into Bubble Town
+   ====================================================================== */
+const dv = {t:0, bub:[], tile:null};
+function startDive(){
+  scene = 'dive'; dv.t = 0; dv.bub = []; openLayer(null); showHud(false); setSkip(null);
+  if(!dv.tile) dv.tile = rockTile();
+  Audio_.sploosh();
+}
+function rockTile(){
+  const w = 160, h = 320, c = mkCanvas(w, h, window.LEGACY ? 1 : 2), g = c.g;
+  const r0 = seeded(11), R = (a, b)=>a + r0() * (b - a);
+  g.fillStyle = '#3d3024'; g.fillRect(0, 0, w, h);
+  const cols = ['#6d5a47','#5a4a3b','#7b6a58','#4a3c2e','#857565'];
+  for(let i=0; i<80; i++){
+    const x = R(-10, w + 10), y = R(0, h), r = R(6, 20), base = cols[(R(0, cols.length))|0], sd = R(0, 99);
+    for(const oy of [-h, 0, h]){                          // drawn three times so the tile wraps cleanly
+      const gg = g.createRadialGradient(x - r*.3, y + oy - r*.4, 1, x, y + oy, r*1.1);
+      gg.addColorStop(0, shade(base, 34)); gg.addColorStop(1, shade(base, -26));
+      g.fillStyle = gg; g.beginPath();
+      for(let k=0; k<8; k++){ const a = k/8*Math.PI*2, rr = r*(.75 + .25*Math.sin(sd + k*2.1));
+        k ? g.lineTo(x + Math.cos(a)*rr, y + oy + Math.sin(a)*rr*.8) : g.moveTo(x + Math.cos(a)*rr, y + oy + Math.sin(a)*rr*.8); }
+      g.fill();
+    }
+  }
+  return c;
+}
+function updateDive(dt){
+  dv.t += dt;
+  if(Math.random() < dt * (window.LEGACY ? 25 : 60)) dv.bub.push({x:VW/2 + rnd(-VW*.2, VW*.2), y:VH + 10, r:rnd(2, 8), sp:rnd(350, 800), ph:rnd(0, 9)});
+  for(let i=dv.bub.length-1; i>=0; i--){ const b = dv.bub[i]; b.y -= b.sp*dt; b.x += Math.sin(dv.t*5 + b.ph)*30*dt; if(b.y < -20) dv.bub.splice(i, 1); }
+  if(dv.t > 3.1) arriveOcean();
+}
+function drawDive(t){
+  const g = ctx, k = clamp(dv.t / 3.1, 0, 1), S = clamp(Math.min(VW, VH*1.3) / 820, .5, 1.7);
+  const bg = g.createLinearGradient(0, 0, 0, VH);
+  bg.addColorStop(0, k < .5 ? '#2aa3c2' : '#11698d'); bg.addColorStop(1, '#073150');
+  g.fillStyle = bg; g.fillRect(0, 0, VW, VH);
+  g.globalCompositeOperation = 'lighter';
+  const lg = g.createRadialGradient(VW/2, -VH*.1, 10, VW/2, -VH*.1, VH*1.1);
+  lg.addColorStop(0, 'rgba(200,250,255,' + (.6 * (1 - k)) + ')'); lg.addColorStop(1, 'rgba(200,250,255,0)');
+  g.fillStyle = lg; g.fillRect(0, 0, VW, VH);
+  g.globalCompositeOperation = 'source-over';
+  // rock walls rushing upward, then sliding apart as the shaft opens into the sea
+  const open = ease((dv.t - 2.15) / .8);
+  const gap = VW*.36 + open*VW*.9, lw = (VW - gap) / 2;
+  const tw = 160 * S * 1.1, th = 320 * S * 1.1, scroll = (dv.t * 1100 * S) % th;
+  for(const side of [0, 1]){
+    const x0 = side ? VW - lw : 0;
+    if(lw <= 0) break;
+    g.save(); g.beginPath();
+    // a ragged inner edge
+    if(side){ g.moveTo(VW, 0); g.lineTo(x0, 0); for(let y=0; y<=VH; y+=40) g.lineTo(x0 + Math.sin((y + scroll)*.03)*14*S, y); g.lineTo(VW, VH); }
+    else { g.moveTo(0, 0); g.lineTo(lw, 0); for(let y=0; y<=VH; y+=40) g.lineTo(lw + Math.sin((y + scroll)*.03 + 2)*14*S, y); g.lineTo(0, VH); }
+    g.closePath(); g.clip();
+    for(let x = side ? x0 - 20*S : lw + 20*S - tw*Math.ceil((lw + 40*S)/tw); x < (side ? VW : lw + 20*S); x += tw)
+      for(let y = -scroll; y < VH; y += th) g.drawImage(dv.tile, x, y, tw, th);
+    g.fillStyle = 'rgba(8,60,90,' + (.15 + .55*k) + ')'; g.fillRect(0, 0, VW, VH);
+    const eg = g.createLinearGradient(side ? x0 : lw, 0, side ? x0 + 60*S : lw - 60*S, 0);
+    eg.addColorStop(0, 'rgba(0,0,0,0)'); eg.addColorStop(1, 'rgba(0,10,20,.55)');
+    g.fillStyle = eg; g.fillRect(0, 0, VW, VH);
+    g.restore();
+  }
+  for(const b of dv.bub){
+    g.strokeStyle = 'rgba(220,252,255,.6)'; g.lineWidth = 1.2;
+    g.beginPath(); g.arc(b.x, b.y, b.r, 0, 7); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(b.x - b.r*.35, b.y - b.r*.35, b.r*.25, 0, 7); g.fill();
+  }
+  g.strokeStyle = 'rgba(220,252,255,.18)'; g.lineWidth = 2;  // speed streaks
+  for(let i=0; i<14; i++){
+    const x = (i * 97 + 31) % VW, y = ((i * 211 - dv.t * 1600) % (VH + 200) + VH + 200) % (VH + 200) - 100;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 90); g.stroke();
+  }
+  g.save(); g.translate(VW/2 + Math.sin(dv.t*2.4)*VW*.04, VH*.45);
+  g.rotate(Math.PI + Math.sin(dv.t*1.7)*.35);
+  drawDiver(g, 0, 0, 2.7*S, SUITS[save.suit], HAIRS[save.hair], dv.t*3, 1, 1);
+  g.restore();
+  if(dv.t > 2.55){
+    g.fillStyle = 'rgba(210,250,255,' + clamp((dv.t - 2.55) / .55, 0, 1) * .85 + ')';
+    g.fillRect(0, 0, VW, VH);
+  }
+  shadowText(g, 'Down, down, down...', VW/2, VH*.84, Math.min(VW*.05, 28), '#eaf9ff');
+}
+function arriveOcean(){
+  scene = 'ocean'; sparks = [];
+  player.x = UP.x; player.y = 250; player.vx = 0; player.vy = 160;
+  cam.x = clamp(player.x - VW/2, 0, Math.max(0, WORLD.w - VW));
+  cam.y = clamp(player.y - VH/2, 0, Math.max(0, WORLD.h - VH));
+  burst(player.x, player.y, 40, '#bdf7ff');
+  const first = !save.introDone;
+  save.introDone = true;
+  const grew = harvestAll(); persist();
+  showHud(true);
+  toast(first ? 'Bubble Town!' : grew ? `Your gardens grew ${grew} pearls!` : 'Back in Bubble Town!');
+  Audio_.great();
+}
+
+/* ---- the way back up: a shaft of daylight at the top of the sea ---- */
+const UP = {id:'up', x:1400, y:0, label:'Backyard'};
+function drawUpHole(g, t){
+  const x = UP.x;
+  g.globalCompositeOperation = 'lighter';
+  const lg = g.createLinearGradient(0, 0, 0, 420);
+  lg.addColorStop(0, 'rgba(255,250,215,.5)'); lg.addColorStop(1, 'rgba(255,250,215,0)');
+  g.fillStyle = lg;
+  g.beginPath(); g.moveTo(x - 60, 0); g.lineTo(x + 60, 0); g.lineTo(x + 150 + Math.sin(t*.5)*20, 420); g.lineTo(x - 150 + Math.sin(t*.5)*20, 420); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  for(const s of [-1, 1]){                                // rocky lips of the shaft
+    const rg = g.createLinearGradient(x + s*60, 0, x + s*190, 0);
+    rg.addColorStop(0, '#2c3c46'); rg.addColorStop(1, '#152430');
+    g.fillStyle = rg;
+    g.beginPath(); g.moveTo(x + s*240, 0); g.lineTo(x + s*62, 0); g.lineTo(x + s*58, 40); g.lineTo(x + s*72, 82);
+    g.lineTo(x + s*110, 104); g.lineTo(x + s*170, 92); g.lineTo(x + s*240, 60); g.fill();
+    g.fillStyle = 'rgba(160,220,235,.18)';
+    g.beginPath(); g.moveTo(x + s*62, 0); g.lineTo(x + s*58, 40); g.lineTo(x + s*72, 82); g.lineTo(x + s*80, 80); g.lineTo(x + s*68, 38); g.lineTo(x + s*72, 0); g.fill();
+  }
+  const sw = Math.sin(t*1.3) * 6;                         // a rope ladder hanging down
+  g.strokeStyle = '#c9a36a'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(x - 16, 0); g.quadraticCurveTo(x - 16 + sw, 90, x - 16 + sw*1.6, 170); g.stroke();
+  g.beginPath(); g.moveTo(x + 16, 0); g.quadraticCurveTo(x + 16 + sw, 90, x + 16 + sw*1.6, 170); g.stroke();
+  g.lineWidth = 4;
+  for(let y=24; y<170; y+=24){ const o = sw * (y/170) * 1.4;
+    g.beginPath(); g.moveTo(x - 16 + o, y); g.lineTo(x + 16 + o, y); g.stroke(); }
+  const pl = Math.sin(t*3)*.5 + .5;
+  g.font = '700 17px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(234,249,255,' + (.6 + pl*.4) + ')';
+  g.fillText('⬆ Up to the backyard', x, 200 + pl*4);
+}
+function goUp(){
+  Audio_.sweep(400, 900, .4, 'triangle', .1);
+  swimTo = null; charging = null; chargeT = 0;
+  yardStart('return');
+}
+
+/* ======================================================================
+   TUNNEL DOWN: dig through the ground under the yard to reach Bubble
+   Town. Treasure in the dirt, burrowing mud bugs (BONK them into bubbles),
+   and loose rocks that drop when you dig out underneath them.
+   ====================================================================== */
+const TLAYERS = [
+  {to:.28, a:'#8a6440', b:'#70502f', spk:['#a57d55','#5a3f27','#b89067']},
+  {to:.55, a:'#a5673c', b:'#87502e', spk:['#c48a5a','#6e3f22','#d9a070']},
+  {to:.80, a:'#5f4b3c', b:'#4a3a2f', spk:['#7a6655','#3a2e25','#8d7a66']},
+  {to:1.01,a:'#52636a', b:'#3f5059', spk:['#6f858c','#33424a','#8aa3aa']},
+];
+const TREASURE = {
+  pearl:{v:1}, gem:{v:4, msg:'A gem!'}, shell:{v:2, msg:'A seashell, way down here?'}, bone:{v:3, msg:'A fossil!'},
+};
+const BUGC = ['#b07cff','#ff8a5c','#58cf98','#ff6f9c','#ffc94f'];
+let tun = null;
+function tunZ(){ return tun ? Math.min(1, (VW - 12) / tun.W) : 1; }
+function startTunnel(){
+  const easy = save.mode === 'easy';
+  const COLS = 11, ROWS = easy ? 15 : 21, mid = 5;
+  const cs = clamp(Math.floor((Math.min(VW, 900) - 16) / COLS), 30, 72);
+  const r0 = seeded((Math.random() * 1e9) | 0), R = (a, b)=>a + r0() * (b - a), RI = (a, b)=>Math.floor(R(a, b + 1));
+  const grid = [];
+  for(let r=0; r<ROWS; r++){ const row = [];
+    for(let c=0; c<COLS; c++) row.push(r === 0 ? (c === mid ? 0 : 3) : r === ROWS - 1 ? 4 : 1);
+    grid.push(row); }
+  grid[1][mid] = 0;
+  tun = {COLS, ROWS, cs, W:COLS*cs, H:ROWS*cs, grid, mid, easy, items:[], bugs:[], rocks:[], parts:[], bub:[],
+         t:0, camY:-cs*2, hearts:easy ? 0 : 3, got:0, done:false, bonk:0, bonkT:-9, goal:null, lastDig:0,
+         dashT:-9, seen:{}, held:false};
+  // pockets, each with a mud bug in it
+  const taken = [];
+  for(let i=0; i<(easy ? 2 : 4); i++){
+    let r, tries = 0;
+    do { r = RI(4, ROWS - 4); tries++; } while(tries < 40 && taken.some(x=>Math.abs(x - r) < 3));
+    taken.push(r);
+    const len = RI(3, 4), c0 = RI(0, COLS - len);
+    for(let c=c0; c<c0 + len; c++) grid[r][c] = 0;
+    const c = c0 + (len >> 1);
+    tun.bugs.push({c, r, x:(c + .5)*cs, y:(r + .5)*cs, tc:c, tr:r, moving:false, dir:[r0() < .5 ? -1 : 1, 0],
+      state:'walk', t:0, steps:0, burrowT:R(7, 13), col:BUGC[i % BUGC.length], ph:R(0, 9)});
+  }
+  // loose rocks, always sitting on solid dirt
+  for(let i=0, tries=0; i<(easy ? 3 : 6) && tries < 300; tries++){
+    const r = RI(3, ROWS - 5), c = RI(0, COLS - 1);
+    if(grid[r][c] !== 1 || grid[r + 1][c] !== 1 || grid[r - 1][c] === 2) continue;
+    if(c === mid && r < 5) continue;
+    grid[r][c] = 2; tun.rocks.push({c, r, y:r*cs, vy:0, state:'rest', t:0, seed:R(0, 99)}); i++;
+  }
+  // treasure
+  const kinds = ['pearl','pearl','pearl','pearl','pearl','gem','gem','shell','shell','bone'];
+  for(let i=0, tries=0; i<(easy ? 12 : 15) && tries < 400; tries++){
+    const r = RI(2, ROWS - 2), c = RI(0, COLS - 1);
+    if(grid[r][c] !== 1 || tun.items.some(o=>o.c === c && o.r === r)) continue;
+    tun.items.push({c, r, k:kinds[(r0() * kinds.length) | 0], got:false, ph:R(0, 9)}); i++;
+  }
+  tun.p = {c:mid, r:0, x:(mid + .5)*cs, y:.5*cs, tc:mid, tr:0, moving:false, soil:false, face:1, hurt:0, stun:0, lx:0, ly:0};
+  buildSoil();
+  for(let r=1; r<ROWS - 1; r++) for(let c=0; c<COLS; c++) if(grid[r][c] === 0){
+    tCarveCell(c, r);
+    if(c + 1 < COLS && grid[r][c + 1] === 0) for(const f of [.75, 1, 1.25]) tCarve((c + f)*cs, (r + .5)*cs, cs*.47);
+  }
+  tun.sg.globalCompositeOperation = 'destination-out';     // open the hole from the yard
+  tun.sg.fillStyle = '#000';
+  tun.sg.fillRect((mid + .06)*cs, cs*.4, cs*.88, cs*.9);
+  tun.sg.globalCompositeOperation = 'source-over';
+  scene = 'tunnel'; openLayer(null); showHud(true);
+  setSkip('Skip ›', ()=>{ if(scene === 'tunnel') startDive(); });
+  toast('Dig down to Bubble Town!');
+}
+function buildSoil(){
+  const T = tun, cs = T.cs, sc = window.LEGACY ? 1 : Math.min(DPR, 2);
+  const c = mkCanvas(T.W, T.H, sc), g = c.g; T.soil = c; T.sg = g;
+  const r0 = seeded(99), R = (a, b)=>a + r0() * (b - a);
+  const top = cs, bot = (T.ROWS - 1) * cs, span = bot - top;
+  const lg = g.createLinearGradient(0, top, 0, bot);
+  let prev = 0;
+  for(const L of TLAYERS){
+    const a = clamp((prev * T.H - top) / span, 0, 1), b = clamp((L.to * T.H - top) / span, 0, 1);
+    lg.addColorStop(a, L.a); lg.addColorStop(Math.max(a, b - .01), L.b); prev = L.to;
+  }
+  g.fillStyle = lg; g.fillRect(0, top, T.W, span);
+  // wavy strata where one layer meets the next
+  for(const L of TLAYERS){
+    const y = L.to * T.H; if(y <= top || y >= bot) continue;
+    g.strokeStyle = 'rgba(30,18,10,.35)'; g.lineWidth = 3;
+    g.beginPath(); for(let x=0; x<=T.W; x+=8){ const yy = y + Math.sin(x*.03 + y)*5 + Math.sin(x*.11)*2; x ? g.lineTo(x, yy) : g.moveTo(x, yy); } g.stroke();
+    g.strokeStyle = 'rgba(255,230,190,.12)'; g.lineWidth = 2;
+    g.beginPath(); for(let x=0; x<=T.W; x+=8){ const yy = y + 4 + Math.sin(x*.03 + y)*5 + Math.sin(x*.11)*2; x ? g.lineTo(x, yy) : g.moveTo(x, yy); } g.stroke();
+  }
+  const layerAt = y=>{ const f = y / T.H; for(const L of TLAYERS) if(f < L.to) return L; return TLAYERS[3]; };
+  const N = (T.W * span) / (window.LEGACY ? 700 : 240);
+  for(let i=0; i<N; i++){
+    const x = R(0, T.W), y = R(top, bot), L = layerAt(y);
+    g.globalAlpha = R(.25, .7); g.fillStyle = L.spk[(R(0, 3)) | 0];
+    g.beginPath(); g.ellipse(x, y, R(.8, 2.6), R(.6, 1.8), R(0, 3), 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+  for(let i=0; i<(T.W * span) / 7500; i++){                 // pebbles
+    const x = R(0, T.W), y = R(top + 6, bot - 4), r = R(2.5, 7) * cs / 60;
+    const pg = g.createRadialGradient(x - r*.35, y - r*.4, r*.1, x, y, r);
+    pg.addColorStop(0, '#c4b39b'); pg.addColorStop(1, '#5e4e3f');
+    g.fillStyle = pg; g.beginPath(); g.ellipse(x, y, r, r*.75, R(0, 3), 0, 7); g.fill();
+  }
+  g.lineCap = 'round';
+  for(let i=0; i<16; i++){                                // roots near the surface
+    const x = R(0, T.W), len = R(.6, 2.4) * cs;
+    g.strokeStyle = 'rgba(220,186,136,.5)'; g.lineWidth = R(1, 2.6) * cs / 60;
+    g.beginPath(); g.moveTo(x, top); g.bezierCurveTo(x + R(-20, 20), top + len*.3, x + R(-30, 30), top + len*.6, x + R(-24, 24), top + len); g.stroke();
+  }
+  // grass along the top edge
+  g.fillStyle = '#4c8a2c'; g.fillRect(0, top - 3, T.W, 7);
+  for(let x=0; x<T.W; x+=2.5){
+    g.strokeStyle = r0() < .5 ? '#5d9c37' : '#7fb752'; g.lineWidth = 1.6;
+    const h = R(4, 12) * cs / 60;
+    g.beginPath(); g.moveTo(x, top + 3); g.lineTo(x + R(-2, 2), top - h); g.stroke();
+  }
+  // the bottom is wet: Bubble Town is right under it
+  const wg = g.createLinearGradient(0, bot - cs*1.4, 0, bot);
+  wg.addColorStop(0, 'rgba(20,70,95,0)'); wg.addColorStop(1, 'rgba(20,80,110,.6)');
+  g.fillStyle = wg; g.fillRect(0, bot - cs*1.4, T.W, cs*1.4);
+}
+function tCarve(x, y, rad){
+  const g = tun.sg;
+  g.globalCompositeOperation = 'source-atop';               // a darker rim around every tunnel
+  g.fillStyle = 'rgba(25,14,6,.08)'; g.beginPath(); g.arc(x, y, rad*1.32, 0, 7); g.fill();
+  g.globalCompositeOperation = 'destination-out';
+  g.fillStyle = '#000';                                     // the cut must be opaque, or it only thins the dirt
+  g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill();
+  g.globalCompositeOperation = 'source-over';
+}
+function tCarveCell(c, r){ tCarve((c + .5)*tun.cs, (r + .5)*tun.cs, tun.cs*.47); }
+function tPass(c, r){
+  const T = tun;
+  if(c < 0 || c >= T.COLS || r < 0 || r >= T.ROWS) return false;
+  const v = T.grid[r][c];
+  return v !== 2 && v !== 3;
+}
+function tBugPass(c, r, burrow){
+  const T = tun;
+  if(c < 0 || c >= T.COLS || r < 1 || r >= T.ROWS - 1) return false;
+  const v = T.grid[r][c];
+  return v === 0 || (burrow && v === 1);
+}
+function tParts(x, y, n, cols, sp, grav){
+  const T = tun;
+  for(let i=0; i<n; i++){ const a = rnd(0, Math.PI*2), s = rnd(.3, 1) * sp;
+    T.parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - sp*.3, life:rnd(.35, .8), t:0, c:pick(cols), r:rnd(1.5, 3.8)*T.cs/60, g:grav}); }
+}
+function updateTunnel(dt){
+  const T = tun; if(!T) return;
+  const p = T.p, cs = T.cs;
+  T.t += dt;
+  if(T.bonk > 0) T.bonk = Math.max(0, T.bonk - dt*1.8);
+  for(let i=T.parts.length-1; i>=0; i--){
+    const q = T.parts[i]; q.t += dt; q.vy += q.g*dt; q.x += q.vx*dt; q.y += q.vy*dt;
+    if(q.t > q.life) T.parts.splice(i, 1);
+  }
+  if(Math.random() < dt * 6) T.bub.push({x:rnd(0, T.W), y:T.H - cs*.3, r:rnd(1.5, 4)*cs/60, sp:rnd(30, 70)*cs/60, ph:rnd(0, 9)});
+  for(let i=T.bub.length-1; i>=0; i--){ const b = T.bub[i]; b.y -= b.sp*dt; b.x += Math.sin(T.t*2 + b.ph)*8*dt; if(b.y < cs) T.bub.splice(i, 1); }
+  if(T.done) return;
+  if(p.stun > 0) p.stun -= dt;
+  if(p.hurt > 0) p.hurt -= dt;
+
+  // choose the next step
+  if(!p.moving && p.stun <= 0){
+    let dx = 0, dy = 0;
+    const v = stickVec();
+    if(Math.abs(v.x) > .3 || Math.abs(v.y) > .3){
+      T.goal = null;
+      if(Math.abs(v.x) > Math.abs(v.y)) dx = Math.sign(v.x); else dy = Math.sign(v.y);
+    } else if(T.goal){
+      const gc = T.goal.c - p.c, gr = T.goal.r - p.r;
+      if(!gc && !gr) T.goal = null;
+      else {
+        const opts = Math.abs(gr) >= Math.abs(gc) ? [[0, Math.sign(gr)], [Math.sign(gc), 0]] : [[Math.sign(gc), 0], [0, Math.sign(gr)]];
+        for(const o of opts) if((o[0] || o[1]) && tPass(p.c + o[0], p.r + o[1])){ dx = o[0]; dy = o[1]; break; }
+        if(!dx && !dy) T.goal = null;
+      }
+    }
+    if((dx || dy) && tPass(p.c + dx, p.r + dy)){
+      p.tc = p.c + dx; p.tr = p.r + dy; p.moving = true;
+      const cell = T.grid[p.tr][p.tc];
+      p.soil = cell === 1;
+      if(cell === 1) T.grid[p.tr][p.tc] = 0;
+      if(dx) p.face = dx;
+    }
+  }
+  if(p.moving){
+    const tx = (p.tc + .5)*cs, ty = (p.tr + .5)*cs;
+    const dash = T.t - T.dashT < .7 ? 1.7 : 1;
+    const sp = (p.soil ? (T.easy ? 3.0 : 2.5) : 4.6) * cs * dash;
+    const ddx = tx - p.x, ddy = ty - p.y, m = Math.hypot(ddx, ddy);
+    if(m <= sp*dt){ p.x = tx; p.y = ty; p.c = p.tc; p.r = p.tr; p.moving = false; tArrive(); }
+    else { p.x += ddx/m*sp*dt; p.y += ddy/m*sp*dt; }
+    if(p.soil){
+      if(Math.hypot(p.x - p.lx, p.y - p.ly) > cs*.16){ tCarve(p.x, p.y, cs*.47); p.lx = p.x; p.ly = p.y; }
+      if(T.t - T.lastDig > .15){
+        T.lastDig = T.t; Audio_.crunch();
+        const L = TLAYERS.find(L=>p.y / T.H < L.to) || TLAYERS[3];
+        tParts(p.x + Math.sign(ddx)*cs*.35, p.y + Math.sign(ddy)*cs*.35, 4, L.spk, 140*cs/60, 500*cs/60);
+      }
+    }
+  }
+
+  // loose rocks: wobble once dug out from under, wait for you to step clear, then drop
+  for(const k of T.rocks){
+    if(k.state === 'rest'){
+      const below = T.grid[k.r + 1][k.c];
+      const under = (p.c === k.c && p.r === k.r + 1) || (p.moving && p.tc === k.c && p.tr === k.r + 1);
+      if(below === 0 && !under){ k.state = 'wobble'; k.t = 0; }
+    } else if(k.state === 'wobble'){
+      k.t += dt;
+      if(k.t > .8){ k.state = 'fall'; k.vy = 0; T.grid[k.r][k.c] = 0; tCarveCell(k.c, k.r); }
+    } else if(k.state === 'fall'){
+      k.vy = Math.min(k.vy + 2600*cs/60*dt, 14*cs); k.y += k.vy*dt;
+      const row = Math.floor(k.y / cs), next = row + 1;
+      const cx = (k.c + .5)*cs, cy = k.y + cs*.5;
+      if(p.hurt <= 0 && Math.abs(p.x - cx) < cs*.6 && Math.abs(p.y - cy) < cs*.7){ k.state = 'gone'; tRockBreak(k, cx, cy); tHurt(true); continue; }
+      for(const b of T.bugs) if(b.state !== 'bubble' && Math.abs(b.x - cx) < cs*.6 && Math.abs(b.y - cy) < cs*.7) tBubbleBug(b, 8, 'Squish! +8');
+      const nv = next >= T.ROWS ? 1 : T.grid[next][k.c];
+      if(nv !== 0 && k.y >= row*cs){ k.y = row*cs; k.state = 'gone'; tRockBreak(k, cx, row*cs + cs*.5); }
+    }
+  }
+
+  // mud bugs
+  for(let i=T.bugs.length-1; i>=0; i--){
+    const b = T.bugs[i];
+    b.t += dt;
+    if(b.state === 'bubble'){
+      b.y -= cs*1.5*dt; b.x += Math.sin(b.t*3)*cs*.5*dt;
+      if(b.t > 3.2){ T.bugs.splice(i, 1); }
+      continue;
+    }
+    if(!T.easy && b.state === 'walk'){ b.burrowT -= dt; if(b.burrowT <= 0 && !b.moving){ b.state = 'burrow'; b.steps = 3; b.burrowT = rnd(9, 15); } }
+    const burrow = b.state === 'burrow';
+    if(!b.moving){
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]].filter(d=>tBugPass(b.c + d[0], b.r + d[1], burrow) &&
+        !T.rocks.some(k=>k.state !== 'gone' && k.c === b.c + d[0] && Math.round(k.y / cs) === b.r + d[1]));
+      let pick_ = null;
+      if(dirs.length){
+        const chase = burrow || Math.random() < (T.easy ? .12 : .45);
+        if(chase){
+          let best = 1e9;
+          for(const d of dirs){ const dd = Math.abs(b.c + d[0] - p.c) + Math.abs(b.r + d[1] - p.r); if(dd < best){ best = dd; pick_ = d; } }
+        }
+        if(!pick_){
+          const fwd = dirs.filter(d=>!(d[0] === -b.dir[0] && d[1] === -b.dir[1]));
+          const keep = dirs.find(d=>d[0] === b.dir[0] && d[1] === b.dir[1]);
+          pick_ = keep && Math.random() < .7 ? keep : pick(fwd.length ? fwd : dirs);
+        }
+      }
+      if(pick_){
+        b.dir = pick_; b.tc = b.c + pick_[0]; b.tr = b.r + pick_[1]; b.moving = true;
+        b.dig = T.grid[b.tr][b.tc] === 1;
+        if(b.dig) T.grid[b.tr][b.tc] = 0;
+      }
+    }
+    if(b.moving){
+      const sp = (b.dig ? .8 : T.easy ? 1.1 : 1.7) * cs;
+      const tx = (b.tc + .5)*cs, ty = (b.tr + .5)*cs, ddx = tx - b.x, ddy = ty - b.y, m = Math.hypot(ddx, ddy);
+      if(m <= sp*dt){
+        b.x = tx; b.y = ty; b.c = b.tc; b.r = b.tr; b.moving = false;
+        if(b.dig) tCarveCell(b.c, b.r);
+        if(burrow && --b.steps <= 0) b.state = 'walk';
+      } else { b.x += ddx/m*sp*dt; b.y += ddy/m*sp*dt; if(b.dig && Math.random() < dt*8) tCarve(b.x, b.y, cs*.42); }
+    }
+    if(p.hurt <= 0 && Math.hypot(b.x - p.x, b.y - p.y) < cs*.62){
+      b.dir = [-b.dir[0], -b.dir[1]];
+      tHurt(false);
+    }
+  }
+
+  // camera
+  const z = tunZ(), viewH = VH / z;
+  T.camY = lerp(T.camY, clamp(p.y - viewH*.42, -cs*2.4, Math.max(-cs*2.4, T.H - viewH + cs*.3)), Math.min(1, dt*5));
+}
+function tArrive(){
+  const T = tun, p = T.p;
+  if(p.soil) tCarveCell(p.c, p.r);
+  const it = T.items.find(o=>!o.got && o.c === p.c && o.r === p.r);
+  if(it){
+    it.got = true;
+    const d = TREASURE[it.k];
+    save.pearls += d.v; T.got += d.v; persist(); updateHud(); Audio_.sparkle();
+    tParts(p.x, p.y, 14, it.k === 'gem' ? ['#7df0ff','#ffffff','#bdf7ff'] : ['#ffd479','#ffffff','#fff3c4'], 160*T.cs/60, -60);
+    if(d.msg && !T.seen[it.k]){ T.seen[it.k] = 1; toast(d.msg + ' +' + d.v); }
+  }
+  if(p.r === T.ROWS - 1) tWin();
+}
+function tRockBreak(k, x, y){
+  Audio_.thud();
+  tParts(x, y, 16, ['#8b8278','#6a6158','#a69c90','#4f4840'], 220*tun.cs/60, 900*tun.cs/60);
+}
+function tBubbleBug(b, v, msg){
+  const T = tun;
+  b.state = 'bubble'; b.t = 0; b.moving = false;
+  save.pearls += v; T.got += v; persist(); updateHud();
+  Audio_.pop(.16);
+  toast(msg || pick(['Bubbled! +', 'Pop! Off it floats +', 'Bye bye, bug! +']) + (msg ? '' : v));
+}
+function tHurt(rock){
+  const T = tun, p = T.p;
+  p.hurt = 1.6; p.stun = .45; Audio_.nope();
+  tParts(p.x, p.y, 10, ['#ffffff','#ffd479'], 160*T.cs/60, 0);
+  if(T.easy){ toast(rock ? 'Bonk! Good thing you have a helmet' : 'Boop! Press BONK to bubble bugs'); return; }
+  T.hearts--;
+  if(T.hearts <= 0){
+    T.done = true;
+    setTimeout(()=>choose('Out of puff', 'Phew! Tunnels are tricky.', 'You can try the tunnels again, or jump straight down to Bubble Town.',
+      {ic:'⛏️', label:'Try again', desc:'A brand new set of tunnels', fn:startTunnel},
+      {ic:'🌊', label:'Go to Bubble Town', desc:'Dive the rest of the way', fn:startDive}), 700);
+  } else toast(rock ? 'Ouch! Watch out for falling rocks' : 'Ouch! BONK the bugs to bubble them');
+}
+function tWin(){
+  const T = tun; T.done = true;
+  const bonus = T.easy ? 8 : 12;
+  save.pearls += bonus; persist(); updateHud(); Audio_.great(); Audio_.sploosh();
+  tParts(T.p.x, T.p.y, 40, ['#bdf7ff','#7df0ff','#ffffff'], 300*T.cs/60, 400*T.cs/60);
+  setTimeout(()=>result('🌊', 'You dug all the way down!',
+    `Treasure found: +${T.got} pearls. Bonus for reaching the water: +${bonus}.`, startDive), 900);
+}
+function tunnelBonk(){
+  const T = tun; if(!T || T.done) return;
+  if(T.t - T.bonkT < .5) return;
+  T.bonkT = T.t; T.bonk = 1; Audio_.bonk();
+  for(const b of T.bugs) if(b.state !== 'bubble' && Math.hypot(b.x - T.p.x, b.y - T.p.y) < T.cs*1.9) tBubbleBug(b, 5);
+}
+function tunnelDash(){
+  const T = tun; if(!T || T.done) return;
+  if(T.t - T.dashT < 1.1) return;
+  T.dashT = T.t; Audio_.sweep(300, 600, .18, 'triangle', .08);
+}
+function tunnelPoint(e){
+  if(scene !== 'tunnel' || overlay || !tun) return;
+  const z = tunZ(), ox = (VW - tun.W*z) / 2;
+  const lx = (e.clientX - ox) / z, ly = e.clientY / z + tun.camY;
+  tun.goal = {c:clamp(Math.floor(lx / tun.cs), 0, tun.COLS - 1), r:clamp(Math.floor(ly / tun.cs), 0, tun.ROWS - 1)};
+}
+cv.addEventListener('pointerdown', e=>{ if(scene === 'tunnel'){ tun && (tun.held = true); tunnelPoint(e); } });
+cv.addEventListener('pointermove', e=>{ if(scene === 'tunnel' && tun && tun.held) tunnelPoint(e); });
+cv.addEventListener('pointerup', ()=>{ if(tun) tun.held = false; });
+cv.addEventListener('pointercancel', ()=>{ if(tun) tun.held = false; });
+
+function drawTunnel(t){
+  const T = tun, g = ctx, cs = T.cs, z = tunZ(), ox = (VW - T.W*z) / 2, p = T.p;
+  const top = cs, bot = (T.ROWS - 1)*cs;
+  g.fillStyle = '#17120e'; g.fillRect(0, 0, VW, VH);
+  g.save(); g.translate(ox, -T.camY*z); g.scale(z, z);
+  const L0 = -ox / z - 2, W0 = VW / z + 4;
+  // sky and lawn over the dig site, running the full width of the screen
+  const sk = g.createLinearGradient(0, -cs*4, 0, top);
+  sk.addColorStop(0, '#4f9fe2'); sk.addColorStop(1, '#d4ecfb');
+  g.fillStyle = sk; g.fillRect(L0, -cs*6, W0, top + cs*6);
+  g.fillStyle = '#5a9a35'; g.fillRect(L0, top - 4, W0, 8);
+  // beyond the dig site, packed earth
+  g.fillStyle = '#2a1f17'; g.fillRect(L0, top + 3, -L0, T.H); g.fillRect(T.W, top + 3, W0, T.H);
+  // tunnel back wall, seen through every tunnel
+  const bw = g.createLinearGradient(0, top, 0, bot);
+  bw.addColorStop(0, '#3b2818'); bw.addColorStop(.65, '#2a2017'); bw.addColorStop(1, '#14323d');
+  g.fillStyle = bw; g.fillRect(0, top, T.W, bot - top);
+  // the water at the bottom: the roof of Bubble Town
+  const wg = g.createLinearGradient(0, bot, 0, T.H);
+  wg.addColorStop(0, '#5fe0f5'); wg.addColorStop(.4, '#1fa3c2'); wg.addColorStop(1, '#0b5677');
+  g.fillStyle = wg; g.fillRect(0, bot, T.W, T.H - bot);
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 2;
+  g.beginPath(); for(let x=0; x<=T.W; x+=10){ const y = bot + 5 + Math.sin(x*.05 + t*2)*3; x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+  for(const b of T.bub){
+    g.strokeStyle = 'rgba(200,250,255,.5)'; g.lineWidth = 1;
+    g.beginPath(); g.arc(b.x, b.y, b.r, 0, 7); g.stroke();
+  }
+  // the soil itself, with every tunnel cut out of it
+  g.drawImage(T.soil, 0, 0, T.W, T.H);
+  g.globalCompositeOperation = 'lighter';
+  const gl = g.createLinearGradient(0, bot - cs*2.2, 0, bot);
+  gl.addColorStop(0, 'rgba(70,200,240,0)'); gl.addColorStop(1, 'rgba(70,200,240,' + (.22 + Math.sin(t*2)*.05) + ')');
+  g.fillStyle = gl; g.fillRect(0, bot - cs*2.2, T.W, cs*2.2);
+  g.globalCompositeOperation = 'source-over';
+  // side walls of the dig site
+  const sg = g.createLinearGradient(-cs*.4, 0, 0, 0);
+  sg.addColorStop(0, 'rgba(0,0,0,0)'); sg.addColorStop(1, 'rgba(0,0,0,.45)');
+  g.fillStyle = sg; g.fillRect(-cs*.4, top, cs*.4, T.H - top);
+  const sg2 = g.createLinearGradient(T.W, 0, T.W + cs*.4, 0);
+  sg2.addColorStop(0, 'rgba(0,0,0,.45)'); sg2.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = sg2; g.fillRect(T.W, top, cs*.4, T.H - top);
+
+  for(const it of T.items) if(!it.got) drawTreasure(g, it.k, (it.c + .5)*cs, (it.r + .5)*cs, cs*.28, t + it.ph);
+  for(const k of T.rocks) if(k.state !== 'gone') drawRock(g, k, cs);
+  for(const b of T.bugs) drawBug(g, b, cs, t, p.x, p.y);
+  if(T.goal && !T.done){
+    const pl = Math.sin(t*7)*.5 + .5;
+    g.strokeStyle = 'rgba(255,212,121,' + (.35 + pl*.45) + ')'; g.lineWidth = 3;
+    g.beginPath(); g.arc((T.goal.c + .5)*cs, (T.goal.r + .5)*cs, cs*(.3 + pl*.08), 0, 7); g.stroke();
+  }
+  // the diver, with a headlamp
+  if(!(p.hurt > 0 && Math.floor(p.hurt * 10) % 2)){
+    drawDiver(g, p.x, p.y + cs*.04, cs/44, SUITS[save.suit], HAIRS[save.hair], t, p.face, p.moving ? 1 : 0);
+  }
+  g.globalCompositeOperation = 'lighter';
+  const hl = g.createRadialGradient(p.x + p.face*cs*.08, p.y - cs*.28, 1, p.x + p.face*cs*.08, p.y - cs*.28, cs*.5);
+  hl.addColorStop(0, 'rgba(255,240,180,.6)'); hl.addColorStop(1, 'rgba(255,240,180,0)');
+  g.fillStyle = hl; g.fillRect(p.x - cs, p.y - cs, cs*2, cs*2);
+  g.globalCompositeOperation = 'source-over';
+  for(const q of T.parts){
+    g.globalAlpha = clamp(1 - q.t / q.life, 0, 1);
+    g.fillStyle = q.c; g.beginPath(); g.arc(q.x, q.y, q.r, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+  if(T.bonk > 0){
+    g.strokeStyle = 'rgba(255,111,156,' + T.bonk*.8 + ')'; g.lineWidth = 6*T.bonk;
+    g.beginPath(); g.arc(p.x, p.y, (1 - T.bonk)*cs*2, 0, 7); g.stroke();
+  }
+  g.restore();
+
+  // darker the deeper you go, except where the headlamp reaches
+  const px = ox + p.x*z, py = (p.y - T.camY)*z;
+  const dark = .08 + .6 * clamp(p.y / T.H, 0, 1);
+  const rg = g.createRadialGradient(px, py, cs*z*1.6, px, py, cs*z*6.5);
+  rg.addColorStop(0, 'rgba(8,5,3,0)'); rg.addColorStop(1, 'rgba(8,5,3,' + dark + ')');
+  g.fillStyle = rg; g.fillRect(0, 0, VW, VH);
+
+  // hearts (advanced only)
+  for(let i=0; i<(T.easy ? 0 : 3); i++){
+    const hx = 26 + i*30, hy = 76, on = i < T.hearts;
+    g.fillStyle = on ? '#ff5f7e' : 'rgba(255,255,255,.18)';
+    g.beginPath(); g.moveTo(hx, hy + 7);
+    g.bezierCurveTo(hx - 13, hy - 2, hx - 7, hy - 13, hx, hy - 5);
+    g.bezierCurveTo(hx + 7, hy - 13, hx + 13, hy - 2, hx, hy + 7); g.fill();
+  }
+  // depth meter
+  const mx = 22, my0 = T.easy ? 76 : 104, my1 = VH - 60;
+  if(my1 > my0 + 60){
+    g.fillStyle = 'rgba(3,24,43,.5)'; roundRect(g, mx - 6, my0, 12, my1 - my0, 6); g.fill();
+    const mg = g.createLinearGradient(0, my0, 0, my1); mg.addColorStop(0, '#8a6440'); mg.addColorStop(1, '#2ba7bd');
+    g.fillStyle = mg; roundRect(g, mx - 3, my0 + 3, 6, (my1 - my0 - 6) * clamp(p.y / (T.H - cs*.5), 0, 1), 3); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(mx, my0 + (my1 - my0) * clamp(p.y / (T.H - cs*.5), 0, 1), 7, 0, 7); g.fill();
+    g.font = '15px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('🌊', mx, my1 + 14);
+  }
+  if(T.t < 5){
+    g.globalAlpha = clamp((5 - T.t) / .8, 0, 1);
+    shadowText(g, HAS_TOUCH ? 'Touch where you want to dig' : 'Arrow keys to dig, E to bonk', VW/2, VH*.82, Math.min(VW*.045, 24), '#ffffff');
+    shadowText(g, 'Get to the water at the bottom!', VW/2, VH*.82 + 30, Math.min(VW*.035, 18), '#bdf7ff');
+    g.globalAlpha = 1;
+  }
+}
+function drawTreasure(g, k, x, y, r, t){
+  if(k === 'pearl'){
+    const pg = g.createRadialGradient(x - r*.35, y - r*.35, r*.1, x, y, r);
+    pg.addColorStop(0, '#ffffff'); pg.addColorStop(.55, '#f3e6cf'); pg.addColorStop(1, '#b9a383');
+    g.fillStyle = pg; g.beginPath(); g.arc(x, y, r*.75, 0, 7); g.fill();
+  } else if(k === 'gem'){
+    const f = ['#bdf7ff','#7df0ff','#3cc0e0','#1f8fb0','#5fd6ef','#a6f2ff'];
+    for(let i=0; i<6; i++){
+      g.fillStyle = f[i]; g.beginPath(); g.moveTo(x, y);
+      g.lineTo(x + Math.cos(i*Math.PI/3)*r, y + Math.sin(i*Math.PI/3)*r);
+      g.lineTo(x + Math.cos((i + 1)*Math.PI/3)*r, y + Math.sin((i + 1)*Math.PI/3)*r); g.fill();
+    }
+  } else {
+    g.font = Math.round(r*2) + 'px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(k === 'shell' ? '🐚' : '🦴', x, y);
+  }
+  const tw = Math.sin(t * 2.2);
+  if(tw > .6){
+    const s = (tw - .6) / .4 * r*.8;
+    g.fillStyle = 'rgba(255,255,255,.9)';
+    g.beginPath(); g.moveTo(x + r*.5 - s, y - r*.5); g.lineTo(x + r*.5, y - r*.5 - s*.2); g.lineTo(x + r*.5 + s, y - r*.5); g.lineTo(x + r*.5, y - r*.5 + s*.2); g.fill();
+    g.beginPath(); g.moveTo(x + r*.5, y - r*.5 - s); g.lineTo(x + r*.5 + s*.2, y - r*.5); g.lineTo(x + r*.5, y - r*.5 + s); g.lineTo(x + r*.5 - s*.2, y - r*.5); g.fill();
+  }
+}
+function drawRock(g, k, cs){
+  let x = (k.c + .5)*cs; const y = k.y + cs*.5, r = cs*.46;
+  if(k.state === 'wobble') x += Math.sin(k.t * 40) * cs*.05;
+  g.save(); g.translate(x, y);
+  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(2, r*.25, r*.95, r*.75, 0, 0, 7); g.fill();
+  const rg = g.createRadialGradient(-r*.35, -r*.4, r*.1, 0, 0, r*1.1);
+  rg.addColorStop(0, '#c4bbae'); rg.addColorStop(.6, '#827a6f'); rg.addColorStop(1, '#48423b');
+  g.fillStyle = rg; g.beginPath();
+  for(let i=0; i<10; i++){ const a = i/10*Math.PI*2, rr = r*(.84 + .16*Math.sin(k.seed + i*2.3));
+    i ? g.lineTo(Math.cos(a)*rr, Math.sin(a)*rr*.9) : g.moveTo(Math.cos(a)*rr, Math.sin(a)*rr*.9); }
+  g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(40,34,28,.55)'; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(-r*.2, -r*.6); g.lineTo(0, -r*.1); g.lineTo(-r*.15, r*.3); g.stroke();
+  g.restore();
+}
+function drawBug(g, b, cs, t, px, py){
+  const r = cs*.32;
+  g.save(); g.translate(b.x, b.y);
+  if(b.state === 'bubble'){ g.globalAlpha = clamp((3.2 - b.t) / .6, 0, 1); g.scale(.85, .85); }
+  if(b.state !== 'bubble'){                                 // legs, scuttling
+    g.strokeStyle = shade(b.col, -70); g.lineWidth = r*.13; g.lineCap = 'round';
+    for(let i=0; i<3; i++) for(const s of [-1, 1]){
+      const a = (i - 1)*.5 + Math.sin(t*18 + i*2 + (s > 0 ? 1 : 0))*.25*(b.moving ? 1 : .2);
+      g.beginPath(); g.moveTo(s*r*.5, r*.2 + (i - 1)*r*.25); g.lineTo(s*r*1.1, r*.55 + (i - 1)*r*.25 + Math.sin(a)*r*.3); g.stroke();
+    }
+  }
+  const bg = g.createRadialGradient(-r*.3, -r*.35, r*.1, 0, 0, r*1.05);
+  bg.addColorStop(0, shade(b.col, 60)); bg.addColorStop(1, shade(b.col, -45));
+  g.fillStyle = bg; g.beginPath();
+  for(let i=0; i<18; i++){ const a = i/18*Math.PI*2, rr = r*(1 + .08*Math.sin(i*3 + t*7 + b.ph));
+    i ? g.lineTo(Math.cos(a)*rr, Math.sin(a)*rr) : g.moveTo(Math.cos(a)*rr, Math.sin(a)*rr); }
+  g.closePath(); g.fill();
+  g.strokeStyle = shade(b.col, -60); g.lineWidth = r*.08;     // antennae
+  for(const s of [-1, 1]){ g.beginPath(); g.moveTo(s*r*.25, -r*.8); g.quadraticCurveTo(s*r*.4, -r*1.3, s*r*.65, -r*1.35); g.stroke(); }
+  const ex = clamp((px - b.x)/cs, -1, 1)*r*.11, ey = clamp((py - b.y)/cs, -1, 1)*r*.11;
+  const blink = Math.sin(t*1.3 + b.ph) > .97 ? .15 : 1;
+  for(const s of [-1, 1]){
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(s*r*.33, -r*.15, r*.27, r*.3*blink, 0, 0, 7); g.fill();
+    g.fillStyle = '#1a1020'; g.beginPath(); g.arc(s*r*.33 + ex, -r*.12 + ey, r*.13*blink + .3, 0, 7); g.fill();
+  }
+  if(b.state === 'burrow'){ g.fillStyle = 'rgba(140,100,60,.6)';
+    for(let i=0; i<3; i++){ g.beginPath(); g.arc(Math.sin(t*20 + i*2)*r*.9, r*.8 + i, r*.12, 0, 7); g.fill(); } }
+  if(b.state === 'bubble'){
+    const bb = g.createRadialGradient(-r*.5, -r*.6, r*.1, 0, 0, r*1.6);
+    bb.addColorStop(0, 'rgba(255,255,255,.55)'); bb.addColorStop(.6, 'rgba(160,240,255,.15)'); bb.addColorStop(1, 'rgba(160,240,255,.45)');
+    g.fillStyle = bb; g.beginPath(); g.arc(0, 0, r*1.6, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(220,252,255,.8)'; g.lineWidth = 1.5; g.stroke();
+  }
+  g.restore();
+}
+cv.addEventListener('pointerdown', ()=>{ if(scene === 'yard') yardTap(); });
 cv.addEventListener('pointerdown', e=>{
   if(scene !== 'ocean' || overlay) return;
   swimTo = {x: e.clientX + cam.x, y: e.clientY + cam.y};
 });
-function finishIntro(){
-  $('#introSkip').hidden = true;
-  save.introDone = true; persist();
-  scene = 'ocean'; sparks = [];
-  player.x = 1400; player.y = 1140; player.vx = 0; player.vy = 0;  // clear of the Home Dome ring
-  cam.x = clamp(player.x - VW/2, 0, WORLD.w - VW);
-  cam.y = clamp(player.y - VH/2, 0, WORLD.h - VH);
-  showHud(true);
-  toast('Bubble Town!'); Audio_.great();
-}
-function drawIntro(t){
-  const g = ctx;
-  if(intro.phase < 2){
-    // sunny backyard — the one time this game is bright
-    const sky = g.createLinearGradient(0, 0, 0, VH);
-    sky.addColorStop(0, '#7ec8f0'); sky.addColorStop(.55, '#bfe4f5'); sky.addColorStop(.56, '#8fbf62');
-    sky.addColorStop(1, '#6fa04c');
-    g.fillStyle = sky; g.fillRect(0, 0, VW, VH);
-    g.fillStyle = '#fff3b0'; g.beginPath(); g.arc(VW*.82, VH*.15, 44, 0, 7); g.fill();
-    // the pool
-    g.fillStyle = '#e9eef2'; roundRect(g, VW*.04, VH*.44, VW*.40, VH*.34, 26); g.fill();
-    g.fillStyle = '#2ba7bd'; roundRect(g, VW*.06, VH*.46, VW*.36, VH*.30, 20); g.fill();
-    for(let i=0;i<5;i++){
-      g.strokeStyle = `rgba(255,255,255,${.2 - i*.03})`; g.lineWidth = 3;
-      g.beginPath();
-      for(let x=0;x<VW*.36;x+=10) g.lineTo(VW*.06+x, VH*.50 + i*VH*.05 + Math.sin(x*.05 + t*2 + i)*4);
-      g.stroke();
-    }
-    // the hole
-    const dep = intro.dig * VH * 0.20;
-    g.fillStyle = '#5c4529';
-    g.beginPath(); g.ellipse(VW*.5, VH*.62, 74 + intro.dig*40, 24 + intro.dig*16, 0, 0, 7); g.fill();
-    g.fillStyle = '#2a1d10';
-    g.beginPath(); g.ellipse(VW*.5, VH*.62 + dep*.3, 58 + intro.dig*34, 18 + intro.dig*22, 0, 0, 7); g.fill();
-    if(intro.dig > .55){
-      g.fillStyle = `rgba(43,167,189,${(intro.dig-.55)/.45})`;
-      g.beginPath(); g.ellipse(VW*.5, VH*.62 + dep*.3, 40 + intro.dig*24, 12 + intro.dig*14, 0, 0, 7); g.fill();
-    }
-    drawDiver(g, VW*.5 + 92, VH*.56, 2.4, SUITS[save.suit], HAIRS[save.hair], t, -1, 0);
-    drawSparks(g);
-    g.textAlign = 'center'; g.fillStyle = '#08253a';
-    g.font = `700 ${Math.min(30, VW*.055)}px Comfortaa, sans-serif`;
-    if(intro.phase === 0){
-      g.fillText('Tap the ground to dig!', VW/2, VH*.24);
-      g.fillStyle = 'rgba(8,37,58,.25)'; roundRect(g, VW*.5-110, VH*.28, 220, 18, 9); g.fill();
-      g.fillStyle = '#2ba7bd'; roundRect(g, VW*.5-107, VH*.283, 214*intro.dig, 12, 6); g.fill();
-    } else {
-      g.fillText('Water! It goes all the way down...', VW/2, VH*.24);
-    }
-  } else {
-    // falling down the channel
-    const bg = g.createLinearGradient(0, 0, 0, VH);
-    const k = clamp(intro.t / 3.6, 0, 1);
-    bg.addColorStop(0, '#2ba7bd'); bg.addColorStop(1, k > .5 ? '#03182b' : '#06304f');
-    g.fillStyle = bg; g.fillRect(0, 0, VW, VH);
-    g.globalAlpha = .5;
-    for(let i=0;i<70;i++){
-      const y = ((i * 130 + intro.tunnel) % (VH + 300)) - 150;
-      const w = 130 + Math.sin(i * .7) * 60;
-      g.strokeStyle = i % 2 ? 'rgba(190,248,255,.3)' : 'rgba(125,240,255,.18)';
-      g.lineWidth = 4;
-      g.beginPath(); g.arc(VW/2, y, w, 0, 7); g.stroke();
-    }
-    g.globalAlpha = 1;
-    drawDiver(g, VW/2 + Math.sin(t*3)*26, VH*.42, 2.6, SUITS[save.suit], HAIRS[save.hair], t*2, 1, 1);
-    g.textAlign = 'center'; g.fillStyle = '#eaf9ff';
-    g.font = `700 ${Math.min(28, VW*.05)}px Comfortaa, sans-serif`;
-    g.fillText('Down, down, down...', VW/2, VH*.82);
-  }
+
+/* A small two-way choice, used after the dig and when the tunnels go badly */
+function choose(eye, title, sub, a, b){
+  $('#choEye').textContent = eye; $('#choTitle').textContent = title; $('#choSub').textContent = sub;
+  [[$('#choA'), a], [$('#choB'), b]].forEach(([el, o])=>{
+    el.innerHTML = `<span class="big">${o.ic}</span>${o.label}<span class="cost">${o.desc}</span>`;
+    el.onclick = ()=>{ openLayer(null); Audio_.blip(700); o.fn(); };
+  });
+  openLayer('lChoice');
 }
 
 /* ============================ OVERLAYS ============================ */
 function openLayer(id){
   $$('.layer').forEach(l=>l.classList.remove('on'));
   if(id){ $('#'+id).classList.add('on'); overlay = id; showPads(false); }
-  else { overlay = null; showPads(scene === 'ocean' || scene === 'build'); }
+  else { overlay = null; showPads(padScene() && !$('#hud').hidden); }
 }
-function showHud(on){ $('#hud').hidden = !on; showPads(on && (scene==='ocean'||scene==='build')); updateHud(); }
-function showPads(on){ $('#pads').hidden = !on; }
+const padScene = ()=>scene === 'ocean' || scene === 'build' || scene === 'tunnel';
+function showHud(on){
+  $('#hud').hidden = !on;
+  $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
+  $('#chipUp').hidden = scene !== 'ocean';
+  $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
+    : scene === 'build' ? '‹ Leave' : '🏠 Home';
+  showPads(on && padScene()); updateHud();
+}
+function showPads(on){
+  $('#pads').hidden = !on;
+  // in the tunnels you touch where to dig, so the stick zone would only get in the way
+  $('#stickz').hidden = scene === 'tunnel';
+  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'build' ? 'JUMP' : 'SWIM';
+}
 function updateHud(){ if(save) $('#pearlN').textContent = save.pearls; }
 
 $('#chipPearls').onclick = ()=>{ if(scene==='ocean'||scene==='build') openHome(); };
-$('#chipBack').onclick = ()=>{ if(scene === 'build') leaveDome(); else openHome(); };
+$('#chipBack').onclick = ()=>{
+  if(scene === 'build') leaveDome();
+  else if(scene === 'yard') goTitle();
+  else if(scene === 'tunnel') yardStart('back');
+  else openHome();
+};
+$('#chipUp').onclick = ()=>{ if(scene === 'ocean' && !overlay) goUp(); };
+function goTitle(){
+  if(save){ save.lastSeen = Date.now(); persist(); }
+  scene = 'title'; setSkip(null); showHud(false); buildTitle(); openLayer('lTitle');
+}
 
 /* ---- dome entry: word door first, then the activity ---- */
 let pendingDome = null;
 function enterDome(d){
+  if(d.id === 'up'){ goUp(); return; }
   pendingDome = d;
   if(d.id === 'home'){ openHome(); return; }
   if(LOCKED[d.id] && !save.words.includes(d.id)) openWordDoor(d);
@@ -1839,24 +3199,7 @@ function startProfile(id){
   Audio_.init(); seedWorld();
   shark = {x:COVE.x, y:COVE.y, vx:0, vy:0, calm:0, tame:save.shark === 'tamed', a:0, t:0};
   save.creatures.forEach(c=>{ c.x = undefined; c.y = undefined; c.ph = c.ph || 0; });
-  openLayer(null);
-  if(!save.introDone){
-    scene = 'intro'; intro.phase = 0; intro.dig = 0; intro.t = 0; intro.tunnel = 0;
-    $('#introSkip').hidden = false;
-    $('#hud').hidden = true; $('#pads').hidden = true;
-  } else {
-    scene = 'ocean';
-    player.x = 1400; player.y = 900 + 190; player.vx = 0; player.vy = 0;
-    cam.x = clamp(player.x - VW/2, 0, WORLD.w - VW);
-    cam.y = clamp(player.y - VH/2, 0, WORLD.h - VH);
-    showHud(true);
-    const grew = harvestAll();
-    setTimeout(()=>{
-      updateHud();
-      if(grew) toast(`Your gardens grew ${grew} pearls!`);
-      else toast('Welcome back!');
-    }, 400);
-  }
+  yardStart('arrive');                 // every visit starts in the backyard
   save.seen++; save.lastSeen = Date.now(); persist();
 }
 buildTitle();
@@ -1885,9 +3228,14 @@ function step(){
     for(const f of fish){ f.x += f.vx * dt; if(f.x > WORLD.w) f.x = 0; if(f.x < 0) f.x = WORLD.w;
       ctx.fillStyle = f.c; ctx.beginPath(); ctx.ellipse(f.x, f.y, f.s, f.s*.58, 0, 0, 7); ctx.fill(); }
     ctx.restore();
-  } else if(scene === 'intro'){
-    if(!overlay) updateIntro(dt);
-    updateSparks(dt); drawIntro(t);
+  } else if(scene === 'yard'){
+    if(!overlay) updateYard(dt);
+    updateSparks(dt); drawYard(t, dt);
+  } else if(scene === 'dive'){
+    updateDive(dt); drawDive(t);
+  } else if(scene === 'tunnel'){
+    if(!overlay) updateTunnel(dt);
+    if(tun) drawTunnel(t);
   } else if(scene === 'show'){
     if(!overlay) updateDance(dt, t);
     drawDance(t);

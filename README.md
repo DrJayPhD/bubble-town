@@ -14,7 +14,16 @@ Built to run on **iPadOS 12** as well as current browsers, which means:
 
 ## Playing it
 
-Open `index.html`. Pick a diver, dig beside the pool, and swim.
+Open `index.html`. Pick a diver and you land in the backyard. Tap to dig beside the pool
+until you hit water, then choose:
+
+- **Dig the tunnels**: dig down through the ground to Bubble Town. Collect pearls, gems,
+  shells and fossils, BONK the mud bugs into bubbles, and watch out for loose rocks.
+  On Easy there is nothing to lose; on Advanced you have three hearts.
+- **Dive right in**: straight down the shaft into the sea.
+
+In Bubble Town, swim up the ladder at the top of the sea (or tap **⬆ Backyard**) to climb
+back out and dig again.
 
 Divers are called "Diver One" and "Diver Two" until you name them. Tap the pencil next to a
 name to change it. Names and all save data live in `localStorage` on that device and are
