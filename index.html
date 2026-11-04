@@ -617,7 +617,7 @@ const DOMES = [
   {id:'home',  x:1400, y:900,  r:150, label:'Home',       ic:'🏠', hue:'#ffd479'},
   {id:'dance', x:540,  y:690,  r:162, label:'Dance Dome', ic:'💃', hue:'#ff6f9c'},
   {id:'music', x:2270, y:740,  r:162, label:'Music Dome', ic:'🎵', hue:'#9d8cff'},
-  {id:'build', x:980,  y:1430, r:150, label:'Build Yard', ic:'🧱', hue:'#ffa45c'},
+  {id:'build', x:980,  y:1430, r:150, label:'Coral Run',  ic:'🦀', hue:'#ffa45c'},
   {id:'draw',  x:2130, y:1400, r:150, label:'Draw Lab',   ic:'🎨', hue:'#6ee6a0'},
 ];
 const COVE = {x:360, y:1420, r:210};
@@ -640,10 +640,7 @@ let charging = null, chargeT = 0;
 let swimTo = null;          // tap-to-swim target, in world coords
 
 function seedWorld(){
-  fish = []; for(let i=0;i<(window.LEGACY?20:46);i++) fish.push({
-    x:rnd(0,WORLD.w), y:rnd(120,WORLD.h-90), vx:rnd(-34,34), vy:rnd(-9,9),
-    s:rnd(5,13), c:pick(['#ffd479','#ff9a5c','#7df0ff','#ff6f9c','#6ee6a0','#e8f6ff']), ph:rnd(0,9)
-  });
+  seedFish();
   bubbles = []; for(let i=0;i<(window.LEGACY?24:60);i++) bubbles.push(newBub());
   plankton = []; for(let i=0;i<(window.LEGACY?36:130);i++) plankton.push({
     x:rnd(0,WORLD.w), y:rnd(0,WORLD.h), r:rnd(.7,2.3), ph:rnd(0,9), sp:rnd(.2,.7)
@@ -671,7 +668,8 @@ addEventListener('keydown', e=>{
   if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase())) e.preventDefault();
   if(e.key === ' ' || (e.key === 'Enter' && scene === 'yard')) pressA();
   if(e.key.toLowerCase() === 'e' || e.key === 'Shift') pressB();
-  if(e.key === 'Escape' && scene === 'build') leaveDome();
+  if(e.key === 'Escape' && scene === 'run'){ run = null; leaveDome(); }
+  if(scene === 'run' && (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') && !e.repeat) pressA();
 });
 addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
 
@@ -705,27 +703,14 @@ function wirePad(el, fn){
 wirePad($('#padA'), ()=>pressA());
 wirePad($('#padB'), ()=>pressB());
 
-/* A — swim boost in water, jump (chain of three) on dome floors */
+/* A — swim boost in water, jump in Coral Run, dash in the tunnels */
 function pressA(){
   if(!overlay && scene === 'yard'){ yardTap(); return; }
   if(!overlay && scene === 'tunnel'){ tunnelDash(); return; }
-  if(overlay || (scene !== 'ocean' && scene !== 'build')) return;
+  if(!overlay && scene === 'run'){ runJump(); return; }
+  if(overlay || scene !== 'ocean') return;
   Audio_.init();
-  if(scene === 'build'){
-    const maxJ = save.mode === 'easy' ? 3 : 3;
-    if(player.jumps < maxJ){
-      player.jumps++;
-      const power = [1, 1.06, 1.42][player.jumps - 1];
-      player.vy = -560 * power;
-      player.grounded = false;
-      Audio_.tone(340 + player.jumps * 170, 0.17, 'triangle', 0.13);
-      if(player.jumps === 3){
-        Audio_.tone(1046, 0.3, 'sine', 0.12, 0.05);
-        burst(player.x, player.y + 22, 22, '#7df0ff');
-        toast('TRIPLE JUMP!');
-      } else burst(player.x, player.y + 20, 7, '#bdf7ff');
-    }
-  } else {
+  {
     if(now() - player.boostT > 0.9) player.boost = 0;
     if(player.boost < 3){
       player.boost++; player.boostT = now();
@@ -739,15 +724,15 @@ function pressA(){
     }
   }
 }
-/* B — bonk: a shockwave that topples stacks and calms sharks */
+/* B — bonk: a shockwave that scatters fish, calms sharks, and bubbles critters */
 function pressB(){
   if(!overlay && scene === 'tunnel'){ tunnelBonk(); return; }
-  if(overlay || (scene !== 'ocean' && scene !== 'build')) return;
+  if(!overlay && scene === 'run'){ runBonk(); return; }
+  if(overlay || scene !== 'ocean') return;
   if(now() - player.bonkT < 0.55) return;
   player.bonkT = now(); player.bonk = 1;
   Audio_.bonk(); burst(player.x, player.y, 26, '#ff6f9c');
-  if(scene === 'build') topple();
-  else {
+  {
     fish.forEach(f=>{ const d = Math.hypot(f.x-player.x, f.y-player.y);
       if(d < 260){ f.vx += (f.x-player.x)/d*180; f.vy += (f.y-player.y)/d*180; } });
     const d = Math.hypot(shark.x-player.x, shark.y-player.y);
@@ -783,9 +768,17 @@ function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
     g.fillStyle = '#2ba7bd'; g.beginPath(); g.ellipse(-5, 7, 4.5, 10, 0, 0, 7); g.fill();
     g.restore();
   }
-  // body
-  g.fillStyle = suit;
+  // air tank on her back
+  g.fillStyle = '#e8b33a'; roundRect(g, -13.5, -5, 7, 19, 3.4); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(-12.2, -3, 1.6, 14);
+  g.fillStyle = '#5d6870'; g.fillRect(-11.5, -8, 3, 3.5);
+  // body, lit from above
+  const bg = g.createLinearGradient(-8, -8, 6, 18);
+  bg.addColorStop(0, shade(suit, 40)); bg.addColorStop(.5, suit); bg.addColorStop(1, shade(suit, -45));
+  g.fillStyle = bg;
   g.beginPath(); g.ellipse(0, 5, 8.5, 13, 0, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(20,30,40,.35)'; g.lineWidth = 1.6;
+  g.beginPath(); g.moveTo(-7, -2); g.quadraticCurveTo(0, 2, 7, -1); g.stroke();
   g.fillStyle = 'rgba(255,255,255,.22)';
   g.beginPath(); g.ellipse(-3, 1, 3.4, 7, -.25, 0, 7); g.fill();
   // arms
@@ -840,129 +833,428 @@ function drawCreature(g, c, x, y, s, t){
   }
 }
 
-function drawShark(g, s, t){
-  g.save(); g.translate(s.x, s.y);
-  g.scale(s.vx < 0 ? -1 : 1, 1);
-  const sw = Math.sin(t * 3.1) * 0.1; g.rotate(sw);
-  const body = s.tame ? '#7fb6d8' : '#5d7f96';
-  g.fillStyle = body;
-  g.beginPath(); g.moveTo(-58, 0);
-  g.quadraticCurveTo(-22, -26, 44, -7); g.quadraticCurveTo(58, 0, 44, 8);
-  g.quadraticCurveTo(-22, 24, -58, 0); g.fill();
-  g.fillStyle = '#dbe9f2';
-  g.beginPath(); g.moveTo(-40, 6); g.quadraticCurveTo(0, 20, 42, 7);
-  g.quadraticCurveTo(0, 13, -40, 6); g.fill();
-  g.fillStyle = body;                                   // dorsal + tail
-  g.beginPath(); g.moveTo(-6, -14); g.lineTo(4, -34); g.lineTo(16, -11); g.fill();
-  g.beginPath(); g.moveTo(-52, -2); g.lineTo(-76, -22); g.lineTo(-70, 0);
-  g.lineTo(-76, 20); g.fill();
-  g.beginPath(); g.moveTo(-4, 11); g.lineTo(-16, 27); g.lineTo(8, 14); g.fill();
-  g.fillStyle = '#0a1a26';
-  g.beginPath(); g.arc(31, -5, 3.1, 0, 7); g.fill();
-  if(s.tame){                                            // a tame shark gets a bow
-    g.fillStyle = '#ff6f9c';
-    g.beginPath(); g.moveTo(6, -30); g.lineTo(-6, -38); g.lineTo(-4, -26); g.fill();
-    g.beginPath(); g.moveTo(6, -30); g.lineTo(18, -38); g.lineTo(16, -26); g.fill();
-  }
-  g.restore();
-  if(!s.tame && s.calm > 0){                             // calm meter
-    g.save(); g.translate(s.x, s.y - 58);
-    g.fillStyle = 'rgba(3,24,43,.65)'; roundRect(g, -42, -9, 84, 16, 8); g.fill();
-    g.fillStyle = '#7df0ff'; roundRect(g, -38, -5, 76 * s.calm, 8, 4); g.fill();
-    g.restore();
-  }
-}
 function roundRect(g, x, y, w, h, r){
   g.beginPath();
   g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
   g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath();
 }
 
-/* ============================ OCEAN BACKDROP ============================ */
+/* ============================ OCEAN ART ============================
+   The sea is drawn in layers, back to front:
+     water gradient → far reef ridge → near ridge with kelp (both parallax)
+     → light shafts → seabed with coral, anemones and moving caustics
+     → domes, fish, shark, diver → a soft vignette
+   Coral sprites are painted once into offscreen canvases.
+   ================================================================== */
+const OC = {ready:false, far:[], mid:[], midKelp:[], deco:[], spr:{}};
+const seabedY = x => WORLD.h - 58 - Math.sin(x*.007 + 2)*30 - Math.sin(x*.0021)*14;
+function oceanPrep(){
+  if(OC.ready) return; OC.ready = true;
+  const LEG = window.LEGACY, r0 = seeded(21), R = (a, b)=>a + r0() * (b - a);
+  for(let x=-300; x<=WORLD.w*.3 + 2800; x+=50) OC.far.push([x, 120*Math.sin(x*.004) + 60*Math.sin(x*.011 + 1) + R(-14, 14)]);
+  for(let x=-300; x<=WORLD.w*.55 + 2800; x+=40) OC.mid.push([x, 80*Math.sin(x*.006 + 2) + 40*Math.sin(x*.017) + R(-10, 10)]);
+  for(let i=0; i<(LEG ? 10 : 26); i++) OC.midKelp.push({x:R(-200, WORLD.w*.55 + 2600), h:R(110, 280), ph:R(0, 9)});
+  const sc = LEG ? 1 : 2, S = OC.spr;
+  // branching coral
+  S.branch = ['#ff7a8a','#ffb347','#c38bff'].map((col, i)=>{
+    const c = mkCanvas(130, 120, sc), g = c.g, rr = seeded(40 + i), Q = (a, b)=>a + rr() * (b - a);
+    g.lineCap = 'round';
+    const br = (x, y, a, len, w, d)=>{
+      const x2 = x + Math.cos(a)*len, y2 = y + Math.sin(a)*len;
+      g.strokeStyle = shade(col, -30 + d*12); g.lineWidth = w;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a + .3)*len*.5, y + Math.sin(a + .3)*len*.5, x2, y2); g.stroke();
+      if(d < 4){ br(x2, y2, a - Q(.25, .6), len*Q(.62, .8), w*.72, d + 1); br(x2, y2, a + Q(.25, .6), len*Q(.62, .8), w*.72, d + 1); }
+      else { g.fillStyle = shade(col, 60); g.beginPath(); g.arc(x2, y2, w*.9, 0, 7); g.fill(); }
+    };
+    br(65, 118, -Math.PI/2, 34, 10, 0);
+    return c;
+  });
+  // brain coral
+  S.brain = ['#e9a85f','#8fd0a0'].map((col, i)=>{
+    const c = mkCanvas(110, 70, sc), g = c.g;
+    const gr = g.createRadialGradient(42, 26, 6, 55, 50, 60);
+    gr.addColorStop(0, shade(col, 40)); gr.addColorStop(1, shade(col, -50));
+    g.fillStyle = gr; g.beginPath(); g.ellipse(55, 66, 52, 50, 0, Math.PI, 0); g.fill();
+    g.strokeStyle = shade(col, -60); g.lineWidth = 2.2;
+    for(let k=0; k<7; k++){ g.beginPath();
+      for(let x=10; x<=100; x+=4){ const y = 66 - Math.sqrt(Math.max(0, 2500 - (x - 55)*(x - 55)))*.95*(1 - k*.13) + Math.sin(x*.35 + k*2)*3;
+        x === 10 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); }
+    return c;
+  });
+  // sea fans
+  S.fan = ['#d94f7a','#9d6cff'].map((col, i)=>{
+    const c = mkCanvas(120, 120, sc), g = c.g, rr = seeded(60 + i);
+    g.strokeStyle = shade(col, -20); g.lineCap = 'round';
+    for(let k=0; k<22; k++){
+      const a = -Math.PI*.92 + k/21*Math.PI*.84, len = 70 + rr()*35;
+      g.lineWidth = 1.6 + rr();
+      g.beginPath(); g.moveTo(60, 118); g.quadraticCurveTo(60 + Math.cos(a)*len*.4, 118 + Math.sin(a)*len*.6, 60 + Math.cos(a)*len, 118 + Math.sin(a)*len); g.stroke();
+    }
+    g.strokeStyle = shade(col, 30); g.lineWidth = 1; g.globalAlpha = .5;
+    for(let k=1; k<6; k++){ g.beginPath(); g.arc(60, 118, k*18, Math.PI*1.08, Math.PI*1.92); g.stroke(); }
+    return c;
+  });
+  // rocks
+  S.rock = [0, 1].map(i=>{
+    const c = mkCanvas(120, 70, sc), g = c.g, rr = seeded(80 + i);
+    const gr = g.createLinearGradient(30, 0, 90, 70);
+    gr.addColorStop(0, '#5f8794'); gr.addColorStop(1, '#1f3b4a');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(4, 70);
+    for(let k=0; k<=10; k++){ const x = 4 + k*11.2, y = 70 - Math.sin(k/10*Math.PI)*(48 + rr()*18) - rr()*6; g.lineTo(x, y); }
+    g.lineTo(116, 70); g.fill();
+    for(let k=0; k<14; k++){ g.fillStyle = rr() < .5 ? 'rgba(110,230,160,.35)' : 'rgba(255,140,170,.3)';
+      g.beginPath(); g.arc(20 + rr()*80, 30 + rr()*36, 2 + rr()*4, 0, 7); g.fill(); }
+    return c;
+  });
+  const kinds = ['branch','brain','fan','rock','rock','anem','star','branch','fan','anem','branch'];
+  for(let i=0; i<(LEG ? 26 : 64); i++){
+    const k = kinds[(r0() * kinds.length) | 0];
+    OC.deco.push({x:R(30, WORLD.w - 30), k, s:R(.65, 1.35), v:(r0()*3)|0, ph:R(0, 9),
+      c:['#ff7a9a','#ffb15c','#c38bff','#6ee6c0'][(r0()*4)|0]});
+  }
+  OC.deco.sort((a, b)=>a.s - b.s);
+}
+function drawRidge(g, pts, k, col, lift){
+  const base = VH - lift + (WORLD.h - VH)*k - cam.y*k;
+  if(base - 320 > VH) return;
+  const ox = cam.x*k;
+  const rg = g.createLinearGradient(0, base - 300, 0, base + 200);   // hazy at the crest, solid lower down
+  rg.addColorStop(0, col + '55'); rg.addColorStop(.45, col + 'cc'); rg.addColorStop(1, col);
+  g.fillStyle = rg; g.beginPath(); g.moveTo(-10, VH + 10);
+  for(const q of pts){ const sx = q[0] - ox; if(sx < -80 || sx > VW + 80) continue; g.lineTo(sx, base - q[1] - 120); }
+  g.lineTo(VW + 10, VH + 10); g.fill();
+  return base;
+}
 function drawOcean(t){
+  oceanPrep();
   const g = ctx;
   const grd = g.createLinearGradient(0, -cam.y, 0, WORLD.h - cam.y);
-  grd.addColorStop(0,   '#2ba7bd');
-  grd.addColorStop(.14, '#0e6f8f');
-  grd.addColorStop(.48, '#06304f');
-  grd.addColorStop(1,   '#03182b');
+  grd.addColorStop(0,   '#4cc3d6');
+  grd.addColorStop(.12, '#1688a8');
+  grd.addColorStop(.45, '#0a4a6e');
+  grd.addColorStop(1,   '#041e33');
   g.fillStyle = grd; g.fillRect(0, 0, VW, VH);
 
-  g.save(); g.translate(-cam.x, -cam.y);
+  // distant reef, then a nearer ridge with swaying kelp, both drifting slower than the world
+  drawRidge(g, OC.far, .3, '#0d4766', 420);
+  const mb = drawRidge(g, OC.mid, .55, '#0a3955', 330);
+  if(mb !== undefined && mb - 420 < VH){
+    g.strokeStyle = '#0a3955'; g.lineCap = 'round';
+    for(const k of OC.midKelp){
+      const sx = k.x - cam.x*.55; if(sx < -60 || sx > VW + 60) continue;
+      g.lineWidth = 9;
+      g.beginPath(); g.moveTo(sx, mb - 60);
+      for(let i=1; i<=5; i++) g.lineTo(sx + Math.sin(t*.6 + k.ph + i*.7)*i*5, mb - 60 - k.h*i/5);
+      g.stroke();
+    }
+  }
 
-  // light shafts from the surface
+  g.save(); g.translate(-cam.x, -cam.y);
+  // light shafts from the surface, gently breathing
   g.globalCompositeOperation = 'lighter';
   for(const r of rays){
-    const sway = Math.sin(t * .28 + r.ph) * 70;
-    const lg = g.createLinearGradient(r.x, 0, r.x + sway, 900);
-    lg.addColorStop(0, 'rgba(160,240,255,.16)');
-    lg.addColorStop(1, 'rgba(160,240,255,0)');
+    const sway = Math.sin(t * .28 + r.ph) * 70, a = .10 + Math.sin(t * .7 + r.ph) * .035;
+    const lg = g.createLinearGradient(r.x, 0, r.x + sway, 1000);
+    lg.addColorStop(0, 'rgba(170,245,255,' + a + ')');
+    lg.addColorStop(1, 'rgba(170,245,255,0)');
     g.fillStyle = lg;
     g.beginPath(); g.moveTo(r.x - r.w/2, 0); g.lineTo(r.x + r.w/2, 0);
-    g.lineTo(r.x + sway + r.w*1.5, 900); g.lineTo(r.x + sway - r.w*1.5, 900); g.fill();
+    g.lineTo(r.x + sway + r.w*1.6, 1000); g.lineTo(r.x + sway - r.w*1.6, 1000); g.fill();
+    const cg = g.createLinearGradient(r.x, 0, r.x + sway, 700);
+    cg.addColorStop(0, 'rgba(220,255,255,' + a*.5 + ')'); cg.addColorStop(1, 'rgba(220,255,255,0)');
+    g.fillStyle = cg;
+    g.beginPath(); g.moveTo(r.x - r.w*.12, 0); g.lineTo(r.x + r.w*.12, 0);
+    g.lineTo(r.x + sway + r.w*.5, 700); g.lineTo(r.x + sway - r.w*.5, 700); g.fill();
   }
   g.globalCompositeOperation = 'source-over';
 
-  // far seabed
-  g.fillStyle = '#062537';
-  g.beginPath(); g.moveTo(0, WORLD.h);
-  for(let x=0;x<=WORLD.w;x+=140) g.lineTo(x, WORLD.h - 120 - Math.sin(x*.004)*54 - Math.sin(x*.011)*26);
-  g.lineTo(WORLD.w, WORLD.h); g.fill();
-  // near seabed sand
-  g.fillStyle = '#12455c';
-  g.beginPath(); g.moveTo(0, WORLD.h);
-  for(let x=0;x<=WORLD.w;x+=110) g.lineTo(x, WORLD.h - 56 - Math.sin(x*.007+2)*32);
-  g.lineTo(WORLD.w, WORLD.h); g.fill();
+  drawSeabed(g, t);
 
-  for(const k of kelp){                                  // kelp
-    g.strokeStyle = k.c; g.lineWidth = k.w; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(k.x, WORLD.h - 50);
-    for(let i=1;i<=5;i++){
-      const yy = WORLD.h - 50 - k.h * i/5;
-      g.lineTo(k.x + Math.sin(t*.8 + k.ph + i*.6) * i * 5, yy);
-    }
+  for(const k of kelp){                                  // kelp ribbons with leaves
+    if(k.x < cam.x - 80 || k.x > cam.x + VW + 80) continue;
+    const base = seabedY(k.x) + 10;
+    if(base - k.h > cam.y + VH) continue;
+    const pts = [];
+    for(let i=0; i<=6; i++) pts.push([k.x + Math.sin(t*.8 + k.ph + i*.6) * i * 5, base - k.h * i/6]);
+    g.strokeStyle = shade(k.c, -10); g.lineWidth = k.w * .55; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+    for(let i=1; i<pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
     g.stroke();
+    for(let i=1; i<pts.length; i++){
+      const s = i % 2 ? 1 : -1, sw = Math.sin(t*1.1 + k.ph + i)*.25;
+      g.save(); g.translate(pts[i][0], pts[i][1]); g.rotate(s*(.9 + sw));
+      g.fillStyle = i % 2 ? shade(k.c, 25) : k.c;
+      g.beginPath(); g.ellipse(0, -k.w*1.1, k.w*.55, k.w*1.4, 0, 0, 7); g.fill();
+      g.restore();
+    }
   }
 
-  for(const p of plankton){                              // drifting plankton
+  for(const p of plankton){                              // drifting marine snow
     const a = .18 + Math.sin(t * p.sp + p.ph) * .16;
-    g.fillStyle = `rgba(190,245,255,${Math.max(0,a)})`;
-    g.beginPath(); g.arc(p.x, p.y + Math.sin(t*.4+p.ph)*14, p.r, 0, 7); g.fill();
+    if(a <= 0) continue;
+    g.fillStyle = 'rgba(200,248,255,' + a + ')';
+    g.beginPath(); g.arc(p.x, p.y + Math.sin(t*.4 + p.ph)*14, p.r, 0, 7); g.fill();
   }
   g.restore();
 }
-
-function drawDome(d, t){
-  const g = ctx;
-  g.save(); g.translate(d.x, d.y);
-  const pulse = 1 + Math.sin(t * 1.2 + d.x) * .012;
-  // glass sphere
-  const gg = g.createRadialGradient(-d.r*.3, -d.r*.4, d.r*.1, 0, 0, d.r*pulse);
-  gg.addColorStop(0, 'rgba(196,250,255,.32)');
-  gg.addColorStop(.62, 'rgba(90,200,225,.16)');
-  gg.addColorStop(1, 'rgba(125,240,255,.05)');
-  g.fillStyle = gg;
-  g.beginPath(); g.arc(0, 0, d.r*pulse, 0, 7); g.fill();
-  // interior floor + warm lamp
-  g.save(); g.beginPath(); g.arc(0, 0, d.r*pulse - 3, 0, 7); g.clip();
-  const lamp = g.createRadialGradient(0, d.r*.2, 6, 0, d.r*.2, d.r);
-  lamp.addColorStop(0, d.hue + 'aa'); lamp.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = lamp; g.fillRect(-d.r, -d.r, d.r*2, d.r*2);
-  g.fillStyle = 'rgba(240,227,192,.85)';
-  g.fillRect(-d.r, d.r*.44, d.r*2, d.r);
+function drawSeabed(g, t){
+  if(cam.y + VH < WORLD.h - 300) return;
+  const x0 = Math.max(0, cam.x - 40), x1 = Math.min(WORLD.w, cam.x + VW + 40);
+  // a back ridge of rock
+  g.fillStyle = '#0a3048';
+  g.beginPath(); g.moveTo(x0, WORLD.h);
+  for(let x=x0 - (x0 % 30); x<=x1 + 30; x+=30) g.lineTo(x, WORLD.h - 130 - Math.sin(x*.004)*50 - Math.sin(x*.011)*24);
+  g.lineTo(x1 + 30, WORLD.h); g.fill();
+  // sand
+  const sg = g.createLinearGradient(0, WORLD.h - 110, 0, WORLD.h);
+  sg.addColorStop(0, '#3f8a8f'); sg.addColorStop(.4, '#2a6676'); sg.addColorStop(1, '#173f52');
+  g.fillStyle = sg;
+  g.beginPath(); g.moveTo(x0 - 30, WORLD.h);
+  for(let x=x0 - (x0 % 20) - 20; x<=x1 + 20; x+=20) g.lineTo(x, seabedY(x));
+  g.lineTo(x1 + 20, WORLD.h); g.closePath(); g.fill();
+  g.save(); g.clip();
+  g.strokeStyle = 'rgba(160,230,230,.12)'; g.lineWidth = 2;   // ripples in the sand
+  for(let k=0; k<5; k++){ g.beginPath();
+    for(let x=x0 - (x0 % 16); x<=x1; x+=16){ const y = seabedY(x) + 14 + k*14 + Math.sin(x*.05 + k)*3; x === x0 - (x0 % 16) ? g.moveTo(x, y) : g.lineTo(x, y); }
+    g.stroke(); }
+  g.globalCompositeOperation = 'lighter';                  // caustics dancing on the sand
+  g.lineWidth = 2.4;
+  const n = window.LEGACY ? 3 : 6;
+  for(let k=0; k<n; k++){
+    g.strokeStyle = 'rgba(190,255,250,' + (.08 + .03*Math.sin(t + k)) + ')';
+    g.beginPath();
+    for(let x=x0 - (x0 % 14); x<=x1; x+=14){
+      const y = WORLD.h - 95 + k*17 + Math.sin(x*.03 + t*1.3 + k*2)*7 + Math.sin(x*.081 - t*1.7 + k)*4;
+      x === x0 - (x0 % 14) ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  g.globalCompositeOperation = 'source-over';
   g.restore();
-  // rim
-  g.strokeStyle = 'rgba(190,248,255,.6)'; g.lineWidth = 2.4;
-  g.beginPath(); g.arc(0, 0, d.r*pulse, 0, 7); g.stroke();
+  // coral, rocks, anemones, starfish
+  const S = OC.spr;
+  for(const d of OC.deco){
+    if(d.x < x0 - 90 || d.x > x1 + 90) continue;
+    const y = seabedY(d.x) + 8 + (1.35 - d.s)*30, s = d.s;
+    if(d.k === 'branch'){ const c = S.branch[d.v % 3]; g.drawImage(c, d.x - 65*s, y - 118*s, 130*s, 120*s); }
+    else if(d.k === 'brain'){ const c = S.brain[d.v % 2]; g.drawImage(c, d.x - 55*s, y - 66*s, 110*s, 70*s); }
+    else if(d.k === 'fan'){ const c = S.fan[d.v % 2];
+      g.save(); g.translate(d.x, y); g.rotate(Math.sin(t*.8 + d.ph)*.05); g.drawImage(c, -60*s, -118*s, 120*s, 120*s); g.restore(); }
+    else if(d.k === 'rock'){ const c = S.rock[d.v % 2]; g.drawImage(c, d.x - 60*s, y - 66*s, 120*s, 70*s); }
+    else if(d.k === 'anem'){
+      g.lineCap = 'round';
+      for(let i=0; i<11; i++){
+        const a = -Math.PI/2 + (i - 5)*.2, len = (26 + (i % 3)*6)*s, sw = Math.sin(t*1.6 + d.ph + i*.5)*8*s;
+        const ex = d.x + Math.cos(a)*len + sw, ey = y + Math.sin(a)*len;
+        g.strokeStyle = d.c; g.lineWidth = 4.5*s;
+        g.beginPath(); g.moveTo(d.x + (i - 5)*2*s, y); g.quadraticCurveTo(d.x + Math.cos(a)*len*.5, y + Math.sin(a)*len*.6, ex, ey); g.stroke();
+        g.fillStyle = shade(d.c, 70); g.beginPath(); g.arc(ex, ey, 2.6*s, 0, 7); g.fill();
+      }
+      g.fillStyle = shade(d.c, -40); g.beginPath(); g.ellipse(d.x, y, 13*s, 6*s, 0, 0, 7); g.fill();
+      if(d.v === 0){                                       // a little orange fish lives here
+        const fx = d.x + Math.sin(t*.9 + d.ph)*30*s, fy = y - 34*s + Math.sin(t*1.7 + d.ph)*6*s;
+        drawFish(g, {x:fx, y:fy, s:7*s, vx:Math.cos(t*.9 + d.ph), vy:0, ph:d.ph, c:'#ff8a3d', belly:'#ffd0a8', stripe:'#ffffff'}, t);
+      }
+    } else if(d.k === 'star'){
+      g.save(); g.translate(d.x, y - 4*s); g.rotate(d.ph);
+      g.fillStyle = d.v ? '#ff8a5c' : '#ffcf5a';
+      g.beginPath();
+      for(let i=0; i<10; i++){ const r = (i % 2 ? 5 : 14)*s, a = i*Math.PI/5; i ? g.lineTo(Math.cos(a)*r, Math.sin(a)*r*.6) : g.moveTo(Math.cos(a)*r, Math.sin(a)*r*.6); }
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.4)';
+      for(let i=0; i<5; i++){ const a = i*Math.PI*2/5; g.beginPath(); g.arc(Math.cos(a)*7*s, Math.sin(a)*4*s, 1.2*s, 0, 7); g.fill(); }
+      g.restore();
+    }
+  }
+}
+function oceanVignette(){
+  const g = ctx;
+  const vg = g.createRadialGradient(VW/2, VH/2, Math.min(VW, VH)*.38, VW/2, VH/2, Math.max(VW, VH)*.8);
+  vg.addColorStop(0, 'rgba(2,14,26,0)'); vg.addColorStop(1, 'rgba(2,14,26,.45)');
+  g.fillStyle = vg; g.fillRect(0, 0, VW, VH);
+}
+
+/* ---- fish swim in schools: each school wanders, its fish hold loose places in it ---- */
+let schools = [];
+const FISH_KINDS = [
+  {c:'#ffd479', belly:'#fff6d6'}, {c:'#ff9a5c', belly:'#ffe2c8', stripe:'#ffffff'},
+  {c:'#57d6ef', belly:'#e8fdff', stripe:'#1f5f8c'}, {c:'#ff6f9c', belly:'#ffdbe7'},
+  {c:'#6ee6a0', belly:'#e3fff0', stripe:'#2b8a5a'}, {c:'#9d8cff', belly:'#ece8ff', stripe:'#ffd479'},
+  {c:'#dff2ff', belly:'#ffffff', stripe:'#6f9fc4'},
+];
+function seedFish(){
+  fish = []; schools = [];
+  const ns = window.LEGACY ? 4 : 7, per = window.LEGACY ? 5 : 7;
+  for(let i=0; i<ns; i++){
+    const k = FISH_KINDS[i % FISH_KINDS.length];
+    const s = {x:rnd(250, WORLD.w - 250), y:rnd(220, WORLD.h - 320), a:rnd(0, 6.28), turn:0, sp:rnd(38, 64), size:rnd(6, 12)};
+    schools.push(s);
+    for(let j=0; j<per; j++) fish.push({school:s, ox:rnd(-75, 75), oy:rnd(-42, 42), x:s.x + rnd(-60, 60), y:s.y + rnd(-30, 30),
+      vx:0, vy:0, s:s.size*rnd(.85, 1.15), c:k.c, belly:k.belly, stripe:k.stripe, ph:rnd(0, 9)});
+  }
+}
+function updateFish(dt, t){
+  for(const s of schools){
+    s.turn = clamp(s.turn + rnd(-1.4, 1.4)*dt, -.6, .6);
+    s.a += s.turn*dt;
+    let ca = Math.cos(s.a), sa = Math.sin(s.a);
+    if((s.x < 180 && ca < 0) || (s.x > WORLD.w - 180 && ca > 0)) s.a = Math.PI - s.a;
+    if((s.y < 200 && sa < 0) || (s.y > WORLD.h - 280 && sa > 0)) s.a = -s.a;
+    ca = Math.cos(s.a); sa = Math.sin(s.a);
+    s.x += ca*s.sp*dt; s.y += sa*s.sp*.45*dt;
+    for(const d of DOMES){                                 // swim around the domes, not through them
+      const dx = s.x - d.x, dy = s.y - d.y, m = Math.hypot(dx, dy);
+      if(m < d.r + 90 && m > 1){ s.x += dx/m*90*dt; s.y += dy/m*90*dt; }
+    }
+  }
+  for(const f of fish){
+    const s = f.school;
+    const tx = s.x + f.ox + Math.sin(t*.7 + f.ph)*12, ty = s.y + f.oy + Math.cos(t*.9 + f.ph)*8;
+    f.vx += (tx - f.x)*2.2*dt; f.vy += (ty - f.y)*2.2*dt;
+    f.vx *= Math.pow(.3, dt); f.vy *= Math.pow(.3, dt);
+    f.x += f.vx*dt; f.y += f.vy*dt;
+  }
+}
+function drawFish(g, f, t){
+  const S = f.s;
+  const dir = f.vx < -3 ? -1 : f.vx > 3 ? 1 : (f.dir || 1); f.dir = dir;
+  g.save(); g.translate(f.x, f.y); g.scale(dir, 1);
+  g.rotate(clamp(f.vy / (Math.abs(f.vx) + 40), -.45, .45));
+  const wag = Math.sin(t*9 + f.ph) * .4;
+  g.fillStyle = shade(f.c, -15);
+  g.save(); g.translate(-S*.8, 0); g.rotate(wag);
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(-S*.85, -S*.62); g.quadraticCurveTo(-S*.55, 0, -S*.85, S*.62); g.closePath(); g.fill();
+  g.restore();
+  g.beginPath(); g.moveTo(-S*.4, -S*.45); g.quadraticCurveTo(0, -S*1.05, S*.35, -S*.5); g.fill();   // dorsal fin
+  const bg = g.createLinearGradient(0, -S*.6, 0, S*.6);
+  bg.addColorStop(0, shade(f.c, -35)); bg.addColorStop(.45, f.c); bg.addColorStop(1, f.belly);
+  g.fillStyle = bg; g.beginPath(); g.ellipse(0, 0, S, S*.58, 0, 0, 7); g.fill();
+  if(f.stripe){
+    g.save(); g.beginPath(); g.ellipse(0, 0, S, S*.58, 0, 0, 7); g.clip();
+    g.fillStyle = f.stripe; g.fillRect(-S*.2, -S, S*.24, S*2); g.fillRect(S*.32, -S, S*.12, S*2);
+    g.restore();
+  }
+  g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.arc(S*.52, -S*.12, S*.2, 0, 7); g.fill();
+  g.fillStyle = '#08253a'; g.beginPath(); g.arc(S*.57, -S*.12, S*.11, 0, 7); g.fill();
+  g.restore();
+}
+
+function drawShark(g, s, t){
+  g.save(); g.translate(s.x, s.y);
+  const dir = s.vx < -2 ? -1 : s.vx > 2 ? 1 : (s.dir || 1); s.dir = dir;
+  g.scale(dir, 1);
+  g.rotate(clamp(s.vy / 320, -.35, .35));
+  const sw = Math.sin(t * 3.1) * .14;
+  const top = s.tame ? '#6f9fc4' : '#4b697e', bot = '#e4eff6';
+  g.save(); g.translate(-50, 0); g.rotate(sw * 1.6);           // tail
+  g.fillStyle = shade(top, -12);
+  g.beginPath(); g.moveTo(6, -5); g.quadraticCurveTo(-12, -14, -28, -32); g.quadraticCurveTo(-20, -6, -22, 0);
+  g.quadraticCurveTo(-18, 6, -26, 22); g.quadraticCurveTo(-10, 10, 6, 5); g.closePath(); g.fill();
+  g.restore();
+  const bg = g.createLinearGradient(0, -24, 0, 20);
+  bg.addColorStop(0, shade(top, -28)); bg.addColorStop(.42, top); bg.addColorStop(.6, bot); bg.addColorStop(1, shade(bot, -30));
+  g.fillStyle = bg;
+  g.beginPath(); g.moveTo(-56, 0); g.quadraticCurveTo(-22, -27, 40, -8); g.quadraticCurveTo(60, -1, 46, 8);
+  g.quadraticCurveTo(-20, 23, -56, 0); g.fill();
+  g.fillStyle = shade(top, -18);                               // dorsal fin
+  g.beginPath(); g.moveTo(-12, -15); g.quadraticCurveTo(-2, -30, 8, -37); g.quadraticCurveTo(5, -22, 14, -12); g.closePath(); g.fill();
+  g.fillStyle = shade(top, -8);                                // pectoral fin
+  g.beginPath(); g.moveTo(8, 7); g.quadraticCurveTo(-4, 24, -16, 30); g.quadraticCurveTo(0, 19, 20, 10); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(20,40,55,.45)'; g.lineWidth = 1.4;      // gills
+  for(let i=0; i<3; i++){ g.beginPath(); g.moveTo(16 + i*4, -6); g.quadraticCurveTo(14 + i*4, 0, 16 + i*4, 5); g.stroke(); }
+  g.fillStyle = '#0a1a26'; g.beginPath(); g.arc(32, -5, 3.2, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.beginPath(); g.arc(33, -6, 1.1, 0, 7); g.fill();
+  if(s.tame){
+    g.strokeStyle = '#2a3a48'; g.lineWidth = 1.6;
+    g.beginPath(); g.arc(38, 1, 5, .2, 1.4); g.stroke();             // a smile
+    g.fillStyle = '#ff6f9c';                                         // and a bow
+    g.beginPath(); g.moveTo(6, -32); g.lineTo(-7, -41); g.lineTo(-5, -26); g.fill();
+    g.beginPath(); g.moveTo(6, -32); g.lineTo(19, -41); g.lineTo(17, -26); g.fill();
+    g.fillStyle = '#ffd0e0'; g.beginPath(); g.arc(6, -32, 3, 0, 7); g.fill();
+  }
+  g.restore();
+  if(!s.tame && s.calm > 0){                                  // calm meter
+    g.save(); g.translate(s.x, s.y - 58);
+    g.fillStyle = 'rgba(3,24,43,.65)'; roundRect(g, -42, -9, 84, 16, 8); g.fill();
+    g.fillStyle = '#7df0ff'; roundRect(g, -38, -5, 76 * s.calm, 8, 4); g.fill();
+    g.restore();
+  }
+}
+
+/* ---- the domes: glass on a lit metal collar, with a glimpse of life inside ---- */
+function drawDome(d, t){
+  const g = ctx, r = d.r;
+  g.save(); g.translate(d.x, d.y);
+  const by = r*.84;
+  g.strokeStyle = 'rgba(20,50,70,.6)'; g.lineWidth = 3;          // mooring cables down into the dark
+  for(const s of [-1, 1]){ g.beginPath(); g.moveTo(s*r*.55, by + 8); g.lineTo(s*r*.9, by + r*1.3); g.stroke(); }
+  // interior
+  g.save(); g.beginPath(); g.arc(0, 0, r - 2, 0, 7); g.clip();
+  const wall = g.createLinearGradient(0, -r, 0, r);
+  wall.addColorStop(0, 'rgba(14,70,96,.55)'); wall.addColorStop(1, 'rgba(10,40,60,.75)');
+  g.fillStyle = wall; g.fillRect(-r, -r, r*2, r*2);
+  const lamp = g.createRadialGradient(0, r*.25, 6, 0, r*.25, r*1.05);
+  lamp.addColorStop(0, d.hue + 'cc'); lamp.addColorStop(.55, d.hue + '33'); lamp.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = lamp; g.fillRect(-r, -r, r*2, r*2);
+  const fl = g.createLinearGradient(0, r*.45, 0, r);
+  fl.addColorStop(0, '#f3e4bf'); fl.addColorStop(1, '#b89c6a');
+  g.fillStyle = fl; g.beginPath(); g.ellipse(0, r*.62, r, r*.24, 0, 0, 7); g.fill(); g.fillRect(-r, r*.62, r*2, r);
+  for(const s of [-1, 1]){                                         // potted plants either side
+    g.fillStyle = '#c0703c'; g.fillRect(s*r*.62 - 9, r*.42, 18, 16);
+    g.fillStyle = '#4fbf7a';
+    for(let k=0; k<4; k++){ g.beginPath(); g.ellipse(s*r*.62 + (k - 1.5)*5, r*.36 - (k % 2)*6, 5, 12, (k - 1.5)*.4, 0, 7); g.fill(); }
+  }
+  for(let k=0; k<9; k++){                                          // a string of lights
+    const a = Math.PI*1.18 + k/8*Math.PI*.64, lx = Math.cos(a)*r*.78, ly = Math.sin(a)*r*.78 + r*.12;
+    const on = Math.sin(t*3 + k*1.3) > -.3;
+    g.fillStyle = on ? ['#ffd479','#ff6f9c','#7df0ff'][k % 3] : 'rgba(255,255,255,.25)';
+    g.beginPath(); g.arc(lx, ly, 3.5, 0, 7); g.fill();
+  }
+  g.restore();
+  g.font = Math.round(r*.44) + 'px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(d.ic, 0, -r*.02 + Math.sin(t*1.5 + d.r)*3);
+  // glass: tinted, brighter at the rim the way real glass is
+  const fr = g.createRadialGradient(0, 0, r*.5, 0, 0, r);
+  fr.addColorStop(0, 'rgba(170,240,255,0)'); fr.addColorStop(.85, 'rgba(170,240,255,.10)'); fr.addColorStop(1, 'rgba(200,250,255,.42)');
+  g.fillStyle = fr; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(210,250,255,.09)'; g.lineWidth = 1.5;     // geodesic ribs
+  for(const k of [.35, .7]){ g.beginPath(); g.ellipse(0, 0, r*k, r, 0, 0, 7); g.stroke(); }
+  for(const k of [-.55, -.1, .35]){ g.beginPath(); g.ellipse(0, k*r, Math.sqrt(1 - k*k)*r, r*.12, 0, 0, 7); g.stroke(); }
+  g.strokeStyle = 'rgba(200,250,255,.65)'; g.lineWidth = 2.4;
+  g.beginPath(); g.arc(0, 0, r, 0, 7); g.stroke();
+  const sp = g.createRadialGradient(-r*.38, -r*.5, 2, -r*.38, -r*.5, r*.42);   // specular highlight
+  sp.addColorStop(0, 'rgba(255,255,255,.55)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = sp; g.beginPath(); g.ellipse(-r*.38, -r*.5, r*.36, r*.2, -.65, 0, 7); g.fill();
   g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 4;
-  g.beginPath(); g.arc(0, 0, d.r*pulse - 5, Math.PI*1.12, Math.PI*1.5); g.stroke();
-  // icon + label
-  g.font = `${Math.round(d.r*.42)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(d.ic, 0, -d.r*.08 + Math.sin(t*1.5 + d.r)*3);
-  g.font = '700 17px Comfortaa, sans-serif'; g.fillStyle = '#eaf9ff';
-  g.fillText(d.label, 0, d.r*.72);
+  g.beginPath(); g.arc(0, 0, r - 6, Math.PI*1.12, Math.PI*1.42); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 3;
+  g.beginPath(); g.arc(0, 0, r - 7, Math.PI*.15, Math.PI*.32); g.stroke();
+  // metal collar with running lights
+  const cg = g.createLinearGradient(0, by - 10, 0, by + 26);
+  cg.addColorStop(0, '#5f8799'); cg.addColorStop(.5, '#2c4b5c'); cg.addColorStop(1, '#14293a');
+  g.fillStyle = cg; roundRect(g, -r*.66, by - 8, r*1.32, 30, 12); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.18)'; roundRect(g, -r*.66 + 6, by - 6, r*1.32 - 12, 4, 2); g.fill();
+  for(let k=0; k<7; k++){
+    const lx = -r*.54 + k*r*.18, on = (Math.floor(t*4) + k) % 7 === 0;
+    g.fillStyle = on ? '#ffffff' : d.hue;
+    g.beginPath(); g.arc(lx, by + 9, 3.2, 0, 7); g.fill();
+    if(on){ g.globalCompositeOperation = 'lighter'; g.fillStyle = d.hue + '66';
+      g.beginPath(); g.arc(lx, by + 9, 10, 0, 7); g.fill(); g.globalCompositeOperation = 'source-over'; }
+  }
+  for(let k=0; k<3; k++){                                          // air bubbling from the vent
+    const ph = (t*.5 + k*.33 + d.x*.001) % 1;
+    g.strokeStyle = 'rgba(220,252,255,' + (1 - ph)*.6 + ')'; g.lineWidth = 1.3;
+    g.beginPath(); g.arc(Math.sin(ph*9 + k)*6, -r - 6 - ph*90, 3 + ph*4, 0, 7); g.stroke();
+  }
+  // name plate
+  g.font = '700 16px Comfortaa, sans-serif';
+  const tw = g.measureText(d.label).width + 26;
+  g.fillStyle = 'rgba(3,24,43,.72)'; roundRect(g, -tw/2, by + 30, tw, 26, 13); g.fill();
+  g.strokeStyle = d.hue; g.lineWidth = 1.5; g.stroke();
+  g.fillStyle = '#eaf9ff'; g.fillText(d.label, 0, by + 44);
   if(save && LOCKED[d.id] && !save.words.includes(d.id)){
-    g.font = '20px serif'; g.fillText('🔒', 0, d.r*.36);
+    g.fillStyle = 'rgba(3,24,43,.72)'; g.beginPath(); g.arc(r*.62, -r*.62, 17, 0, 7); g.fill();
+    g.font = '18px serif'; g.fillText('🔒', r*.62, -r*.6);
   }
   g.restore();
 }
@@ -1012,15 +1304,7 @@ function updateOcean(dt, t){
     }
   }
 
-  // fish
-  for(const f of fish){
-    f.x += f.vx*dt; f.y += f.vy*dt + Math.sin(t*2.4+f.ph)*6*dt;
-    f.vx *= Math.pow(.4, dt); f.vy *= Math.pow(.4, dt);
-    if(Math.abs(f.vx) < 12) f.vx = f.vx < 0 ? -rnd(20,40) : rnd(20,40);
-    if(f.x < 20 || f.x > WORLD.w-20) f.vx *= -1;
-    if(f.y < 100 || f.y > WORLD.h-70) f.vy *= -1;
-    f.x = clamp(f.x, 18, WORLD.w-18); f.y = clamp(f.y, 90, WORLD.h-60);
-  }
+  updateFish(dt, t);
   for(const b of bubbles){
     b.y -= b.sp*dt; b.x += Math.sin(t*1.6 + b.ph)*10*dt;
     if(b.y < -10){ b.y = WORLD.h + rnd(0,60); b.x = rnd(0, WORLD.w); }
@@ -1056,15 +1340,7 @@ function drawOceanScene(t){
   drawUpHole(g, t);
   for(const d of DOMES) drawDome(d, t);
 
-  for(const f of fish){                                   // fish
-    g.save(); g.translate(f.x, f.y); g.scale(f.vx < 0 ? -1 : 1, 1);
-    g.fillStyle = f.c;
-    g.beginPath(); g.ellipse(0, 0, f.s, f.s*.58, 0, 0, 7); g.fill();
-    g.beginPath(); g.moveTo(-f.s*.9, 0); g.lineTo(-f.s*1.7, -f.s*.6);
-    g.lineTo(-f.s*1.7, f.s*.6); g.fill();
-    g.fillStyle = '#08253a'; g.beginPath(); g.arc(f.s*.45, -f.s*.12, f.s*.15, 0, 7); g.fill();
-    g.restore();
-  }
+  for(const f of fish) if(f.x > cam.x - 40 && f.x < cam.x + VW + 40 && f.y > cam.y - 40 && f.y < cam.y + VH + 40) drawFish(g, f, t);
   for(const p of pearlsOut){                              // loose pearls
     if(p.got) continue;
     const yy = p.y + Math.sin(t*1.8 + p.ph)*7;
@@ -1105,6 +1381,7 @@ function drawOceanScene(t){
   }
   drawSparks(g);
   g.restore();
+  oceanVignette();
 }
 function drawSparks(g){
   for(const s of sparks){
@@ -1122,114 +1399,542 @@ function updateSparks(dt){
   if(player.bonk > 0) player.bonk = Math.max(0, player.bonk - dt*1.7);
 }
 
-/* ============================ BUILD YARD (gravity room) ============================ */
-const ROOM = {w:1180, h:660, floor:560};
-let blocks = [], platforms = [], toppled = 0;
-function buildRoom(){
-  platforms = [
-    {x:120, y:420, w:190, h:20}, {x:470, y:340, w:210, h:20},
-    {x:830, y:430, w:200, h:20}, {x:330, y:210, w:180, h:20},
-  ];
-  blocks = []; toppled = 0;
-  const stacks = [{x:250, n:5}, {x:600, n:6}, {x:930, n:5}, {x:430, n:4}];
-  for(const s of stacks)
-    for(let i=0;i<s.n;i++)
-      blocks.push({x:s.x + rnd(-3,3), y:ROOM.floor - 34 - i*36, w:54, h:34,
-        vx:0, vy:0, rot:0, vr:0, down:false,
-        c:pick(['#ffa45c','#ffd479','#ff6f9c','#6ee6a0','#7df0ff','#9d8cff'])});
-  player.x = 90; player.y = ROOM.floor - 40; player.vx = 0; player.vy = 0; player.jumps = 0;
+/* ======================================================================
+   CORAL RUN: the dome that used to be the Build Yard. Inside is a whole
+   side-scrolling world under a sky of glass: run, double jump, bump clam
+   blocks for pearls, bounce on sponges, ride driftwood rafts, stomp or
+   BONK crabs and jellies, and reach the Bubble Gate at the far end.
+   Easy: nothing can hurt you, pits just bubble you back up.
+   Advanced: three hearts, shell-flag checkpoints.
+   Tiles: 0 air · 1 sand · 2 coral · 3 clam · 4 opened clam · 5 brick · 6 urchin · 7 sponge
+   ====================================================================== */
+const RT = 48, RG = 11;                       // tile size; the row the ground surface sits on
+const RS = {};
+let run = null;
+const rSolid = v => v === 1 || v === 2 || v === 3 || v === 4 || v === 5 || v === 7;
+function runSprites(){
+  if(RS.ok) return; RS.ok = true;
+  const sc = window.LEGACY ? 1 : 2, T = RT;
+  const tile = fn => { const c = mkCanvas(T, T, sc); fn(c.g, T); return c; };
+  const sandBase = (g, T, seed)=>{
+    const gr = g.createLinearGradient(0, 0, 0, T); gr.addColorStop(0, '#e6c48c'); gr.addColorStop(1, '#d3a86a');
+    g.fillStyle = gr; g.fillRect(0, 0, T, T);
+    const r = seeded(seed);
+    for(let i=0; i<46; i++){ g.fillStyle = r() < .5 ? 'rgba(150,105,55,.28)' : 'rgba(255,245,215,.45)';
+      g.fillRect(r()*T, r()*T, 1 + r()*2, 1 + r()*2); }
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(T*.7, T*.68, 4, 2.5, .4, 0, 7); g.fill();
+  };
+  RS.sand = tile((g, T)=>sandBase(g, T, 3));
+  RS.top = tile((g, T)=>{
+    sandBase(g, T, 4);
+    g.fillStyle = '#3fb98f';
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(T, 0); g.lineTo(T, 9);
+    for(let x=T; x>=0; x-=6) g.lineTo(x, 9 + Math.sin(x*.7)*3);
+    g.fill();
+    g.fillStyle = '#7fe0b8'; g.fillRect(0, 0, T, 3);
+    g.strokeStyle = '#2f9c78'; g.lineWidth = 1.5;
+    for(let x=3; x<T; x+=7){ g.beginPath(); g.moveTo(x, 10); g.lineTo(x + 1, 13); g.stroke(); }
+  });
+  RS.coral = tile((g, T)=>{
+    const gr = g.createLinearGradient(0, 0, 0, T); gr.addColorStop(0, '#ffb0bf'); gr.addColorStop(1, '#e05d7a');
+    g.fillStyle = gr; roundRect(g, 1, 1, T - 2, T - 2, 10); g.fill();
+    const r = seeded(9);
+    for(let i=0; i<11; i++){ g.fillStyle = 'rgba(150,30,60,.35)'; g.beginPath(); g.arc(6 + r()*(T - 12), 10 + r()*(T - 16), 1.5 + r()*2.5, 0, 7); g.fill(); }
+    g.fillStyle = 'rgba(255,255,255,.45)'; roundRect(g, 5, 4, T - 10, 5, 3); g.fill();
+  });
+  const clam = (g, T, used)=>{
+    const gr = g.createLinearGradient(0, 0, 0, T);
+    gr.addColorStop(0, used ? '#d3c3aa' : '#ffe596'); gr.addColorStop(1, used ? '#97856a' : '#f0a23a');
+    g.fillStyle = gr; roundRect(g, 1, 1, T - 2, T - 2, 9); g.fill();
+    g.strokeStyle = used ? '#7a6a52' : '#b8751c'; g.lineWidth = 2; g.stroke();
+    g.fillStyle = used ? '#bfae92' : '#fff1c4';
+    g.beginPath(); g.moveTo(T*.5, T*.78); g.arc(T*.5, T*.62, T*.3, Math.PI, 0); g.closePath(); g.fill();
+    g.strokeStyle = used ? '#8d7c62' : '#d39a3a'; g.lineWidth = 1.5;
+    for(let k=-2; k<=2; k++){ g.beginPath(); g.moveTo(T*.5, T*.74); g.lineTo(T*.5 + k*T*.12, T*.36); g.stroke(); }
+    if(!used){ g.fillStyle = '#ffffff'; g.beginPath(); g.arc(T*.5, T*.72, 4, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.9)'; g.beginPath(); g.moveTo(T*.82, T*.16); g.lineTo(T*.85, T*.24); g.lineTo(T*.93, T*.27);
+      g.lineTo(T*.85, T*.3); g.lineTo(T*.82, T*.38); g.lineTo(T*.79, T*.3); g.lineTo(T*.71, T*.27); g.lineTo(T*.79, T*.24); g.fill(); }
+  };
+  RS.clam = tile((g, T)=>clam(g, T, false));
+  RS.used = tile((g, T)=>clam(g, T, true));
+  RS.brick = tile((g, T)=>{
+    g.fillStyle = '#2b7584'; g.fillRect(0, 0, T, T);
+    const h = T/2;
+    for(let row=0; row<2; row++) for(let k=-1; k<2; k++){
+      const x = k*T/2 + (row ? T/4 : 0) + 1, y = row*h + 1;
+      const gr = g.createLinearGradient(0, y, 0, y + h); gr.addColorStop(0, '#7fd3df'); gr.addColorStop(1, '#4aa5b5');
+      g.fillStyle = gr; roundRect(g, x, y, T/2 - 2, h - 2, 4); g.fill();
+    }
+  });
+  RS.sponge = tile((g, T)=>{
+    const gr = g.createLinearGradient(0, 0, 0, T); gr.addColorStop(0, '#fff07a'); gr.addColorStop(1, '#e8b52a');
+    g.fillStyle = gr; roundRect(g, 2, 4, T - 4, T - 5, 12); g.fill();
+    const r = seeded(13);
+    for(let i=0; i<12; i++){ g.fillStyle = 'rgba(170,110,10,.45)'; g.beginPath(); g.ellipse(7 + r()*(T - 14), 12 + r()*(T - 20), 2 + r()*3, 1.5 + r()*2.5, 0, 0, 7); g.fill(); }
+    g.fillStyle = 'rgba(255,255,255,.5)'; roundRect(g, 7, 7, T - 14, 4, 2); g.fill();
+  });
+  RS.urchin = tile((g, T)=>{
+    const cx = T/2, cy = T*.66, r = T*.24;
+    g.strokeStyle = '#4b2a78'; g.lineCap = 'round'; g.lineWidth = 2.4;
+    for(let i=0; i<16; i++){ const a = Math.PI + i/15*Math.PI; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a)*r*1.9, cy + Math.sin(a)*r*1.9); g.stroke(); }
+    const gr = g.createRadialGradient(cx - r*.3, cy - r*.4, 2, cx, cy, r);
+    gr.addColorStop(0, '#b993ea'); gr.addColorStop(1, '#4a2a7a');
+    g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx - 5, cy - 2, 3, 0, 7); g.arc(cx + 5, cy - 2, 3, 0, 7); g.fill();
+    g.fillStyle = '#1a1020'; g.beginPath(); g.arc(cx - 5, cy - 1.5, 1.5, 0, 7); g.arc(cx + 5, cy - 1.5, 1.5, 0, 7); g.fill();
+  });
 }
-function topple(){
-  let hit = 0;
-  for(const b of blocks){
-    const d = Math.hypot(b.x - player.x, b.y - player.y);
-    if(d < 230){
-      const k = (230 - d) / 230;
-      b.vx += (b.x - player.x)/(d||1) * 560 * k;
-      b.vy -= 330 * k;
-      b.vr += rnd(-13, 13) * k;
-      if(!b.down){ b.down = true; toppled++; hit++; }
+
+function runBuild(easy){
+  const W = 142, H = 14, tl = [];
+  for(let r=0; r<H; r++) tl.push(new Array(W).fill(0));
+  const set = (c, r, v)=>{ if(c >= 0 && c < W && r >= 0 && r < H) tl[r][c] = v; };
+  const ground = (c0, c1, top)=>{ for(let c=c0; c<=c1; c++) for(let r=(top === undefined ? RG : top); r<H; r++) set(c, r, 1); };
+  const ents = [];
+  const pearls = (c0, c1, r)=>{ for(let c=c0; c<=c1; c++) ents.push({k:'pearl', c, r}); };
+  const crab = c=>ents.push({k:'crab', c});
+  const jelly = (c, r)=>ents.push({k:'jelly', c, r});
+  // 1 · a gentle start
+  ground(0, 24); pearls(5, 9, 9);
+  set(7, 7, 5); set(8, 7, 3); set(9, 7, 5);
+  crab(14);
+  for(let c=17; c<=19; c++) set(c, 8, 2); pearls(17, 19, 7);
+  ents.push({k:'pearl', c:25, r:9}, {k:'pearl', c:26, r:8}, {k:'pearl', c:27, r:9});      // over the first gap
+  // 2 · stairs and a sponge up to a high ledge
+  ground(28, 45); ground(33, 33, 10); ground(34, 34, 9); ground(35, 36, 8);
+  pearls(35, 36, 6); crab(40);
+  set(44, 10, 7);
+  for(let c=46; c<=52; c++) set(c, 5, 2); pearls(46, 52, 4);
+  // 3 · an urchin and a jelly
+  ground(46, 60); set(53, 10, 6); jelly(57, 7); pearls(55, 59, 9);
+  // 4 · a wide gap with a driftwood raft
+  ents.push({k:'raft', c:61, r:9, c1:64});
+  pearls(62, 65, 7);
+  // 5 · clam row and a hidden ledge
+  ground(67, 85); ents.push({k:'check', c:68});
+  set(72, 7, 5); set(73, 7, 3); set(74, 7, 3); set(75, 7, 5); set(76, 7, 5);
+  for(let c=73; c<=75; c++) set(c, 4, 2); pearls(73, 75, 3);
+  crab(79); crab(83);
+  // 6 · coral pillars
+  ground(89, 100); ground(92, 92, 9); ground(97, 97, 8); crab(94);
+  ents.push({k:'pearl', c:92, r:7}, {k:'pearl', c:97, r:6});
+  set(102, 9, 2); set(103, 9, 2); pearls(102, 103, 8);
+  // 7 · the last stretch: a big staircase, then the Bubble Gate
+  ground(105, 141); ents.push({k:'check', c:106});
+  set(108, 7, 3); set(109, 7, 3);
+  set(111, 10, 6); set(112, 10, 6); jelly(115, 7);
+  ground(117, 117, 10); ground(118, 118, 9); ground(119, 119, 8); ground(120, 120, 7); ground(121, 122, 6);
+  pearls(121, 122, 4); crab(127); if(!easy) crab(130);
+  ents.push({k:'goal', c:134});
+  ground(139, 141, 0);
+  return {W, H, tl, ents};
+}
+
+function startRun(){
+  runSprites();
+  const easy = save.mode === 'easy', lv = runBuild(easy), T = RT;
+  run = {W:lv.W, H:lv.H, tl:lv.tl, easy, t:0, ents:[], parts:[], pops:[], bump:null, bonk:0, bonkT:-9,
+         hearts:easy ? 0 : 3, got:0, done:false, cx:0, cy:0, goalX:0,
+         p:{x:2*T, y:RG*T - 40, w:26, h:40, vx:0, vy:0, ground:false, air:0, coyote:0, face:1, hurt:0, on:null, squash:0}};
+  run.p.safe = {x:run.p.x, y:run.p.y}; run.p.check = {x:run.p.x, y:run.p.y};
+  const r0 = seeded(31);
+  for(const e of lv.ents){
+    if(e.k === 'pearl') run.ents.push({k:'pearl', x:e.c*T + T/2, y:e.r*T + T/2, got:false, ph:r0()*9});
+    else if(e.k === 'crab') run.ents.push({k:'crab', x:e.c*T + 6, y:RG*T - 30, w:36, h:30, vx:-(easy ? 45 : 75), vy:0, alive:true, dead:0, ph:r0()*9});
+    else if(e.k === 'jelly') run.ents.push({k:'jelly', x:e.c*T + 7, y0:e.r*T, y:e.r*T, w:34, h:34, alive:true, ph:r0()*9});
+    else if(e.k === 'raft') run.ents.push({k:'raft', x:e.c*T, y:e.r*T, w:T*2, h:14, x0:e.c*T, x1:e.c1*T, dir:1, dx:0});
+    else if(e.k === 'check') run.ents.push({k:'check', x:e.c*T + T/2, y:RG*T, on:false});
+    else if(e.k === 'goal'){ run.ents.push({k:'goal', x:e.c*T, y:RG*T - T*3, w:T*2, h:T*3}); run.goalX = e.c*T; }
+  }
+  // easy mode: urchins become harmless sponges' little cousins, i.e. gone
+  if(easy) for(const row of run.tl) for(let c=0; c<row.length; c++) if(row[c] === 6) row[c] = 0;
+  run.bg = runBackdrop();
+  scene = 'run'; openLayer(null); showHud(true);
+  toast('Coral Run!');
+}
+function runBackdrop(){
+  const r0 = seeded(57), R = (a, b)=>a + r0()*(b - a);
+  const far = [], mid = [];
+  for(let x=-200; x<4000; x+=60) far.push([x, 60 + Math.sin(x*.006)*40 + Math.sin(x*.017)*18 + R(-8, 8)]);
+  for(let x=-100; x<6000; x+=R(70, 150)) mid.push({x, h:R(70, 170), w:R(30, 60), c:['#f7a3b8','#ffc98a','#b9a6ff','#8fe3c6'][(r0()*4)|0], ph:R(0, 9)});
+  return {far, mid};
+}
+function runZ(){ return clamp(Math.min(VH / (14*RT), VW / (9*RT)), .55, 1.4); }
+
+/* --- collision against the tile map --- */
+function rTile(c, r){ const R = run; if(c < 0 || c >= R.W) return 1; if(r < 0 || r >= R.H) return 0; return R.tl[r][c]; }
+function rMoveX(o, dx){
+  o.x += dx; const T = RT;
+  const top = Math.floor(o.y / T), bot = Math.floor((o.y + o.h - 1) / T);
+  if(dx > 0){ const c = Math.floor((o.x + o.w) / T); for(let r=top; r<=bot; r++) if(rSolid(rTile(c, r))){ o.x = c*T - o.w - .01; return true; } }
+  else if(dx < 0){ const c = Math.floor(o.x / T); for(let r=top; r<=bot; r++) if(rSolid(rTile(c, r))){ o.x = (c + 1)*T + .01; return true; } }
+  return false;
+}
+function rMoveY(o, dy){
+  o.y += dy; const T = RT;
+  const l = Math.floor((o.x + 2) / T), rr = Math.floor((o.x + o.w - 3) / T), mid = Math.floor((o.x + o.w/2) / T);
+  if(dy > 0){
+    const r = Math.floor((o.y + o.h) / T);
+    for(let c=l; c<=rr; c++) if(rSolid(rTile(c, r))){ o.y = r*T - o.h; return {dir:1, c, r}; }
+  } else if(dy < 0){
+    const r = Math.floor(o.y / T);
+    const cols = [mid, l, rr];
+    for(const c of cols) if(rSolid(rTile(c, r))){ o.y = (r + 1)*T + .01; return {dir:-1, c, r}; }
+  }
+  return null;
+}
+const rOver = (a, x, y, w, h)=>a.x < x + w && a.x + a.w > x && a.y < y + h && a.y + a.h > y;
+
+function runJump(){
+  const R = run; if(!R || R.done) return;
+  const p = R.p;
+  if(p.ground || p.coyote > 0){
+    p.vy = -660; p.ground = false; p.coyote = 0; p.air = 0; p.on = null; p.squash = -.25;
+    Audio_.sweep(320, 640, .14, 'triangle', .1);
+  } else if(p.air < 1){
+    p.air++; p.vy = -580; p.squash = -.2;
+    Audio_.sweep(480, 960, .14, 'triangle', .1);
+    rParts(p.x + p.w/2, p.y + p.h, 10, ['#ffffff','#bdf7ff'], 140);
+  }
+}
+function runBonk(){
+  const R = run; if(!R || R.done || R.t - R.bonkT < .5) return;
+  R.bonkT = R.t; R.bonk = 1; Audio_.bonk();
+  const p = R.p, px = p.x + p.w/2, py = p.y + p.h/2;
+  for(const e of R.ents) if((e.k === 'crab' || e.k === 'jelly') && e.alive && Math.hypot(e.x + e.w/2 - px, e.y + e.h/2 - py) < 150){
+    e.alive = false; e.bubble = 0; rGain(2, e.x + e.w/2, e.y);
+  }
+  const c0 = Math.floor(px / RT), r0 = Math.floor(py / RT);
+  for(let r=r0 - 2; r<=r0 + 2; r++) for(let c=c0 - 2; c<=c0 + 2; c++)
+    if(rTile(c, r) === 5 && Math.hypot((c + .5)*RT - px, (r + .5)*RT - py) < 130) rBreak(c, r);
+}
+function rGain(n, x, y){
+  const R = run;
+  save.pearls += n; R.got += n; persist(); updateHud();
+  R.pops.push({x, y, t:0, n});
+}
+function rParts(x, y, n, cols, sp){
+  for(let i=0; i<n; i++){ const a = rnd(0, Math.PI*2), s = rnd(.3, 1)*sp;
+    run.parts.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - sp*.4, life:rnd(.4, .8), t:0, c:pick(cols), r:rnd(2, 4.5)}); }
+}
+function rBreak(c, r){
+  run.tl[r][c] = 0; Audio_.noise(.25, 1200, .8, .2);
+  rParts((c + .5)*RT, (r + .5)*RT, 14, ['#7fd3df','#4aa5b5','#2b7584'], 260);
+}
+function rHurt(fromX){
+  const R = run, p = R.p;
+  if(p.hurt > 0) return;
+  p.hurt = 1.4; p.vy = -420; p.vx = (p.x + p.w/2 < fromX ? -1 : 1) * 280;
+  Audio_.nope();
+  if(R.easy){ toast(pick(['Oops!','Boing!','Whoa there!'])); return; }
+  R.hearts--;
+  if(R.hearts <= 0){
+    R.hearts = 3; p.x = p.check.x; p.y = p.check.y; p.vx = p.vy = 0;
+    toast('Back to the last shell flag');
+  } else toast('Ouch! Jump on them, or BONK');
+}
+function rFall(){
+  const R = run, p = R.p;
+  rParts(p.x + p.w/2, R.H*RT - 10, 20, ['#bdf7ff','#ffffff'], 200);
+  p.x = p.safe.x; p.y = p.safe.y - 4; p.vx = 0; p.vy = 0;
+  if(R.easy){ toast('A bubble lifts you back up!'); Audio_.pop(.14); p.hurt = .8; return; }
+  p.hurt = 0; rHurt(p.x + p.w/2 + 1);
+}
+function rWin(){
+  const R = run; R.done = true;
+  const bonus = R.easy ? 10 : 15;
+  save.pearls += bonus; persist(); updateHud(); Audio_.great();
+  rParts(R.p.x + R.p.w/2, R.p.y, 40, ['#ffd479','#ff6f9c','#7df0ff','#6ee6a0'], 360);
+  setTimeout(()=>result('🏆', 'You made it through Coral Run!',
+    `Pearls picked up on the way: +${R.got}. Bonus for reaching the Bubble Gate: +${bonus}.`, ()=>{ run = null; leaveDome(); }), 1100);
+}
+
+function updateRun(dt){
+  const R = run; if(!R) return;
+  const p = R.p, T = RT;
+  R.t += dt;
+  if(R.bonk > 0) R.bonk = Math.max(0, R.bonk - dt*1.8);
+  for(let i=R.parts.length-1; i>=0; i--){ const q = R.parts[i]; q.t += dt; q.vy += 900*dt; q.x += q.vx*dt; q.y += q.vy*dt; if(q.t > q.life) R.parts.splice(i, 1); }
+  for(let i=R.pops.length-1; i>=0; i--){ const q = R.pops[i]; q.t += dt; if(q.t > .9) R.pops.splice(i, 1); }
+  if(R.bump){ R.bump.t += dt; if(R.bump.t > .2) R.bump = null; }
+  p.squash = lerp(p.squash, 0, Math.min(1, dt*10));
+  if(R.done) return;
+  // run
+  const v = stickVec(), sp = R.easy ? 235 : 265;
+  const want = Math.abs(v.x) > .2 ? Math.sign(v.x) * sp * Math.min(1, Math.abs(v.x)*1.4) : 0;
+  if(p.hurt < 1.1) p.vx = lerp(p.vx, want, Math.min(1, dt*(p.ground ? 12 : 6)));
+  if(Math.abs(p.vx) > 25) p.face = Math.sign(p.vx);
+  p.vy = Math.min(p.vy + 1800*dt, 900);
+  p.coyote = p.ground ? .1 : Math.max(0, p.coyote - dt);
+  if(p.hurt > 0) p.hurt -= dt;
+  // rafts drift first so they can carry you
+  for(const e of R.ents) if(e.k === 'raft'){
+    const ox = e.x; e.x += e.dir*70*dt;
+    if(e.x > e.x1){ e.x = e.x1; e.dir = -1; } if(e.x < e.x0){ e.x = e.x0; e.dir = 1; }
+    e.dx = e.x - ox;
+  }
+  if(p.on) p.x += p.on.dx;
+  if(rMoveX(p, p.vx*dt)) p.vx = 0;
+  const prevBottom = p.y + p.h;
+  const hit = rMoveY(p, p.vy*dt);
+  const wasGround = p.ground;
+  p.ground = false; p.on = null;
+  if(hit && hit.dir > 0){
+    if(R.tl[hit.r][hit.c] === 7){                         // sponge: big bounce
+      p.vy = -1100; p.air = 0; p.squash = .35;
+      Audio_.sweep(180, 900, .32, 'triangle', .15);
+      rParts(p.x + p.w/2, p.y + p.h, 10, ['#fff07a','#ffffff'], 180);
+    } else {
+      if(!wasGround && p.vy > 500) p.squash = .25;
+      p.vy = 0; p.ground = true; p.air = 0;
+    }
+  } else if(hit && hit.dir < 0){
+    const v2 = R.tl[hit.r][hit.c];
+    p.vy = 40;
+    if(v2 === 3){ R.tl[hit.r][hit.c] = 4; R.bump = {c:hit.c, r:hit.r, t:0}; rGain(1, (hit.c + .5)*T, hit.r*T); Audio_.sparkle(); }
+    else if(v2 === 5) rBreak(hit.c, hit.r);
+    else Audio_.blip(200);
+  }
+  if(p.vy >= 0) for(const e of R.ents) if(e.k === 'raft' &&
+      prevBottom <= e.y + 4 && p.y + p.h >= e.y && p.x + p.w > e.x + 2 && p.x < e.x + e.w - 2){
+    p.y = e.y - p.h; p.vy = 0; p.ground = true; p.air = 0; p.on = e;
+  }
+  if(p.ground && !p.on) p.safe = {x:p.x, y:p.y};
+  if(p.y > R.H*T + 60) rFall();
+  // urchins
+  if(p.hurt <= 0){
+    const c0 = Math.floor((p.x + 4) / T), c1 = Math.floor((p.x + p.w - 4) / T), r0 = Math.floor((p.y + 6) / T), r1 = Math.floor((p.y + p.h - 2) / T);
+    for(let r=r0; r<=r1; r++) for(let c=c0; c<=c1; c++) if(rTile(c, r) === 6) rHurt((c + .5)*T);
+  }
+  // creatures, pearls, flags, the gate
+  for(const e of R.ents){
+    if(e.k === 'pearl'){
+      if(!e.got && rOver(p, e.x - 15, e.y - 15, 30, 30)){ e.got = true; rGain(1, e.x, e.y); Audio_.blip(980); }
+    } else if(e.k === 'crab' || e.k === 'jelly'){
+      if(!e.alive){ if(e.bubble !== undefined) e.bubble += dt; else e.dead += dt; continue; }
+      if(e.k === 'crab'){
+        e.vy = Math.min(e.vy + 1800*dt, 900);
+        if(rMoveX(e, e.vx*dt)) e.vx = -e.vx;
+        const ahead = Math.floor((e.vx > 0 ? e.x + e.w + 2 : e.x - 2) / T), below = Math.floor((e.y + e.h + 4) / T);
+        if(!rSolid(rTile(ahead, below))) e.vx = -e.vx;          // don't walk off ledges
+        if(rMoveY(e, e.vy*dt)) e.vy = 0;
+        if(e.y > R.H*T) e.alive = false;
+      } else e.y = e.y0 + Math.sin(R.t*1.6 + e.ph)*58;
+      if(e.alive && rOver(p, e.x + 3, e.y + 3, e.w - 6, e.h - 6)){
+        if(p.vy > 60 && prevBottom <= e.y + 16){                // landed on top
+          e.alive = false; e.dead = 0; p.vy = e.k === 'jelly' ? -720 : -520; p.air = 0;
+          rGain(2, e.x + e.w/2, e.y); Audio_.sweep(600, 250, .16, 'square', .08);
+          rParts(e.x + e.w/2, e.y, 12, e.k === 'jelly' ? ['#ffb8d8','#ffffff'] : ['#ff6b5b','#ffd0c8'], 200);
+        } else rHurt(e.x + e.w/2);
+      }
+    } else if(e.k === 'check'){
+      if(!e.on && p.x > e.x - 10){ e.on = true; p.check = {x:e.x - 13, y:RG*T - 40}; Audio_.good(); toast('Shell flag! You will come back here.'); }
+    } else if(e.k === 'goal'){
+      if(rOver(p, e.x + 20, e.y, e.w - 40, e.h)) rWin();
     }
   }
-  if(hit){
-    save.pearls += hit; persist(); updateHud();
-    toast(pick(['BOOM!', 'Everything fell!', 'Knocked it over!', 'Crash!']) + ' +' + hit + ' 🫧');
-    Audio_.splash();
-  }
-  if(toppled >= blocks.length && blocks.length){
-    setTimeout(()=>{ toast('The whole yard! Rebuilding...'); Audio_.great();
-      save.pearls += 10; persist(); updateHud(); setTimeout(buildRoom, 1400); }, 500);
-  }
+  // camera
+  const z = runZ(), vw = VW / z, vh = VH / z;
+  R.cx = lerp(R.cx, clamp(p.x + p.face*vw*.1 - vw*.4, 0, R.W*T - vw), Math.min(1, dt*5));
+  R.cy = vh >= R.H*T ? R.H*T - vh : lerp(R.cy, clamp(p.y - vh*.55, 0, R.H*T - vh), Math.min(1, dt*5));
 }
-function updateBuild(dt, t){
-  const v = stickVec();
-  player.vx += v.x * 1900 * dt;
-  player.vx *= Math.pow(.0009, dt);
-  player.vy += 1500 * dt;
-  player.x = clamp(player.x + player.vx*dt, 26, ROOM.w - 26);
-  player.y += player.vy * dt;
-  if(Math.abs(player.vx) > 20) player.face = player.vx > 0 ? 1 : -1;
 
-  player.grounded = false;
-  if(player.y >= ROOM.floor - 26){ player.y = ROOM.floor - 26; player.vy = 0; player.grounded = true; }
-  for(const p of platforms){
-    if(player.vy > 0 && player.x > p.x - 16 && player.x < p.x + p.w + 16 &&
-       player.y >= p.y - 30 && player.y <= p.y + 16){
-      player.y = p.y - 26; player.vy = 0; player.grounded = true;
-    }
+function drawRun(t){
+  const R = run, g = ctx, T = RT, z = runZ(), p = R.p;
+  const vw = VW / z, vh = VH / z;
+  // the sky inside the dome
+  const sk = g.createLinearGradient(0, 0, 0, VH);
+  sk.addColorStop(0, '#56cfe1'); sk.addColorStop(.55, '#a8ecef'); sk.addColorStop(1, '#f6e7c1');
+  g.fillStyle = sk; g.fillRect(0, 0, VW, VH);
+  g.globalCompositeOperation = 'lighter';                  // sunlight through the glass
+  for(let i=0; i<4; i++){
+    const x = ((i*420 + 200) - R.cx*z*.15) % (VW + 600) - 200, a = .09 + Math.sin(t*.6 + i)*.03;
+    const lg = g.createLinearGradient(x, 0, x + 200, VH);
+    lg.addColorStop(0, 'rgba(255,255,230,' + a + ')'); lg.addColorStop(1, 'rgba(255,255,230,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 90, 0); g.lineTo(x + 340, VH); g.lineTo(x + 140, VH); g.fill();
   }
-  if(player.grounded) player.jumps = 0;
-  player.kick = 0;
-
-  for(const b of blocks){
-    b.vy += 1500 * dt;
-    b.x += b.vx*dt; b.y += b.vy*dt; b.rot += b.vr*dt;
-    b.vx *= Math.pow(.25, dt); b.vr *= Math.pow(.35, dt);
-    if(b.y > ROOM.floor - b.h/2){ b.y = ROOM.floor - b.h/2; b.vy *= -.22; b.vx *= .72; b.vr *= .6; }
-    b.x = clamp(b.x, 20, ROOM.w - 20);
+  g.globalCompositeOperation = 'source-over';
+  // the curve of the dome's glass overhead
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3;
+  g.beginPath(); g.ellipse(VW/2 - R.cx*z*.05, VH*1.25, VW*1.1, VH*1.2, 0, Math.PI*1.1, Math.PI*1.9); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 12;
+  g.beginPath(); g.ellipse(VW/2 - R.cx*z*.05, VH*1.25, VW*1.1 - 14, VH*1.2 - 14, 0, Math.PI*1.2, Math.PI*1.45); g.stroke();
+  const groundY = (RG*T - R.cy)*z;
+  // far reef
+  g.fillStyle = 'rgba(120,200,205,.55)';
+  g.beginPath(); g.moveTo(0, VH);
+  for(const q of R.bg.far){ const sx = q[0] - R.cx*z*.2; if(sx < -80 || sx > VW + 80) continue; g.lineTo(sx, groundY - q[1]*z - 30*z); }
+  g.lineTo(VW, VH); g.fill();
+  // mid: big soft coral heads
+  for(const m of R.bg.mid){
+    const sx = m.x*z - R.cx*z*.45; if(sx < -120 || sx > VW + 120) continue;
+    const bx = sx, byy = groundY + 4, s = z;
+    g.fillStyle = m.c; g.globalAlpha = .6;
+    g.lineCap = 'round'; g.strokeStyle = m.c; g.lineWidth = m.w*.35*s;
+    for(let k=-1; k<=1; k++){ g.beginPath(); g.moveTo(bx, byy); g.quadraticCurveTo(bx + k*m.w*.4*s, byy - m.h*.5*s, bx + k*m.w*.7*s + Math.sin(t + m.ph)*3, byy - m.h*s*(1 - Math.abs(k)*.25)); g.stroke(); }
+    g.globalAlpha = 1;
   }
-  cam.x = clamp(lerp(cam.x, player.x - VW/2, dt*6), -40, Math.max(-40, ROOM.w - VW + 40));
-  cam.y = clamp(lerp(cam.y, ROOM.floor - VH*0.82, dt*6), -260, 260);
-}
-function drawBuild(t){
-  const g = ctx;
-  const bg = g.createLinearGradient(0, 0, 0, VH);
-  bg.addColorStop(0, '#0b4b66'); bg.addColorStop(.55, '#0f6d82'); bg.addColorStop(1, '#07314a');
-  g.fillStyle = bg; g.fillRect(0, 0, VW, VH);
-  g.save(); g.translate(-cam.x, -cam.y);
-
-  // glass dome arc overhead, ocean visible beyond
-  g.strokeStyle = 'rgba(190,248,255,.4)'; g.lineWidth = 5;
-  g.beginPath(); g.ellipse(ROOM.w/2, ROOM.floor, ROOM.w*.62, ROOM.h*.82, 0, Math.PI, 0); g.stroke();
-  g.fillStyle = 'rgba(125,240,255,.05)';
-  g.beginPath(); g.ellipse(ROOM.w/2, ROOM.floor, ROOM.w*.62, ROOM.h*.82, 0, Math.PI, 0); g.fill();
-
-  g.fillStyle = '#f0e3c0'; g.fillRect(-400, ROOM.floor, ROOM.w + 800, 400);
-  g.fillStyle = 'rgba(190,150,90,.28)';
-  for(let x=-400;x<ROOM.w+800;x+=44) g.fillRect(x, ROOM.floor, 22, 8);
-
-  for(const p of platforms){
-    g.fillStyle = '#c9a86a'; roundRect(g, p.x, p.y, p.w, p.h, 7); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.3)'; roundRect(g, p.x, p.y, p.w, 5, 4); g.fill();
+  // floating bubbles
+  for(let i=0; i<(window.LEGACY ? 8 : 18); i++){
+    const bx = ((i*173 - R.cx*z*.3) % (VW + 100) + VW + 100) % (VW + 100) - 50;
+    const by = VH - ((t*30*(1 + i % 3) + i*97) % (VH + 60));
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.2;
+    g.beginPath(); g.arc(bx, by, 3 + i % 4, 0, 7); g.stroke();
   }
-  for(const b of blocks){
-    g.save(); g.translate(b.x, b.y); g.rotate(b.rot);
-    g.fillStyle = b.c; roundRect(g, -b.w/2, -b.h/2, b.w, b.h, 7); g.fill();
-    g.fillStyle = 'rgba(255,255,255,.26)'; roundRect(g, -b.w/2+4, -b.h/2+4, b.w-8, 8, 4); g.fill();
+
+  g.save(); g.scale(z, z); g.translate(-R.cx, -R.cy);
+  const c0 = Math.max(0, Math.floor(R.cx / T) - 1), c1 = Math.min(R.W - 1, Math.ceil((R.cx + vw) / T) + 1);
+  const r0 = Math.max(0, Math.floor(R.cy / T)), r1 = Math.min(R.H - 1, Math.ceil((R.cy + vh) / T));
+  for(let r=r0; r<=r1; r++) for(let c=c0; c<=c1; c++){
+    const v = R.tl[r][c]; if(!v) continue;
+    let y = r*T;
+    if(R.bump && R.bump.c === c && R.bump.r === r) y -= Math.sin(R.bump.t / .2 * Math.PI) * 10;
+    const spr = v === 1 ? (rTile(c, r - 1) === 1 ? RS.sand : RS.top) : v === 2 ? RS.coral : v === 3 ? RS.clam
+      : v === 4 ? RS.used : v === 5 ? RS.brick : v === 6 ? RS.urchin : RS.sponge;
+    g.drawImage(spr, c*T, y, T + .5, T + .5);
+  }
+  // soft shadow under ground edges facing a pit
+  for(const e of R.ents) drawRunEnt(g, e, t);
+  // the diver
+  if(!(p.hurt > 0 && Math.floor(p.hurt*12) % 2)){
+    g.save(); g.translate(p.x + p.w/2, p.y + p.h);
+    g.scale(1 + p.squash*.5, 1 - p.squash*.5);
+    if(!p.ground) g.rotate(clamp(p.vy / 2400, -.2, .25) * p.face);
+    drawDiver(g, 0, -p.h/2 - 4, 1.12, SUITS[save.suit], HAIRS[save.hair], p.ground && Math.abs(p.vx) > 30 ? t*2.6 : t, p.face, Math.abs(p.vx) > 30 ? 1 : 0);
     g.restore();
   }
-  drawDiver(g, player.x, player.y, 1.6, SUITS[save.suit], HAIRS[save.hair], t, player.face, 0);
-  if(player.bonk > 0){
-    const r = (1 - player.bonk) * 260;
-    g.strokeStyle = `rgba(255,111,156,${player.bonk*.8})`; g.lineWidth = 8*player.bonk;
-    g.beginPath(); g.arc(player.x, player.y, r, 0, 7); g.stroke();
+  for(const q of R.parts){ g.globalAlpha = clamp(1 - q.t/q.life, 0, 1); g.fillStyle = q.c; g.beginPath(); g.arc(q.x, q.y, q.r, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  for(const q of R.pops){                                    // pearls popping up
+    g.globalAlpha = clamp(1.2 - q.t, 0, 1);
+    const y = q.y - 30 - q.t*60;
+    const pg = g.createRadialGradient(q.x - 3, y - 3, 1, q.x, y, 11);
+    pg.addColorStop(0, '#ffffff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)');
+    g.fillStyle = pg; g.beginPath(); g.arc(q.x, y, 11, 0, 7); g.fill();
+    g.font = '700 15px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#b8751c';
+    g.fillText('+' + q.n, q.x, y - 16);
   }
-  drawSparks(g);
+  g.globalAlpha = 1;
+  if(R.bonk > 0){
+    g.strokeStyle = 'rgba(255,111,156,' + R.bonk*.8 + ')'; g.lineWidth = 7*R.bonk;
+    g.beginPath(); g.arc(p.x + p.w/2, p.y + p.h/2, (1 - R.bonk)*150, 0, 7); g.stroke();
+  }
   g.restore();
 
-  g.font = '700 16px Comfortaa, sans-serif'; g.fillStyle = '#9c7b4e';
-  g.textAlign = 'center';
-  g.fillText('Jump three times in a row. Then BONK the towers.', VW/2, VH - 26);
+  // HUD: hearts, and how far to the gate
+  for(let i=0; i<(R.easy ? 0 : 3); i++){
+    const hx = 26 + i*30, hy = 76;
+    g.fillStyle = i < R.hearts ? '#ff5f7e' : 'rgba(255,255,255,.4)';
+    g.beginPath(); g.moveTo(hx, hy + 7);
+    g.bezierCurveTo(hx - 13, hy - 2, hx - 7, hy - 13, hx, hy - 5);
+    g.bezierCurveTo(hx + 7, hy - 13, hx + 13, hy - 2, hx, hy + 7); g.fill();
+  }
+  const bw = Math.min(260, VW*.4), bx = VW/2 - bw/2, by = 22;
+  g.fillStyle = 'rgba(3,24,43,.45)'; roundRect(g, bx, by, bw, 10, 5); g.fill();
+  const prog = clamp(p.x / R.goalX, 0, 1);
+  g.fillStyle = '#ffd479'; roundRect(g, bx + 2, by + 2, Math.max(6, (bw - 4)*prog), 6, 3); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(bx + bw*prog, by + 5, 7, 0, 7); g.fill();
+  if(R.t < 6){
+    g.globalAlpha = clamp((6 - R.t) / .8, 0, 1);
+    shadowText(g, 'Run to the Bubble Gate!', VW/2, VH*.2, Math.min(VW*.05, 30), '#ffffff');
+    shadowText(g, 'JUMP twice to double jump · land on crabs · BONK breaks blocks', VW/2, VH*.2 + 34, Math.min(VW*.03, 17), '#f4fbff');
+    g.globalAlpha = 1;
+  }
+}
+function drawRunEnt(g, e, t){
+  const T = RT;
+  if(e.k === 'pearl'){
+    if(e.got) return;
+    const y = e.y + Math.sin(t*2.2 + e.ph)*4;
+    const pg = g.createRadialGradient(e.x - 3, y - 3, 1, e.x, y, 12);
+    pg.addColorStop(0, '#ffffff'); pg.addColorStop(.55, '#ffeab0'); pg.addColorStop(1, 'rgba(255,212,121,0)');
+    g.fillStyle = pg; g.beginPath(); g.arc(e.x, y, 12, 0, 7); g.fill();
+  } else if(e.k === 'crab'){
+    const x = e.x + e.w/2, y = e.y + e.h;
+    g.save(); g.translate(x, y);
+    if(!e.alive){
+      if(e.bubble !== undefined){ g.translate(Math.sin(e.bubble*4)*6, -e.bubble*120); g.globalAlpha = clamp(1.6 - e.bubble, 0, 1); }
+      else { g.scale(1, .4); g.globalAlpha = clamp(1 - e.dead/.6, 0, 1); }
+    }
+    const walk = e.alive ? Math.sin(t*16 + e.ph) : 0;
+    g.strokeStyle = '#b8352a'; g.lineWidth = 2.6; g.lineCap = 'round';
+    for(let i=0; i<3; i++) for(const s of [-1, 1]){
+      g.beginPath(); g.moveTo(s*8, -10); g.lineTo(s*(16 + i*3), -6 + (i % 2 ? walk : -walk)*2); g.lineTo(s*(19 + i*3), 0); g.stroke(); }
+    const bg = g.createRadialGradient(-5, -20, 2, 0, -14, 20);
+    bg.addColorStop(0, '#ff9a84'); bg.addColorStop(1, '#c43a2c');
+    g.fillStyle = bg; g.beginPath(); g.ellipse(0, -14, 17, 11, 0, 0, 7); g.fill();
+    for(const s of [-1, 1]){                                  // claws, waving
+      const wv = Math.sin(t*5 + e.ph + s)*.25;
+      g.save(); g.translate(s*19, -20); g.rotate(s*(-.4 + wv));
+      g.fillStyle = '#e04a3a'; g.beginPath(); g.ellipse(0, -5, 6, 7, 0, 0, 7); g.fill();
+      g.fillStyle = '#ffd6cc'; g.beginPath(); g.moveTo(-1, -12); g.lineTo(2, -4); g.lineTo(5, -12); g.fill();
+      g.restore();
+    }
+    g.strokeStyle = '#c43a2c'; g.lineWidth = 2;
+    for(const s of [-1, 1]){ g.beginPath(); g.moveTo(s*5, -22); g.lineTo(s*7, -31); g.stroke();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(s*7, -32, 3.6, 0, 7); g.fill();
+      g.fillStyle = '#1a1020'; g.beginPath(); g.arc(s*7 + Math.sign(e.vx || 1)*1.2, -32, 1.8, 0, 7); g.fill(); }
+    if(e.bubble !== undefined){ g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2; g.fillStyle = 'rgba(190,245,255,.25)';
+      g.beginPath(); g.arc(0, -16, 28, 0, 7); g.fill(); g.stroke(); }
+    g.restore();
+  } else if(e.k === 'jelly'){
+    const x = e.x + e.w/2, y = e.y + 12;
+    g.save(); g.translate(x, y);
+    if(!e.alive){
+      if(e.bubble !== undefined){ g.translate(0, -e.bubble*120); g.globalAlpha = clamp(1.6 - e.bubble, 0, 1); }
+      else { g.scale(1.3, .3); g.globalAlpha = clamp(1 - e.dead/.5, 0, 1); }
+    }
+    const pulse = 1 + Math.sin(t*4 + e.ph)*.08;
+    g.strokeStyle = 'rgba(255,150,200,.7)'; g.lineWidth = 2; g.lineCap = 'round';
+    for(let i=0; i<5; i++){ const tx = -12 + i*6; g.beginPath(); g.moveTo(tx, 4);
+      for(let k=1; k<=4; k++) g.lineTo(tx + Math.sin(t*5 + i + k)*3, 4 + k*7); g.stroke(); }
+    const jg = g.createRadialGradient(-4, -8, 2, 0, 0, 20);
+    jg.addColorStop(0, 'rgba(255,230,245,.95)'); jg.addColorStop(1, 'rgba(255,110,180,.75)');
+    g.fillStyle = jg; g.beginPath(); g.ellipse(0, 4, 18*pulse, 17/pulse, 0, Math.PI, 0); g.closePath(); g.fill();
+    g.fillStyle = '#5a1840'; g.beginPath(); g.arc(-5, -4, 2, 0, 7); g.arc(5, -4, 2, 0, 7); g.fill();
+    if(e.bubble !== undefined){ g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 2, 28, 0, 7); g.stroke(); }
+    g.restore();
+  } else if(e.k === 'raft'){
+    for(let i=0; i<3; i++){ const bx = e.x + 14 + i*34, by = e.y + 24 + ((t*40 + i*13) % 40);
+      g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 1.2; g.beginPath(); g.arc(bx, by, 3, 0, 7); g.stroke(); }
+    const wg = g.createLinearGradient(0, e.y, 0, e.y + e.h);
+    wg.addColorStop(0, '#c99a62'); wg.addColorStop(1, '#8a6238');
+    g.fillStyle = wg; roundRect(g, e.x, e.y, e.w, e.h, 6); g.fill();
+    g.strokeStyle = 'rgba(80,50,25,.5)'; g.lineWidth = 1;
+    for(let k=1; k<4; k++){ g.beginPath(); g.moveTo(e.x + k*e.w/4, e.y + 2); g.lineTo(e.x + k*e.w/4, e.y + e.h - 2); g.stroke(); }
+    g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(e.x + 4, e.y + 2, e.w - 8, 2);
+  } else if(e.k === 'check'){
+    g.strokeStyle = '#d8d0c0'; g.lineWidth = 4; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(e.x, e.y - T*2); g.stroke();
+    const w = Math.sin(t*4)*4;
+    g.fillStyle = e.on ? '#ffd479' : '#ffffff';
+    g.beginPath(); g.moveTo(e.x + 2, e.y - T*2); g.quadraticCurveTo(e.x + 20, e.y - T*2 + 4 + w, e.x + 36, e.y - T*2 + 12 + w);
+    g.quadraticCurveTo(e.x + 20, e.y - T*2 + 20, e.x + 2, e.y - T*2 + 26); g.fill();
+    g.fillStyle = e.on ? '#ff8a5c' : '#9fd3e6';
+    g.beginPath(); g.arc(e.x + 15, e.y - T*2 + 13, 5, Math.PI, 0); g.fill();
+  } else if(e.k === 'goal'){
+    const cx = e.x + e.w/2, base = e.y + e.h;
+    g.globalCompositeOperation = 'lighter';
+    const gl = g.createRadialGradient(cx, base - e.h*.55, 10, cx, base - e.h*.55, e.h*.8);
+    gl.addColorStop(0, 'rgba(160,240,255,.55)'); gl.addColorStop(1, 'rgba(160,240,255,0)');
+    g.fillStyle = gl; g.fillRect(cx - e.h, base - e.h*1.5, e.h*2, e.h*1.6);
+    g.globalCompositeOperation = 'source-over';
+    for(let i=0; i<15; i++){                                  // an arch of big bubbles
+      const a = Math.PI + i/14*Math.PI, r = 9 + (i % 3)*3;
+      const bx = cx + Math.cos(a)*e.w*.62, by = base - e.h*.45 + Math.sin(a)*e.h*.55 + Math.sin(t*2 + i)*2;
+      const bg = g.createRadialGradient(bx - r*.3, by - r*.3, 1, bx, by, r);
+      bg.addColorStop(0, 'rgba(255,255,255,.95)'); bg.addColorStop(.6, 'rgba(160,240,255,.45)'); bg.addColorStop(1, 'rgba(90,200,230,.7)');
+      g.fillStyle = bg; g.beginPath(); g.arc(bx, by, r, 0, 7); g.fill();
+    }
+    for(const s of [-1, 1]){ g.fillStyle = 'rgba(160,240,255,.5)'; roundRect(g, cx + s*e.w*.62 - 8, base - e.h*.45, 16, e.h*.45, 6); g.fill(); }
+    for(let i=0; i<8; i++){                                   // swirl of light inside
+      const a = t*2 + i*Math.PI/4, rr = 14 + (i % 3)*8;
+      g.fillStyle = 'rgba(255,255,255,' + (.4 + .4*Math.sin(t*3 + i)) + ')';
+      g.beginPath(); g.arc(cx + Math.cos(a)*rr, base - e.h*.42 + Math.sin(a)*rr*1.3, 3, 0, 7); g.fill();
+    }
+    g.font = '700 15px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ffffff';
+    g.fillText('Bubble Gate', cx, base - e.h - 8);
+  }
 }
 
 /* ======================================================================
@@ -2618,26 +3323,26 @@ function openLayer(id){
   if(id){ $('#'+id).classList.add('on'); overlay = id; showPads(false); }
   else { overlay = null; showPads(padScene() && !$('#hud').hidden); }
 }
-const padScene = ()=>scene === 'ocean' || scene === 'build' || scene === 'tunnel';
+const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel';
 function showHud(on){
   $('#hud').hidden = !on;
   $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
   $('#chipUp').hidden = scene !== 'ocean';
   $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
-    : scene === 'build' ? '‹ Leave' : '🏠 Home';
+    : scene === 'run' ? '‹ Leave' : '🏠 Home';
   showPads(on && padScene()); updateHud();
 }
 function showPads(on){
   $('#pads').hidden = !on;
   // in the tunnels you touch where to dig, so the stick zone would only get in the way
   $('#stickz').hidden = scene === 'tunnel';
-  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'build' ? 'JUMP' : 'SWIM';
+  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : 'SWIM';
 }
 function updateHud(){ if(save) $('#pearlN').textContent = save.pearls; }
 
-$('#chipPearls').onclick = ()=>{ if(scene==='ocean'||scene==='build') openHome(); };
+$('#chipPearls').onclick = ()=>{ if(scene==='ocean') openHome(); };
 $('#chipBack').onclick = ()=>{
-  if(scene === 'build') leaveDome();
+  if(scene === 'run'){ run = null; leaveDome(); }
   else if(scene === 'yard') goTitle();
   else if(scene === 'tunnel') yardStart('back');
   else openHome();
@@ -2658,7 +3363,7 @@ function enterDome(d){
   else runDome(d.id);
 }
 function runDome(id){
-  if(id === 'build'){ scene = 'build'; buildRoom(); openLayer(null); showHud(true); toast('Build Yard!'); return; }
+  if(id === 'build'){ startRun(); return; }
   if(id === 'music') openMusic();
   if(id === 'dance') openDance();
   if(id === 'draw')  openDraw();
@@ -3125,7 +3830,7 @@ function openHome(){
 }
 $('#homeClose').onclick = ()=>{
   save.lastSeen = Date.now(); persist();
-  if(scene === 'ocean' || scene === 'build'){ openLayer(null); showHud(true); }
+  if(scene === 'ocean'){ openLayer(null); showHud(true); }
   else leaveDome();
 };
 
@@ -3225,9 +3930,10 @@ function step(){
     drawOcean(t);
     ctx.save(); ctx.translate(-cam.x, -cam.y);
     for(const d of DOMES) drawDome(d, t);
-    for(const f of fish){ f.x += f.vx * dt; if(f.x > WORLD.w) f.x = 0; if(f.x < 0) f.x = WORLD.w;
-      ctx.fillStyle = f.c; ctx.beginPath(); ctx.ellipse(f.x, f.y, f.s, f.s*.58, 0, 0, 7); ctx.fill(); }
+    updateFish(dt, t);
+    for(const f of fish) drawFish(ctx, f, t);
     ctx.restore();
+    oceanVignette();
   } else if(scene === 'yard'){
     if(!overlay) updateYard(dt);
     updateSparks(dt); drawYard(t, dt);
@@ -3239,9 +3945,9 @@ function step(){
   } else if(scene === 'show'){
     if(!overlay) updateDance(dt, t);
     drawDance(t);
-  } else if(scene === 'build'){
-    if(!overlay) updateBuild(dt, t);
-    updateSparks(dt); drawBuild(t);
+  } else if(scene === 'run'){
+    if(!overlay) updateRun(dt);
+    if(run) drawRun(t);
   } else {
     if(!overlay) updateOcean(dt, t);
     updateSparks(dt); drawOceanScene(t);

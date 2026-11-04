@@ -22,7 +22,11 @@ until you hit water, then choose:
   On Easy there is nothing to lose; on Advanced you have three hearts.
 - **Dive right in**: straight down the shaft into the sea.
 
-In Bubble Town, swim up the ladder at the top of the sea (or tap **⬆ Backyard**) to climb
+In Bubble Town, each dome opens behind a Russian word door. **Coral Run** (the crab dome) is a
+whole side-scrolling world: run, double jump, bump clam blocks for pearls, bounce on
+sponges, ride driftwood rafts, stomp or BONK crabs and jellies, and reach the Bubble Gate.
+
+Swim up the ladder at the top of the sea (or tap **⬆ Backyard**) to climb
 back out and dig again.
 
 Divers are called "Diver One" and "Diver Two" until you name them. Tap the pencil next to a
