@@ -287,6 +287,9 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <p class="sub" id="homeGrew">Welcome back.</p>
   <div class="grid2" id="gardens"></div>
   <hr class="rule">
+  <p class="eyebrow">Your shark friend</p>
+  <div id="sharkBox"></div>
+  <hr class="rule">
   <p class="eyebrow">Russian alphabet · Азбука</p>
   <div class="abc" id="abc"></div>
   <p class="note" id="abcNote"></p>
@@ -730,6 +733,7 @@ function pressA(){
   if(!overlay && scene === 'run'){ runJump(); return; }
   if(overlay || scene !== 'ocean') return;
   Audio_.init();
+  if(player.ride){ sharkTrick(); return; }
   {
     if(now() - player.boostT > 0.9) player.boost = 0;
     if(player.boost < 3){
@@ -749,6 +753,7 @@ function pressB(){
   if(!overlay && scene === 'tunnel'){ tunnelBonk(); return; }
   if(!overlay && scene === 'run'){ runBonk(); return; }
   if(overlay || scene !== 'ocean') return;
+  if(player.ride){ sharkHopOff(); return; }
   if(now() - player.bonkT < 0.55) return;
   player.bonkT = now(); player.bonk = 1;
   Audio_.bonk(); burst(player.x, player.y, 26, '#ff6f9c');
@@ -1212,6 +1217,7 @@ function drawShark(g, s, t){
   const dir = s.vx < -2 ? -1 : s.vx > 2 ? 1 : (s.dir || 1); s.dir = dir;
   g.scale(dir, 1);
   g.rotate(clamp(s.vy / 320, -.35, .35));
+  if(s.trick > 0) g.rotate(-ease(1 - s.trick) * Math.PI * 2);   // loop-the-loop
   const sw = Math.sin(t * 3.1) * .14;
   const top = s.tame ? '#6f9fc4' : '#4b697e', bot = '#e4eff6';
   g.save(); g.translate(-50, 0); g.rotate(sw * 1.6);           // tail
@@ -1235,10 +1241,7 @@ function drawShark(g, s, t){
   if(s.tame){
     g.strokeStyle = '#2a3a48'; g.lineWidth = 1.6;
     g.beginPath(); g.arc(38, 1, 5, .2, 1.4); g.stroke();             // a smile
-    g.fillStyle = '#ff6f9c';                                         // and a bow
-    g.beginPath(); g.moveTo(6, -32); g.lineTo(-7, -41); g.lineTo(-5, -26); g.fill();
-    g.beginPath(); g.moveTo(6, -32); g.lineTo(19, -41); g.lineTo(17, -26); g.fill();
-    g.fillStyle = '#ffd0e0'; g.beginPath(); g.arc(6, -32, 3, 0, 7); g.fill();
+    drawSharkGear(g, t);                                             // and whatever she is wearing
   }
   g.restore();
   if(!s.tame && s.calm > 0){                                  // calm meter
@@ -1327,6 +1330,211 @@ function drawDome(d, t){
   g.restore();
 }
 
+/* ============================ SHARK FRIEND ============================
+   Once tamed she is a friend, not a trophy:
+     · swim into her to RIDE (twice as fast). A = a loop-the-loop trick, B = hop off
+     · ride her into the race buoy by the cove for a SHARK RACE: swim the hoops
+       in order. Every race won is a new level with more hoops and a new
+       outfit for her
+     · friendship hearts grow with every ride, trick and race
+   Easy: no clock, just hoops. Advanced: beat the clock; each hoop adds time.
+   ===================================================================== */
+const SHARK_GEAR = [
+  {id:'bow',     name:'Pink bow',      ic:'🎀'},
+  {id:'shades',  name:'Sunglasses',    ic:'🕶️'},
+  {id:'flowers', name:'Flower crown',  ic:'🌸'},
+  {id:'scarf',   name:'Rainbow scarf', ic:'🌈'},
+  {id:'crown',   name:'Gold crown',    ic:'👑'},
+  {id:'tiara',   name:'Star tiara',    ic:'⭐'},
+];
+const RACE_BUOY = {x:COVE.x + 300, y:COVE.y - 300};
+let race = null, rideCd = 0;
+function sharkLv(){ return save.sharkLv || 0; }
+function sharkGear(){ const g = save.sharkGear; return g === undefined ? Math.min(sharkLv(), SHARK_GEAR.length - 1) : g; }
+function sharkLove(n){
+  save.sharkLove = (save.sharkLove || 0) + n;
+  const hearts = Math.min(10, Math.floor(save.sharkLove / 10));
+  if(hearts > (save.sharkHearts || 0)){ save.sharkHearts = hearts; toast(`She loves you more! ${'♥'.repeat(Math.min(hearts, 5))}`); Audio_.good(); }
+}
+function sharkUpdate(dt, t){
+  if(rideCd > 0) rideCd -= dt;
+  if(shark.trick > 0) shark.trick = Math.max(0, shark.trick - dt / .8);
+  if(!shark.tame) return false;
+  if(!player.ride && rideCd <= 0 && Math.hypot(player.x - shark.x, player.y - shark.y) < 58){
+    player.ride = true; Audio_.sweep(400, 800, .25, 'triangle', .1);
+    toast(save.rides ? 'Riding!' : 'Riding! SWIM = trick · BONK = hop off');
+    save.rides = (save.rides || 0) + 1; sharkLove(2); persist();
+  }
+  if(player.ride){
+    shark.x = lerp(shark.x, player.x - player.face*6, Math.min(1, dt*14));
+    shark.y = lerp(shark.y, player.y + 20, Math.min(1, dt*14));
+    shark.vx = player.vx || player.face; shark.vy = player.vy;
+    if(!race && Math.hypot(player.x - RACE_BUOY.x, player.y - RACE_BUOY.y) < 80) startRace();
+  }
+  if(race) updateRace(dt, t);
+  return player.ride;
+}
+function sharkTrick(){
+  if(shark.trick > 0) return;
+  shark.trick = 1; Audio_.sweep(300, 1200, .5, 'triangle', .1);
+  burst(player.x, player.y, 26, '#bdf7ff');
+  player.vx += player.face * 260;
+  save.tricks = (save.tricks || 0) + 1;
+  if(save.tricks % 5 === 0){ save.pearls += 3; updateHud(); toast(`${save.tricks} tricks! +3 🫧`); }
+  sharkLove(1); persist();
+}
+function sharkHopOff(){
+  player.ride = false; rideCd = 1.6; player.vy -= 140;
+  if(race){ race = null; toast('Race stopped. Ride back to the buoy to try again.'); }
+}
+
+/* ---- races ---- */
+function startRace(){
+  const lv = sharkLv(), easy = save.mode === 'easy';
+  const n = Math.min(4 + lv, 12);
+  const hoops = [];
+  let x = RACE_BUOY.x, y = RACE_BUOY.y;
+  for(let i=0; i<n; i++){
+    let nx, ny, tries = 0, ok;
+    do {
+      const a = rnd(0, Math.PI*2), d = rnd(320, 560);
+      nx = clamp(x + Math.cos(a)*d, 120, WORLD.w - 120); ny = clamp(y + Math.sin(a)*d*.7, 160, WORLD.h - 170);
+      ok = DOMES.every(dm=>Math.hypot(nx - dm.x, ny - dm.y) > dm.r + 90) && Math.hypot(nx - UP.x, ny - 100) > 160;
+    } while(!ok && ++tries < 40);
+    hoops.push({x:nx, y:ny, got:false, ph:rnd(0, 9)});
+    x = nx; y = ny;
+  }
+  race = {hoops, i:0, lv, easy, t:0, left: easy ? Infinity : 10 + n*5.5 - Math.min(lv, 8)*1.2};
+  Audio_.great();
+  toast(`Shark Race · level ${lv + 1}! Swim through ${n} hoops`);
+}
+function updateRace(dt){
+  const R = race;
+  R.t += dt;
+  if(!R.easy){ R.left -= dt; if(R.left <= 0){ race = null; Audio_.nope();
+    result('⏱️', 'Out of time!', 'So close. Ride back to the race buoy to try that level again.', ()=>{ openLayer(null); showHud(true); }); return; } }
+  const h = R.hoops[R.i];
+  if(Math.hypot(player.x - h.x, player.y - h.y) < 70){
+    h.got = true; R.i++;
+    Audio_.tone(660 + R.i*60, .25, 'triangle', .14); burst(h.x, h.y, 22, '#ffd479');
+    if(!R.easy) R.left += 2;
+    if(R.i >= R.hoops.length) finishRace();
+  }
+}
+function finishRace(){
+  const R = race; race = null;
+  const lv = R.lv + 1, pearls = 10 + 5*lv;
+  save.sharkLv = Math.max(sharkLv(), lv); save.pearls += pearls;
+  const gear = SHARK_GEAR[lv] && sharkLv() === lv ? SHARK_GEAR[lv] : null;
+  if(gear) save.sharkGear = lv;
+  sharkLove(5); persist(); updateHud(); Audio_.great();
+  result(gear ? gear.ic : '🏆', `Level ${lv} won!`,
+    `+${pearls} 🫧 in ${Math.round(R.t)} seconds.` + (gear ? ` She has a new ${gear.name.toLowerCase()}! Change her look in the Home dome.` : ' Next race has more hoops.'),
+    ()=>{ openLayer(null); showHud(true); });
+}
+function drawRaceWorld(g, t){
+  // the buoy where races begin
+  if(shark.tame){
+    const b = RACE_BUOY, bob = Math.sin(t*1.5)*6;
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(b.x, b.y + 30 + bob); g.lineTo(b.x, WORLD.h); g.stroke();
+    const bg = g.createRadialGradient(b.x - 8, b.y - 10 + bob, 3, b.x, b.y + bob, 30);
+    bg.addColorStop(0, '#ffe08a'); bg.addColorStop(1, '#e8762f');
+    g.fillStyle = bg; g.beginPath(); g.arc(b.x, b.y + bob, 28, 0, 7); g.fill();
+    g.fillStyle = '#ffffff'; g.fillRect(b.x - 28, b.y + bob - 5, 56, 10);
+    g.font = '700 15px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(234,249,255,.85)';
+    g.fillText(race ? '' : player.ride ? 'Shark Race · ride in!' : 'Shark Race · ride her here', b.x, b.y - 46 + bob);
+  }
+  if(!race) return;
+  race.hoops.forEach((h, i)=>{
+    if(h.got) return;
+    const next = i === race.i, pulse = 1 + Math.sin(t*5 + h.ph)*.06;
+    g.save(); g.translate(h.x, h.y); g.scale(pulse, pulse);
+    g.globalAlpha = next ? 1 : .35;
+    g.strokeStyle = next ? '#ffd479' : '#bdf7ff'; g.lineWidth = next ? 9 : 5;
+    g.beginPath(); g.ellipse(0, 0, 46, 62, 0, 0, 7); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(0, 0, 46, 62, 0, Math.PI*1.1, Math.PI*1.5); g.stroke();
+    g.font = '700 18px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#ffffff'; g.fillText(i + 1, 0, 0);
+    g.restore();
+  });
+}
+function drawRaceHud(t){
+  if(!race) return;
+  const g = ctx, h = race.hoops[race.i]; if(!h) return;
+  // an arrow at the edge of the screen pointing to the next hoop
+  const sx = h.x - cam.x, sy = h.y - cam.y;
+  if(sx < 30 || sx > VW - 30 || sy < 60 || sy > VH - 30){
+    const px = player.x - cam.x, py = player.y - cam.y, a = Math.atan2(sy - py, sx - px);
+    const ex = clamp(px + Math.cos(a)*1e4, 40, VW - 40), ey = clamp(py + Math.sin(a)*1e4, 90, VH - 40);
+    const k = Math.min((VW/2 - 50) / Math.abs(Math.cos(a) || 1e-6), (VH/2 - 60) / Math.abs(Math.sin(a) || 1e-6));
+    const ax = clamp(VW/2 + Math.cos(a)*k, 40, VW - 40), ay = clamp(VH/2 + Math.sin(a)*k, 90, VH - 40);
+    g.save(); g.translate(ax || ex, ay || ey); g.rotate(a);
+    g.fillStyle = '#ffd479'; g.beginPath(); g.moveTo(18, 0); g.lineTo(-10, -12); g.lineTo(-4, 0); g.lineTo(-10, 12); g.fill();
+    g.restore();
+  }
+  const label = `Hoop ${race.i + 1} of ${race.hoops.length}` + (race.easy ? '' : ` · ${Math.max(0, Math.ceil(race.left))}s`);
+  shadowText(g, label, VW/2, 74, 20, race.left < 6 ? '#ff8aa0' : '#ffd479');
+}
+/* her outfits, drawn in the shark's own coordinates (nose to the right) */
+function drawSharkGear(g, t){
+  const id = SHARK_GEAR[sharkGear()].id;
+  if(id === 'bow'){
+    g.fillStyle = '#ff6f9c';
+    g.beginPath(); g.moveTo(6, -32); g.lineTo(-7, -41); g.lineTo(-5, -26); g.fill();
+    g.beginPath(); g.moveTo(6, -32); g.lineTo(19, -41); g.lineTo(17, -26); g.fill();
+    g.fillStyle = '#ffd0e0'; g.beginPath(); g.arc(6, -32, 3, 0, 7); g.fill();
+  } else if(id === 'shades'){
+    g.fillStyle = '#12141a';
+    roundRect(g, 26, -10, 11, 8, 3); g.fill(); roundRect(g, 38, -9, 8, 7, 3); g.fill();
+    g.strokeStyle = '#12141a'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(37, -6); g.lineTo(38, -6); g.moveTo(26, -7); g.lineTo(16, -9); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(28, -9, 3, 2);
+  } else if(id === 'flowers'){
+    const cs = ['#ff6f9c','#ffd479','#ffffff','#c58cff','#ff9a5c'];
+    for(let i=0; i<6; i++){ const x = 8 + i*6, y = -14 - Math.sin(i/5*Math.PI)*5;
+      g.fillStyle = cs[i % cs.length];
+      for(let k=0; k<5; k++){ const a = k*Math.PI*2/5 + t; g.beginPath(); g.arc(x + Math.cos(a)*2.2, y + Math.sin(a)*2.2, 1.8, 0, 7); g.fill(); }
+      g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(x, y, 1.3, 0, 7); g.fill(); }
+  } else if(id === 'scarf'){
+    const cs = ['#ff5f5f','#ffb347','#ffe066','#6ee69a','#5fb8ff','#b98cff'];
+    cs.forEach((c, i)=>{ g.fillStyle = c; g.fillRect(10 + i*1.6, -14 + i*0, 1.8, 24); });
+    const w = Math.sin(t*6)*4;
+    cs.forEach((c, i)=>{ g.strokeStyle = c; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(12, 8 + i*.8); g.quadraticCurveTo(0, 14 + w, -14, 12 + i*1.2 + w); g.stroke(); });
+  } else if(id === 'crown'){
+    const cg = g.createLinearGradient(0, -34, 0, -16);
+    cg.addColorStop(0, '#fff2a8'); cg.addColorStop(1, '#e0a92a');
+    g.fillStyle = cg;
+    g.beginPath(); g.moveTo(16, -16); g.lineTo(16, -28); g.lineTo(21, -22); g.lineTo(26, -32); g.lineTo(31, -22); g.lineTo(36, -28); g.lineTo(36, -16); g.closePath(); g.fill();
+    g.fillStyle = '#ff4d6d'; g.beginPath(); g.arc(26, -20, 2, 0, 7); g.fill();
+  } else if(id === 'tiara'){
+    g.strokeStyle = '#e8f6ff'; g.lineWidth = 2; g.beginPath(); g.arc(26, -6, 14, Math.PI*1.15, Math.PI*1.85); g.stroke();
+    for(let i=0; i<3; i++){ const a = Math.PI*(1.3 + i*.2), x = 26 + Math.cos(a)*14, y = -6 + Math.sin(a)*14, r = i === 1 ? 6 : 4;
+      g.fillStyle = '#ffe066'; g.beginPath();
+      for(let k=0; k<10; k++){ const rr = k % 2 ? r*.45 : r, aa = -Math.PI/2 + k*Math.PI/5; k ? g.lineTo(x + Math.cos(aa)*rr, y + Math.sin(aa)*rr) : g.moveTo(x + Math.cos(aa)*rr, y + Math.sin(aa)*rr); }
+      g.closePath(); g.fill(); }
+    if(Math.sin(t*4) > .6){ g.fillStyle = '#ffffff'; g.beginPath(); g.arc(30, -26, 1.6, 0, 7); g.fill(); }
+  }
+}
+/* her wardrobe and friendship, shown in the Home dome */
+function renderSharkHome(){
+  const box = $('#sharkBox'); if(!box) return;
+  if(!shark.tame && save.shark !== 'tamed'){ box.innerHTML = '<p class="note">Somewhere in Shark Cove a lonely shark is waiting. BONK near her, gently, until she calms down.</p>'; return; }
+  const lv = sharkLv(), hearts = save.sharkHearts || 0;
+  box.innerHTML = `<p class="note">Friendship ${'♥'.repeat(hearts) || '♡'} · Races won: ${lv} · Tricks: ${save.tricks || 0}</p>`;
+  const row = document.createElement('div'); row.className = 'grid2';
+  SHARK_GEAR.forEach((gr, i)=>{
+    const t = document.createElement('div'), open = i <= lv;
+    t.className = 'tile' + (open ? '' : ' locked') + (open && i === sharkGear() ? ' sel' : '');
+    t.innerHTML = `<span class="big">${open ? gr.ic : '🔒'}</span>${gr.name}<span class="cost">${open ? (i === sharkGear() ? 'Wearing' : 'Tap to wear') : 'Win race level ' + i}</span>`;
+    t.onclick = ()=>{ if(!open){ Audio_.nope(); return; } save.sharkGear = i; persist(); renderSharkHome(); Audio_.blip(760); };
+    row.appendChild(t);
+  });
+  box.appendChild(row);
+}
+
 /* ============================ OCEAN UPDATE ============================ */
 function updateOcean(dt, t){
   let v = stickVec();
@@ -1348,7 +1556,9 @@ function updateOcean(dt, t){
     bubbles.push({x:player.x - player.face*14, y:player.y+6, r:rnd(1.4,3.4), sp:rnd(28,60), ph:0});
 
   // the tame shark tags along; swim into her to ride
-  if(shark.tame){
+  const riding = sharkUpdate(dt, t);
+  if(riding){ /* she carries you: sharkUpdate placed her */ }
+  else if(shark.tame){
     const tx = player.x - 90 * player.face, ty = player.y + 26;
     shark.vx = lerp(shark.vx, (tx - shark.x) * 2.2, dt*3);
     shark.vy = lerp(shark.vy, (ty - shark.y) * 2.2, dt*3);
@@ -1360,7 +1570,7 @@ function updateOcean(dt, t){
     shark.vy = lerp(shark.vy, (ty - shark.y) * 1.8, dt*2.4);
     shark.calm = Math.max(0, shark.calm - dt * 0.05);
   }
-  shark.x += shark.vx * dt; shark.y += shark.vy * dt;
+  if(!riding){ shark.x += shark.vx * dt; shark.y += shark.vy * dt; }
 
   // pearls
   for(const p of pearlsOut){
@@ -1408,6 +1618,7 @@ function drawOceanScene(t){
   g.fillText(shark.tame ? 'Shark Cove · tamed' : 'Shark Cove', COVE.x, COVE.y - COVE.r*.62 - 16);
 
   drawUpHole(g, t);
+  drawRaceWorld(g, t);
   for(const d of DOMES) drawDome(d, t);
 
   for(const f of fish) if(f.x > cam.x - 40 && f.x < cam.x + VW + 40 && f.y > cam.y - 40 && f.y < cam.y + VH + 40) drawFish(g, f, t);
@@ -1432,7 +1643,11 @@ function drawOceanScene(t){
     drawCreature(g, c, c.x, c.y, 62, t + i);
   });
 
-  drawDiver(g, player.x, player.y, 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, player.kick);
+  if(player.ride && shark.trick > 0){                     // loop the loop together
+    g.save(); g.translate(shark.x, shark.y); g.rotate(-ease(1 - shark.trick) * Math.PI * 2 * player.face); g.translate(-shark.x, -shark.y);
+    drawDiver(g, player.x, player.y - 4, 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, 0);
+    g.restore();
+  } else drawDiver(g, player.x, player.y - (player.ride ? 4 : 0), 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, player.ride ? 0 : player.kick);
 
   if(player.bonk > 0){                                    // bonk shockwave
     const r = (1 - player.bonk) * 300;
@@ -1452,6 +1667,7 @@ function drawOceanScene(t){
   drawSparks(g);
   g.restore();
   oceanVignette();
+  drawRaceHud(t);
 }
 function drawSparks(g){
   for(const s of sparks){
@@ -2957,7 +3173,7 @@ function drawUpHole(g, t){
 }
 function goUp(){
   Audio_.sweep(400, 900, .4, 'triangle', .1);
-  swimTo = null; charging = null; chargeT = 0;
+  swimTo = null; charging = null; chargeT = 0; player.ride = false; race = null;
   yardStart('return');
 }
 
@@ -4192,6 +4408,7 @@ function putOutside(d){      // come out of a dome's door, below it and clear of
   rearm = d;
 }
 function enterDome(d){
+  if(player.ride){ player.ride = false; rideCd = 1.6; } race = null;
   if(d.id === 'up'){ goUp(); return; }
   pendingDome = d;
   if(d.id === 'home'){ openHome(); return; }
@@ -4805,7 +5022,7 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
-  renderAbc();
+  renderAbc(); renderSharkHome();
   openLayer('lHome');
 }
 $('#homeClose').onclick = ()=>{
@@ -4886,7 +5103,8 @@ $('#btnWipe').onclick = ()=>{
 function startProfile(id){
   P = id; save = loadSave(id);
   Audio_.init(); seedWorld();
-  shark = {x:COVE.x, y:COVE.y, vx:0, vy:0, calm:0, tame:save.shark === 'tamed', a:0, t:0};
+  shark = {x:COVE.x, y:COVE.y, vx:0, vy:0, calm:0, tame:save.shark === 'tamed', a:0, t:0, trick:0};
+  player.ride = false; race = null;
   save.creatures.forEach(c=>{ c.x = undefined; c.y = undefined; c.ph = c.ph || 0; });
   yardStart('arrive');                 // every visit starts in the backyard
   save.seen++; save.lastSeen = Date.now(); persist();
