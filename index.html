@@ -12,7 +12,7 @@
 <title>Bubble Town</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=Nunito:ital,wght@0,400;0,600;0,800;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;600;700&family=PT+Sans:wght@700&family=Nunito:ital,wght@0,400;0,600;0,800;1,400&display=swap">
 <style>
 :root{
   --abyss:#03182b; --deep:#06304f; --lagoon:#0e6f8f; --shallow:#2ba7bd;
@@ -115,6 +115,23 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
 @keyframes pop{50%{transform:scale(1.08)}}
 @keyframes shake{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 
+.cyr{font-family:"PT Sans","Nunito",system-ui,sans-serif;font-weight:700;letter-spacing:.02em}
+.wordpic .cyr{display:inline-block;font-size:clamp(84px,22vw,140px);line-height:1;color:#eaf9ff;
+  text-shadow:0 0 30px rgba(125,240,255,.45);filter:none}
+.wordpic .cyr.big{font-size:clamp(56px,14vw,96px)}
+.wordpic .expic{display:inline-block;font-size:.55em;margin-left:.25em;vertical-align:middle}
+.ask{text-align:center;color:#cfeef7;font-size:clamp(15px,3.6vw,19px);line-height:1.5;margin:0 auto 10px;max-width:34em}
+.ask .cyr{color:var(--pearl);font-size:1.15em}
+.choice .cyr{font-size:clamp(36px,9vw,54px);line-height:1.1}
+.choice .snd{font-family:var(--body);font-weight:800;font-size:clamp(28px,7vw,40px)}
+.choice .pic{font-size:clamp(44px,11vw,64px);line-height:1.1}
+.abc{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px;margin-bottom:10px}
+.abcl{border-radius:14px;border:1.5px solid rgba(125,240,255,.16);background:rgba(4,28,46,.45);
+  color:rgba(234,249,255,.35);padding:6px 2px 4px;cursor:pointer;text-align:center;font-family:var(--body)}
+.abcl .cyr{display:block;font-size:22px}
+.abcl .s{display:block;font-size:11px;font-weight:800;color:inherit;opacity:.8}
+.abcl.known{color:#eaf9ff;border-color:rgba(110,230,160,.55);background:rgba(110,230,160,.12)}
+.abcl.next{color:var(--pearl);border-color:var(--pearl);box-shadow:0 0 14px rgba(255,212,121,.35)}
 /* ---------- piano ---------- */
 .piano{display:flex;gap:6px;justify-content:center;margin:14px 0 4px;flex-wrap:nowrap}
 .key{flex:1 1 0;min-width:0;height:clamp(96px,22vh,170px);border-radius:12px 12px 18px 18px;
@@ -214,6 +231,7 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .chip > *{margin-right:6px}
   #hud > .chip{margin:0 6px}
   .divers, .grid2, .choices{display:block}
+  .abc > *{display:inline-block;width:54px;margin:0 6px 8px 0}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
 /* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
@@ -269,6 +287,10 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <p class="sub" id="homeGrew">Welcome back.</p>
   <div class="grid2" id="gardens"></div>
   <hr class="rule">
+  <p class="eyebrow">Russian alphabet · Азбука</p>
+  <div class="abc" id="abc"></div>
+  <p class="note" id="abcNote"></p>
+  <hr class="rule">
   <p class="eyebrow">Your look</p>
   <div class="row" id="suitRow" style="margin-bottom:10px"></div>
   <div class="row" id="hairRow"></div>
@@ -281,11 +303,16 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 
 <!-- WORD DOOR -->
 <div class="layer" id="lWord"><div class="scrim"></div><div class="port">
-  <p class="eyebrow" id="wordEye">Locked door · say the word</p>
-  <div class="wordpic" id="wordPic">🐟</div>
-  <button class="btn ghost saybtn" id="wordSay">🔊 Say it again</button>
+  <p class="eyebrow" id="wordEye">Letter door</p>
+  <div class="wordpic" id="wordPic"></div>
+  <p class="ask" id="wordAsk"></p>
+  <div class="row center" style="margin:0 0 14px">
+    <button class="btn ghost" id="wordSay" type="button">🔊 Hear it</button>
+    <button class="btn ghost" id="wordSlow" type="button">🐢 Slowly</button>
+  </div>
   <div class="choices" id="wordChoices"></div>
   <p class="note" style="margin-top:14px;text-align:center" id="wordHint"></p>
+  <div class="row center" style="margin-top:12px"><button class="btn ghost" id="wordOut" type="button">Not now</button></div>
 </div></div>
 
 <!-- MUSIC DOME -->
@@ -536,15 +563,18 @@ const Audio_ = {
   sparkle(){ [1318.5, 1568, 2093].forEach((f,i)=>this.tone(f, 0.25, 'sine', 0.06, i*0.05)); },
   chirp(){ const b = rnd(2400, 3400); for(let i=0;i<rint(2,4);i++) this.sweep(b, b*1.25, 0.07, 'sine', 0.03, i*0.11); },
   ruVoice:null,
-  say(word){
+  say(word, slow){
     try{
       if(!('speechSynthesis' in window)) return;
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(word);
-      u.lang = 'ru-RU'; u.rate = 0.78; u.pitch = 1.05;
+      u.lang = 'ru-RU'; u.rate = slow ? 0.45 : 0.68; u.pitch = 1; u.volume = 1;
       if(!this.ruVoice){
-        const vs = speechSynthesis.getVoices();
-        this.ruVoice = vs.find(v=>/^ru/i.test(v.lang)) || null;
+        // the best Russian voice installed: enhanced/premium/neural ones are far clearer
+        const score = v=>(/enhanced|premium|neural|natural|improved/i.test(v.name) ? 4 : 0)
+          + (/google/i.test(v.name) ? 2 : 0) + (/milena|katya|yuri|svetlana/i.test(v.name) ? 1 : 0);
+        const vs = speechSynthesis.getVoices().filter(v=>/^ru/i.test(v.lang)).sort((a, b)=>score(b) - score(a));
+        this.ruVoice = vs[0] || null;
       }
       if(this.ruVoice) u.voice = this.ruVoice;
       speechSynthesis.speak(u);
@@ -598,35 +628,7 @@ function harvestAll(){
   return got;
 }
 
-/* ============================ RUSSIAN WORDS ============================
-   `tr` is a strict letter-for-letter transliteration, NOT how the word
-   sounds. вода is voda because the letter is о, even though it is said
-   closer to "vada". The soft sign ь is kept as ’ because dropping it
-   would teach a letter out of the word. Pronunciation is the speech
-   synthesiser's job; these letters have to match the alphabet.
-   ===================================================================== */
-const WORDS = [
-  {ru:'вода',    tr:'voda',      en:'water',   ic:'💧'},
-  {ru:'рыба',    tr:'ryba',      en:'fish',    ic:'🐟'},
-  {ru:'кит',     tr:'kit',       en:'whale',   ic:'🐳'},
-  {ru:'краб',    tr:'krab',      en:'crab',    ic:'🦀'},
-  {ru:'звезда',  tr:'zvezda',    en:'star',    ic:'⭐'},
-  {ru:'дом',     tr:'dom',       en:'house',   ic:'🏠'},
-  {ru:'ключ',    tr:'klyuch',    en:'key',     ic:'🔑'},
-  {ru:'дверь',   tr:'dver’',      en:'door',    ic:'🚪'},
-  {ru:'свет',    tr:'svet',      en:'light',   ic:'💡'},
-  {ru:'друг',    tr:'drug',      en:'friend',  ic:'🤝'},
-  {ru:'море',    tr:'more',     en:'sea',     ic:'🌊'},
-  {ru:'музыка',  tr:'muzyka',    en:'music',   ic:'🎵'},
-  {ru:'танец',   tr:'tanets',    en:'dance',   ic:'💃'},
-  {ru:'акула',   tr:'akula',     en:'shark',   ic:'🦈'},
-  {ru:'осьминог',tr:'os’minog',   en:'octopus', ic:'🐙'},
-  {ru:'пузырь',  tr:'puzyr’',     en:'bubble',  ic:'🫧'},
-  {ru:'лодка',   tr:'lodka',     en:'boat',    ic:'⛵'},
-  {ru:'солнце',  tr:'solntse',    en:'sun',     ic:'☀️'},
-  {ru:'камень',  tr:'kamen’',     en:'rock',    ic:'🪨'},
-  {ru:'цветок',  tr:'tsvetok',   en:'flower',  ic:'🌸'},
-];
+
 
 /* ============================ WORLD ============================ */
 const WORLD = {w:2800, h:1750};
@@ -1331,7 +1333,7 @@ function updateOcean(dt, t){
   // dome entry — hold near the door and a ring fills
   let near = null;
   // a dome you just came out of stays shut until you have swum well clear of it
-  if(rearm && Math.hypot(player.x - rearm.x, player.y - (rearm === UP ? 120 : rearm.y)) > (rearm === UP ? 170 : rearm.r + 90)) rearm = null;
+  if(rearm && Math.hypot(player.x - rearm.x, player.y - (rearm === UP ? 120 : rearm.y)) > (rearm === UP ? 170 : rearm.r + 150)) rearm = null;
   for(const d of DOMES) if(d !== rearm && Math.hypot(player.x-d.x, player.y-d.y) < d.r*.62) near = d;
   if(rearm !== UP && Math.hypot(player.x - UP.x, player.y - 120) < 70) near = UP;
   if(near !== charging){ charging = near; chargeT = 0; }
@@ -4035,7 +4037,7 @@ function enterDome(d){
   if(d.id === 'up'){ goUp(); return; }
   pendingDome = d;
   if(d.id === 'home'){ openHome(); return; }
-  if(LOCKED[d.id] && !save.words.includes(d.id)) openWordDoor(d);
+  if(LOCKED[d.id]) openWordDoor(d);
   else runDome(d.id);
 }
 function runDome(id){
@@ -4053,47 +4055,189 @@ function leaveDome(){
   openLayer(null); showHud(true);
 }
 
-/* ---- WORD DOOR ---- */
+/* ============================ CYRILLIC FIRST ============================
+   The doors teach the alphabet before they ask for words. Letters come in
+   three groups:
+     twins          look and sound like English:            А О К М Т
+     false friends  look like English but say something else: Р В Н С У Х Е
+     new shapes     everything else
+   Each letter has an example word with a picture, so the voice says
+   "Р... рыба" and the child hears the sound inside a real word.
+   Once enough letters are known, the doors start asking her to READ:
+   a Cyrillic word with no Latin letters, matched to its picture.
+   Transliteration is strict letter-for-letter (вода = voda), shown only
+   as a hint after a wrong answer, never as the thing to read.
+   ====================================================================== */
+const ABC = [
+  {l:'А', s:'a',    g:'twin',   ex:'акула',   ic:'🦈', tip:'Just like A.'},
+  {l:'О', s:'o',    g:'twin',   ex:'осьминог',ic:'🐙', tip:'Just like O.'},
+  {l:'К', s:'k',    g:'twin',   ex:'кит',     ic:'🐳', tip:'Just like K.'},
+  {l:'М', s:'m',    g:'twin',   ex:'море',    ic:'🌊', tip:'Just like M.'},
+  {l:'Т', s:'t',    g:'twin',   ex:'торт',    ic:'🎂', tip:'Just like T.'},
+  {l:'Р', s:'r',    g:'friend', ex:'рыба',    ic:'🐟', tip:'Looks like P, but says r!', fake:'p'},
+  {l:'В', s:'v',    g:'friend', ex:'вода',    ic:'💧', tip:'Looks like B, but says v!', fake:'b'},
+  {l:'Н', s:'n',    g:'friend', ex:'нос',     ic:'👃', tip:'Looks like H, but says n!', fake:'h'},
+  {l:'С', s:'s',    g:'friend', ex:'солнце',  ic:'☀️', tip:'Looks like C, and says s.', fake:'k'},
+  {l:'У', s:'u',    g:'friend', ex:'утка',    ic:'🦆', tip:'Looks like Y, but says oo!', fake:'y'},
+  {l:'Х', s:'kh',   g:'friend', ex:'хлеб',    ic:'🍞', tip:'Looks like X, but says a scratchy h.', fake:'x'},
+  {l:'Е', s:'ye',   g:'friend', ex:'ель',     ic:'🌲', tip:'Looks like E, but says ye.', fake:'ee'},
+  {l:'И', s:'i',    g:'new',    ex:'индюк',   ic:'🦃', tip:'A backwards N that says ee.', fake:'n'},
+  {l:'Д', s:'d',    g:'new',    ex:'дом',     ic:'🏠', tip:'A little house: says d.'},
+  {l:'Л', s:'l',    g:'new',    ex:'лодка',   ic:'⛵', tip:'A tent with a bent leg: says l.'},
+  {l:'П', s:'p',    g:'new',    ex:'пингвин', ic:'🐧', tip:'A doorway: says p.'},
+  {l:'Б', s:'b',    g:'new',    ex:'банан',   ic:'🍌', tip:'A 6 with a hat: says b.'},
+  {l:'Г', s:'g',    g:'new',    ex:'гриб',    ic:'🍄', tip:'Half a doorway: says g.'},
+  {l:'З', s:'z',    g:'new',    ex:'звезда',  ic:'⭐', tip:'Looks like a 3: says z.'},
+  {l:'Я', s:'ya',   g:'new',    ex:'яблоко',  ic:'🍎', tip:'A backwards R that says ya.', fake:'r'},
+  {l:'Ы', s:'y',    g:'new',    ex:'сыр',     ic:'🧀', tip:'A sound English does not have. Hear it in сыр.'},
+  {l:'Ю', s:'yu',   g:'new',    ex:'юла',     ic:'🌀', tip:'A line and an O: says yoo.'},
+  {l:'Э', s:'e',    g:'new',    ex:'эхо',     ic:'🗣️', tip:'A backwards C: says e, as in egg.'},
+  {l:'Ё', s:'yo',   g:'new',    ex:'ёж',      ic:'🦔', tip:'Е with two dots: says yo.'},
+  {l:'Ф', s:'f',    g:'new',    ex:'флаг',    ic:'🚩', tip:'A circle on a stick: says f.'},
+  {l:'Ц', s:'ts',   g:'new',    ex:'цветок',  ic:'🌸', tip:'A cup with a tail: says ts.'},
+  {l:'Ч', s:'ch',   g:'new',    ex:'чай',     ic:'🍵', tip:'An upside-down h: says ch.'},
+  {l:'Ш', s:'sh',   g:'new',    ex:'шар',     ic:'🎈', tip:'Three teeth: says sh.'},
+  {l:'Щ', s:'shch', g:'new',    ex:'щенок',   ic:'🐶', tip:'Ш with a tail: says shch.'},
+  {l:'Ж', s:'zh',   g:'new',    ex:'жук',     ic:'🐞', tip:'A bug with legs: says zh.'},
+  {l:'Й', s:'y',    g:'new',    ex:'чай',     ic:'🍵', tip:'И with a little hat: a short y, like the end of чай.'},
+  {l:'Ь', s:'’',    g:'new',    ex:'ель',     ic:'🌲', tip:'The soft sign. No sound of its own: it makes the letter before it soft.'},
+  {l:'Ъ', s:'"',    g:'new',    ex:'подъезд', ic:'🚪', tip:'The hard sign. No sound of its own: it keeps two sounds apart.'},
+];
+const ABC_BY = {}; ABC.forEach(a=>{ ABC_BY[a.l.toLowerCase()] = a; });
+const READ_WORDS = [
+  ['кот','🐱'], ['кит','🐳'], ['рот','👄'], ['торт','🎂'], ['мост','🌉'], ['сыр','🧀'], ['нос','👃'],
+  ['рак','🦞'], ['суп','🍲'], ['утка','🦆'], ['дом','🏠'], ['мак','🌺'], ['вода','💧'], ['море','🌊'],
+  ['рыба','🐟'], ['луна','🌙'], ['банан','🍌'], ['гриб','🍄'], ['звезда','⭐'], ['лодка','⛵'],
+  ['акула','🦈'], ['чай','🍵'], ['шар','🎈'], ['жук','🐞'], ['ёж','🦔'], ['цветок','🌸'], ['ключ','🔑'],
+  ['дверь','🚪'], ['солнце','☀️'], ['осьминог','🐙'], ['яблоко','🍎'], ['хлеб','🍞'], ['ель','🌲'],
+];
+const TR = {а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',
+  р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ъ:'"',ы:'y',ь:'’',э:'e',ю:'yu',я:'ya'};
+const translit = w => w.split('').map(ch=>TR[ch] || ch).join('');
+
+function abcNeed(){ return save.mode === 'easy' ? 2 : 1; }   // right answers before a letter counts as learned
+function abcKnown(){ const n = abcNeed(), lp = save.lp || {}; return ABC.filter(a=>(lp[a.l] || 0) >= n); }
+function abcNext(){ const n = abcNeed(), lp = save.lp || {}; return ABC.find(a=>(lp[a.l] || 0) < n) || null; }
+function abcReadable(){
+  const known = {}; abcKnown().forEach(a=>{ known[a.l.toLowerCase()] = 1; });
+  return READ_WORDS.filter(w=>w[0].split('').every(ch=>known[ch]));
+}
+function shuffle(a){ a = a.slice(); for(let i=a.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function abcQuestion(){
+  const known = abcKnown(), next = abcNext(), words = abcReadable(), lp = save.lp || {};
+  const easy = save.mode === 'easy';
+  // keep teaching new letters while there are few, then mix in reading and review
+  if(next && (known.length < 5 || Math.random() < (easy ? .7 : .55))){
+    const fresh = !(lp[next.l] > 0);
+    return {type: fresh || Math.random() < .5 ? 'find' : 'sound', a:next, fresh};
+  }
+  if(words.length >= 3 && Math.random() < (easy ? .55 : .7)) return {type:'read', w:pick(words), pool:words};
+  if(known.length) return {type: Math.random() < .5 ? 'find' : 'sound', a:pick(known)};
+  return {type:'find', a:ABC[0], fresh:true};
+}
+
+/* ---- the word door, now a letter door ---- */
 let wordState = null;
 function openWordDoor(d){
-  const easy = save.mode === 'easy';
-  const target = pick(WORDS);
-  const others = WORDS.filter(w=>w.ru !== target.ru).sort(()=>Math.random()-.5).slice(0, easy ? 2 : 3);
-  const opts = [target, ...others].sort(()=>Math.random()-.5);
-  wordState = {target, dome:d, tries:0};
-  $('#wordEye').textContent = `${d.label} · locked door`;
-  $('#wordPic').textContent = target.ic;
-  $('#wordHint').textContent = easy
-    ? 'Listen to the word, then tap the one that matches the picture.'
-    : 'Tap the Russian word for what you see.';
+  const easy = save.mode === 'easy', q = abcQuestion();
+  wordState = {q, dome:d, tries:0};
   const box = $('#wordChoices'); box.innerHTML = '';
+  const n = easy ? 3 : 4;
+  let opts, say;
+  if(q.type === 'read'){
+    // read a whole word, then pick its picture
+    $('#wordEye').textContent = `${d.label} · read the word`;
+    $('#wordPic').innerHTML = `<span class="cyr big">${q.w[0]}</span>`;
+    $('#wordAsk').textContent = 'What does it say? Tap the picture.';
+    const others = shuffle(READ_WORDS.filter(w=>w[0] !== q.w[0] && w[1] !== q.w[1])).slice(0, n - 1);
+    opts = shuffle([q.w].concat(others)).map(w=>({key:w[0], html:`<span class="pic">${w[1]}</span>`}));
+    wordState.key = q.w[0]; say = q.w[0];
+    $('#wordHint').textContent = easy ? 'Sound it out letter by letter, or tap 🔊 to hear it.' : 'Sound it out first. Tap 🔊 if you need help.';
+  } else {
+    const a = q.a, pool = shuffle(ABC.filter(x=>x.l !== a.l && (q.type === 'find' || x.s !== a.s)));
+    if(q.type === 'find'){
+      // see the letter with its picture, then find it among others
+      $('#wordEye').textContent = q.fresh ? `${d.label} · a new letter!` : `${d.label} · find the letter`;
+      $('#wordPic').innerHTML = `<span class="cyr">${a.l}${a.l.toLowerCase()}</span><span class="expic">${a.ic}</span>`;
+      $('#wordAsk').innerHTML = `<b class="cyr">${a.l}</b> says “${a.s}”, like <b class="cyr">${a.ex}</b>. ${a.tip} Tap <b class="cyr">${a.l}</b>.`;
+      opts = shuffle([a].concat(pool.slice(0, n - 1))).map(x=>({key:x.l, html:`<span class="cyr">${x.l}${x.l.toLowerCase()}</span>`}));
+    } else {
+      // what sound does this letter make? (look-alike sounds are the traps)
+      $('#wordEye').textContent = `${d.label} · what sound?`;
+      $('#wordPic').innerHTML = `<span class="cyr">${a.l}${a.l.toLowerCase()}</span>`;
+      $('#wordAsk').textContent = 'What sound does this letter make?';
+      const sounds = [a.s];
+      if(a.fake) sounds.push(a.fake);
+      for(const x of pool) if(sounds.length < n && sounds.indexOf(x.s) < 0) sounds.push(x.s);
+      opts = shuffle(sounds).map(s=>({key:s, html:`<span class="snd">${s}</span>`}));
+    }
+    wordState.key = q.type === 'find' ? a.l : a.s;
+    say = a.l + '. ' + a.ex;
+    $('#wordHint').textContent = '';
+  }
+  wordState.say = say;
   for(const o of opts){
     const b = document.createElement('button');
-    b.className = 'choice'; b.type = 'button';
-    b.innerHTML = `${o.ru}<span class="tr">${o.tr} · ${o.en}</span>`;
-    b.onclick = ()=>answerWord(b, o);
+    b.className = 'choice'; b.type = 'button'; b.innerHTML = o.html;
+    b.onclick = ()=>answerWord(b, o.key);
+    b.dataset.key = o.key;
     box.appendChild(b);
   }
   openLayer('lWord');
-  setTimeout(()=>Audio_.say(target.ru), 420);
+  if(q.type !== 'read' || easy) setTimeout(()=>Audio_.say(say), 420);
 }
-$('#wordSay').onclick = ()=>{ if(wordState) Audio_.say(wordState.target.ru); };
-function answerWord(btn, o){
+$('#wordSay').onclick = ()=>{ if(wordState) Audio_.say(wordState.say); };
+$('#wordSlow').onclick = ()=>{ if(wordState) Audio_.say(wordState.say, true); };
+$('#wordOut').onclick = ()=>{
+  const d = wordState && wordState.dome; wordState = null;
+  openLayer(null);
+  if(d && scene === 'ocean'){ putOutside(d); showHud(true); }
+};
+function answerWord(btn, key){
   if(!wordState) return;
-  if(o.ru === wordState.target.ru){
-    btn.classList.add('good'); Audio_.good(); Audio_.say(o.ru);
+  const q = wordState.q;
+  if(key === wordState.key){
+    btn.classList.add('good'); Audio_.good();
+    let msg = '';
+    if(q.type === 'read') Audio_.say(q.w[0]);
+    else {
+      Audio_.say(q.a.l + '. ' + q.a.ex);
+      save.lp = save.lp || {};
+      const before = save.lp[q.a.l] || 0;
+      save.lp[q.a.l] = before + 1;
+      if(before + 1 === abcNeed()) msg = `You learned ${q.a.l}! That's ${abcKnown().length} of ${ABC.length} letters.`;
+    }
     if(!save.words.includes(wordState.dome.id)) save.words.push(wordState.dome.id);
     save.pearls += 5; persist(); updateHud();
-    setTimeout(()=>{ const id = wordState.dome.id; wordState = null; runDome(id); }, 900);
+    if(msg) setTimeout(()=>toast(msg), 950);
+    setTimeout(()=>{ const id = wordState.dome.id; wordState = null; runDome(id); }, 1100);
   } else {
     btn.classList.add('bad'); Audio_.nope(); wordState.tries++;
     setTimeout(()=>btn.classList.remove('bad'), 340);
-    if(wordState.tries >= 2){
-      $$('#wordChoices .choice').forEach(b=>{
-        if(b.textContent.startsWith(wordState.target.ru)) b.classList.add('good');
-      });
-    }
+    if(q.type === 'read') $('#wordHint').textContent = `It sounds like “${translit(q.w[0])}”. Listen with 🔊 and try again.`;
+    else $('#wordHint').textContent = q.a.tip;
+    if(wordState.tries >= 2) $$('#wordChoices .choice').forEach(b=>{ if(b.dataset.key === wordState.key) b.classList.add('good'); });
   }
+}
+
+/* ---- the alphabet wall in the Home dome ---- */
+function renderAbc(){
+  const box = $('#abc'); if(!box) return;
+  box.innerHTML = '';
+  const n = abcNeed(), lp = save.lp || {}, next = abcNext();
+  for(const a of ABC){
+    const t = document.createElement('button');
+    t.type = 'button';
+    const known = (lp[a.l] || 0) >= n;
+    t.className = 'abcl' + (known ? ' known' : a === next ? ' next' : '');
+    t.innerHTML = `<span class="cyr">${a.l}${a.l.toLowerCase()}</span><span class="s">${known || a === next ? a.s : '?'}</span>`;
+    t.onclick = ()=>{
+      Audio_.say(a.l + '. ' + a.ex);
+      $('#abcNote').innerHTML = `<b class="cyr">${a.l}</b> says “${a.s}”, like <b class="cyr">${a.ex}</b> ${a.ic}. ${a.tip}`;
+    };
+    box.appendChild(t);
+  }
+  $('#abcNote').textContent = `${abcKnown().length} of ${ABC.length} letters learned. Every locked door teaches one. Tap a letter to hear it.`;
 }
 
 /* ---- MUSIC DOME: coral organ ---- */
@@ -4503,6 +4647,7 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
+  renderAbc();
   openLayer('lHome');
 }
 $('#homeClose').onclick = ()=>{
