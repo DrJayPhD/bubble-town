@@ -149,6 +149,27 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
   border:1.5px solid rgba(125,240,255,.4)}
 .dot.on{background:var(--pearl);border-color:var(--pearl);box-shadow:0 0 14px rgba(255,212,121,.8)}
 
+/* ---------- music dome ---------- */
+.port.wide{width:min(1100px,100%)}
+#muCv{display:block;width:100%;height:clamp(150px,30vh,250px);border-radius:16px;background:rgba(3,24,43,.55)}
+#kbd{position:relative;height:clamp(120px,26vh,200px);margin-top:6px;user-select:none;-webkit-user-select:none}
+.pk{position:absolute;top:0;border:0;cursor:pointer;padding:0;margin:0}
+.pk.white{height:100%;background:linear-gradient(180deg,#ffffff,#dfe9ee);border:1px solid #9fb3bd;border-radius:0 0 10px 10px;z-index:1}
+.pk.black{height:62%;background:linear-gradient(180deg,#3a3f48,#101216);border-radius:0 0 7px 7px;z-index:2}
+.pk span{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-family:var(--disp);font-weight:700;font-size:14px;color:#24414f}
+.pk.black span{color:#cfd8e0;font-size:11px}
+.pk.color span{font-size:24px;color:#ffffff;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.pk small{font-size:9px;opacity:.6}
+.pk.down{filter:brightness(.85);transform:translateY(2px)}
+.pk.want{box-shadow:inset 0 -16px 0 #ffd479,0 0 20px rgba(255,212,121,.95);animation:wantp .7s infinite alternate}
+@keyframes wantp{to{filter:brightness(1.18)}}
+.mutabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.mutab{font-family:var(--disp);font-weight:700;font-size:14px;border-radius:999px;padding:8px 14px;border:1.5px solid var(--rim);background:rgba(125,240,255,.08);color:var(--glow);cursor:pointer}
+.mutab.on{background:var(--pearl);color:var(--ink);border-color:var(--pearl)}
+.musel{font-family:var(--body);font-size:15px;padding:8px;border-radius:10px;background:rgba(3,24,43,.75);color:#eaf9ff;border:1.5px solid var(--rim);max-width:100%}
+.chk{display:inline-flex;gap:6px;align-items:center;color:#cfeef7;font-size:14px}
+.btn.sm{padding:8px 14px;font-size:14px}
+
 /* ---------- draw lab ---------- */
 #padwrap{position:relative;border-radius:20px;overflow:hidden;
   border:1.5px solid rgba(125,240,255,.3);background:#072a44;margin-bottom:12px}
@@ -232,11 +253,13 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   #hud > .chip{margin:0 6px}
   .divers, .grid2, .choices{display:block}
   .abc > *{display:inline-block;width:54px;margin:0 6px 8px 0}
+  .mutabs > *{margin:0 6px 6px 0}
+  #muCv{height:180px} #kbd{height:150px}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
 /* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
    cannot undo. `manipulation` keeps normal taps and kills the zoom gesture. */
-button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label{
+button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label,.pk,.mutab{
   touch-action:manipulation}
 canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
@@ -319,16 +342,15 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 </div></div>
 
 <!-- MUSIC DOME -->
-<div class="layer" id="lMusic"><div class="scrim"></div><div class="port">
-  <p class="eyebrow">Music Dome · coral organ</p>
-  <h2 id="musicTitle">Play it back</h2>
-  <p class="sub" id="musicSub">Listen, then tap the same keys in the same order.</p>
-  <div class="dots" id="musicDots"></div>
-  <div class="piano" id="piano"></div>
-  <div class="row center" style="margin-top:14px">
-    <button class="btn gold" id="musicAgain">🔊 Hear it again</button>
-    <button class="btn ghost" id="musicOut">Leave</button>
-  </div>
+<div class="layer" id="lMusic"><div class="scrim"></div><div class="port wide">
+  <p class="eyebrow">Music Dome</p>
+  <div class="mutabs" id="muTabs"></div>
+  <h2 id="muTitle">Music</h2>
+  <p class="sub" id="muSub"></p>
+  <div class="row" id="muOpts" style="margin-bottom:10px"></div>
+  <canvas id="muCv"></canvas>
+  <div id="kbd"></div>
+  <div class="row end" style="margin-top:12px"><button class="btn ghost" id="muOut" type="button">Leave</button></div>
 </div></div>
 
 <!-- DANCE -->
@@ -4615,74 +4637,384 @@ function renderAbc(){
   $('#abcNote').textContent = `${abcKnown().length} of ${ABC.length} letters learned. Every locked door teaches one. Tap a letter to hear it.`;
 }
 
-/* ---- MUSIC DOME: coral organ ---- */
-const SCALE = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
-const NOTE_NAMES = ['C','D','E','F','G','A','B','C'];
-let music = null;
+/* ---- MUSIC DOME ----------------------------------------------------------
+   Two ways to play, chosen by the diver's mode (and switchable):
+   FOLLOW THE LIGHTS (younger): eight big keys in classroom colours. The next
+     key glows and a coloured bubble drops onto it; tap it and the song moves
+     on. The song waits for her, and wrong taps just make a sound.
+   PIANO LESSONS (older): a real keyboard with black keys that slides between
+     octaves, and two lessons:
+       Read the note: a note on the staff, find it on the keys. Levels go
+         treble C–G, a full octave, ledger lines, bass clef, then sharps/flats.
+       Learn a song: the notes scroll along a staff to the line and wait for
+         the right key. Letter names and key hints can be turned off, and the
+         microphone can listen to a real piano instead.
+   ------------------------------------------------------------------------- */
+const SCALE = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];   // the dance studio uses this
+const LETTERS = ['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const NOTE_COL = ['#ff4d4d','#ff4d4d','#ff9b3d','#ff9b3d','#ffd93d','#5fd35f','#5fd35f','#3fcfd0','#3fcfd0','#4f8dff','#4f8dff','#b06cff'];  // C red … B purple
+const midiOf = s=>{ const m = /^([A-G])(#|b)?(\d)$/.exec(s); return {C:0,D:2,E:4,F:5,G:7,A:9,B:11}[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + (+m[3] + 1)*12; };
+const song = str=>str.trim().split(/\s+/).map(t=>{ const [n, d] = t.split(':'); return {p:n === 'R' ? 0 : midiOf(n), d:+d}; });
+const SONGS = [
+  {id:'twinkle', name:'Twinkle, Twinkle, Little Star', easy:1, notes:song(`C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2
+     G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2
+     C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2`)},
+  {id:'mary', name:'Mary Had a Little Lamb', easy:1, notes:song(`E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2 D4:1 D4:1 D4:2 E4:1 G4:1 G4:2
+     E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:1 E4:1 D4:1 D4:1 E4:1 D4:1 C4:4`)},
+  {id:'buns', name:'Hot Cross Buns', easy:1, notes:song(`E4:1 D4:1 C4:2 E4:1 D4:1 C4:2 C4:.5 C4:.5 C4:.5 C4:.5 D4:.5 D4:.5 D4:.5 D4:.5 E4:1 D4:1 C4:2`)},
+  {id:'boat', name:'Row, Row, Row Your Boat', easy:1, notes:song(`C4:1.5 C4:1.5 C4:1 D4:.5 E4:1.5 E4:1 D4:.5 E4:1 F4:.5 G4:3
+     C5:.5 C5:.5 C5:.5 G4:.5 G4:.5 G4:.5 E4:.5 E4:.5 E4:.5 C4:.5 C4:.5 C4:.5 G4:1 F4:.5 E4:1 D4:.5 C4:3`)},
+  {id:'jingle', name:'Jingle Bells', easy:1, notes:song(`E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4
+     F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2
+     E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:.5 E4:4
+     F4:1 F4:1 F4:1.5 F4:.5 F4:1 E4:1 E4:1 E4:.5 E4:.5 G4:1 G4:1 F4:1 D4:1 C4:4`)},
+  {id:'ode', name:'Ode to Joy (Beethoven)', easy:1, notes:song(`E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:.5 D4:2
+     E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:.5 C4:2`)},
+  {id:'birthday', name:'Happy Birthday', notes:song(`G4:.75 G4:.25 A4:1 G4:1 C5:1 B4:2 G4:.75 G4:.25 A4:1 G4:1 D5:1 C5:2
+     G4:.75 G4:.25 G5:1 E5:1 C5:1 B4:1 A4:2 F5:.75 F5:.25 E5:1 C5:1 D5:1 C5:2`)},
+  {id:'korobeiniki', name:'Korobeiniki (Russian folk song)', notes:song(`E5:1 B4:.5 C5:.5 D5:1 C5:.5 B4:.5 A4:1 A4:.5 C5:.5 E5:1 D5:.5 C5:.5
+     B4:1.5 C5:.5 D5:1 E5:1 C5:1 A4:1 A4:2 D5:1.5 F5:.5 A5:1 G5:.5 F5:.5 E5:1.5 C5:.5 E5:1 D5:.5 C5:.5
+     B4:1 B4:.5 C5:.5 D5:1 E5:1 C5:1 A4:1 A4:2`)},
+  {id:'minuet', name:'Minuet in G (Petzold)', notes:song(`D5:1 G4:.5 A4:.5 B4:.5 C5:.5 D5:1 G4:1 G4:1 E5:1 C5:.5 D5:.5 E5:.5 F#5:.5 G5:1 G4:1 G4:1
+     C5:1 D5:.5 C5:.5 B4:.5 A4:.5 B4:1 C5:.5 B4:.5 A4:.5 G4:.5 F#4:1 G4:.5 A4:.5 B4:.5 G4:.5 A4:3
+     D5:1 G4:.5 A4:.5 B4:.5 C5:.5 D5:1 G4:1 G4:1 E5:1 C5:.5 D5:.5 E5:.5 F#5:.5 G5:1 G4:1 G4:1
+     C5:1 D5:.5 C5:.5 B4:.5 A4:.5 B4:1 C5:.5 B4:.5 A4:.5 G4:.5 A4:1 B4:.5 A4:.5 G4:.5 F#4:.5 G4:3`)},
+  {id:'elise', name:'Für Elise (Beethoven), opening', notes:song(`E5:.25 D#5:.25 E5:.25 D#5:.25 E5:.25 B4:.25 D5:.25 C5:.25 A4:.5 R:.25 C4:.25 E4:.25 A4:.25
+     B4:.5 R:.25 E4:.25 G#4:.25 B4:.25 C5:.5 R:.25 E4:.25 E5:.25 D#5:.25 E5:.25 D#5:.25 E5:.25 B4:.25 D5:.25 C5:.25
+     A4:.5 R:.25 C4:.25 E4:.25 A4:.25 B4:.5 R:.25 E4:.25 C5:.25 B4:.25 A4:1`)},
+  {id:'canon', name:'Canon in D (Pachelbel), theme', notes:song(`F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2
+     D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2`)},
+];
+// note-reading levels: [label, clef, lowest, highest, use black keys]
+const READ_LV = [
+  ['Treble clef: C to G', 'treble', 60, 67, false],
+  ['Treble clef: a whole octave', 'treble', 60, 72, false],
+  ['Treble clef: high and low ledger lines', 'treble', 57, 81, false],
+  ['Bass clef: the left-hand notes', 'bass', 43, 60, false],
+  ['Sharps and flats', 'treble', 60, 72, true],
+  ['Everything, both clefs', 'both', 41, 81, true],
+];
+let mu = null;
+const blackKey = p=>[1,3,6,8,10].indexOf(((p % 12) + 12) % 12) >= 0;
 function openMusic(){
-  const len = save.mode === 'easy' ? 3 : Math.min(3 + save.songs, 6);
-  music = {seq: Array.from({length:len}, ()=>rint(0,7)), at:0, playing:false, done:0};
-  const pn = $('#piano'); pn.innerHTML = '';
-  SCALE.forEach((f, i)=>{
-    const k = document.createElement('button');
-    k.className = 'key'; k.type = 'button'; k.innerHTML = `<span>${NOTE_NAMES[i]}</span>`;
-    k.onclick = ()=>hitKey(i, k);
-    pn.appendChild(k);
-  });
-  $('#musicTitle').textContent = 'Play it back';
-  $('#musicSub').textContent = save.mode === 'easy'
-    ? 'Three notes. Listen, then tap them in order.'
-    : `${len} notes. Listen, then tap them in the same order.`;
-  drawDots();
+  const easy = save.mode === 'easy';
+  mu = {mode:easy ? 'lights' : 'read', base:60, span:easy ? 13 : (innerWidth > 900 ? 25 : 18), song:null, i:0, wrong:0, x:0,
+        target:null, readOk:0, mic:false, hint:true, names:true, follow:true, t:0, pressed:{}, flash:null, done:false};
+  buildMusicUI();
   openLayer('lMusic');
-  setTimeout(playSeq, 600);
+  musicLoop();
 }
-function drawDots(){
-  const d = $('#musicDots'); d.innerHTML = '';
-  music.seq.forEach((_, i)=>{
-    const s = document.createElement('div');
-    s.className = 'dot' + (i < music.at ? ' on' : '');
-    d.appendChild(s);
+function buildMusicUI(){
+  const easy = save.mode === 'easy';
+  $('#muTabs').innerHTML = '';
+  [['lights','🌈 Follow the lights'], ['read','🎼 Read the note'], ['song','🎹 Learn a song'], ['free','✨ Free play']].forEach(([id, label])=>{
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'mutab' + (mu.mode === id ? ' on' : ''); b.textContent = label;
+    b.onclick = ()=>{ mu.mode = id; mu.song = null; mu.target = null; mu.done = false;
+      if(id === 'lights'){ mu.base = 60; mu.span = 13; } else if(mu.span === 13){ mu.span = innerWidth > 900 ? 25 : 18; }
+      buildMusicUI(); Audio_.blip(700); };
+    $('#muTabs').appendChild(b);
   });
-}
-function playSeq(){
-  if(!music) return;
-  music.playing = true;
-  const ks = $$('#piano .key');
-  music.seq.forEach((n, i)=>{
-    setTimeout(()=>{
-      if(!music) return;
-      Audio_.tone(SCALE[n], 0.44, 'triangle', 0.2);
-      ks[n].classList.add('lit');
-      setTimeout(()=>ks[n].classList.remove('lit'), 300);
-      if(i === music.seq.length - 1) setTimeout(()=>{ if(music) music.playing = false; }, 380);
-    }, i * 520);
-  });
-}
-function hitKey(i, el){
-  if(!music || music.playing) return;
-  Audio_.tone(SCALE[i], 0.4, 'triangle', 0.2);
-  el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'), 190);
-  if(music.seq[music.at] === i){
-    music.at++; drawDots();
-    if(music.at >= music.seq.length){
-      music.done++; save.songs++; save.pearls += 12; persist(); updateHud();
-      Audio_.great();
-      const more = music.done < 3;
-      setTimeout(()=>{
-        if(more){ toast('Perfect! One more'); openMusic(); }
-        else result('🎹', 'You played the whole song!',
-          'Three in a row on the coral organ. The organ keeps the tune for next time.', leaveDome);
-      }, 700);
+  const opts = $('#muOpts'); opts.innerHTML = '';
+  if(mu.mode === 'lights' || mu.mode === 'song'){
+    const sel = document.createElement('select'); sel.id = 'muSong'; sel.className = 'musel';
+    SONGS.filter(s=>mu.mode === 'song' || s.easy).forEach(s=>{ const o = document.createElement('option'); o.value = s.id;
+      const st = (save.songStars || {})[s.id]; o.textContent = s.name + (st ? '  ' + '★'.repeat(st) : ''); sel.appendChild(o); });
+    sel.onchange = ()=>startSong(sel.value);
+    opts.appendChild(sel);
+    startSong(sel.value);
+  } else if(mu.mode === 'read'){
+    mu.readLv = Math.min(save.readLv || 0, READ_LV.length - 1);
+    nextReadNote();
+  } else { mu.target = null; }
+  if(mu.mode !== 'lights'){
+    const oct = document.createElement('span'); oct.className = 'row'; oct.style.gap = '6px';
+    const dn = document.createElement('button'); dn.type = 'button'; dn.className = 'btn ghost sm'; dn.textContent = '◀ lower';
+    const up = document.createElement('button'); up.type = 'button'; up.className = 'btn ghost sm'; up.textContent = 'higher ▶';
+    dn.onclick = ()=>{ mu.base = Math.max(36, mu.base - 12); mu.follow = false; drawKeys(); };
+    up.onclick = ()=>{ mu.base = Math.min(72, mu.base + 12); mu.follow = false; drawKeys(); };
+    oct.appendChild(dn); oct.appendChild(up); opts.appendChild(oct);
+    const tog = (label, key)=>{ const l = document.createElement('label'); l.className = 'chk';
+      const c = document.createElement('input'); c.type = 'checkbox'; c.checked = mu[key]; c.onchange = ()=>{ mu[key] = c.checked; drawKeys(); };
+      l.appendChild(c); l.appendChild(document.createTextNode(' ' + label)); opts.appendChild(l); };
+    tog('letter names', 'names');
+    if(mu.mode === 'song') tog('show the key', 'hint');
+    if(mu.mode === 'song' || mu.mode === 'read'){
+      const m = document.createElement('button'); m.type = 'button'; m.className = 'btn ghost sm'; m.textContent = mu.mic ? '🎤 listening' : '🎤 use my real piano';
+      m.onclick = ()=>{ startPianoMic(); m.textContent = '🎤 listening'; };
+      opts.appendChild(m);
     }
-  } else {
-    Audio_.nope(); music.at = 0; drawDots();
-    $('#musicSub').textContent = 'Close! Listen once more.';
-    setTimeout(playSeq, 700);
   }
+  drawKeys();
 }
-$('#musicAgain').onclick = ()=>{ if(music){ music.at = 0; drawDots(); playSeq(); } };
-$('#musicOut').onclick = ()=>{ music = null; leaveDome(); };
+function startSong(id){
+  const s = SONGS.find(x=>x.id === id) || SONGS[0];
+  mu.song = s; mu.i = 0; mu.wrong = 0; mu.done = false; mu.x = 0;
+  let q = 0; mu.notes = s.notes.map(n=>{ const o = {p:n.p, q, d:n.d}; q += n.d; return o; }).filter(n=>n.p);
+  mu.len = q;
+  const lo = Math.min(...mu.notes.map(n=>n.p));
+  if(mu.mode !== 'lights'){ mu.base = Math.floor(lo / 12) * 12; if(lo % 12 >= 5 && Math.max(...mu.notes.map(n=>n.p)) >= mu.base + mu.span) mu.base += 5; }
+  mu.follow = true;
+  mu.target = mu.notes[0];
+  $('#muTitle').textContent = s.name;
+  $('#muSub').textContent = mu.mode === 'lights'
+    ? 'Tap the glowing key. The song waits for you!'
+    : 'The notes slide to the line and wait. Play each one to keep going.';
+  drawKeys();
+}
+function nextReadNote(){
+  const L = READ_LV[mu.readLv];
+  let p, tries = 0;
+  do { p = rint(L[2], L[3]); tries++; } while(((!L[4] && blackKey(p)) || (mu.target && p === mu.target.p)) && tries < 50);
+  const clef = L[1] === 'both' ? (p < 60 ? 'bass' : 'treble') : L[1];
+  mu.target = {p, clef, flat:blackKey(p) && Math.random() < .5};
+  mu.base = clamp(Math.floor((p - 4) / 12) * 12, 36, 72);
+  if(p >= mu.base + mu.span) mu.base += 12;
+  $('#muTitle').textContent = 'Read the note';
+  $('#muSub').textContent = `Level ${mu.readLv + 1}: ${L[0]} · ${mu.readOk}/10 in a row to level up`;
+  drawKeys();
+}
+function drawKeys(){
+  const box = $('#kbd'); if(!box) return;
+  box.innerHTML = '';
+  const lights = mu.mode === 'lights';
+  const whites = []; for(let p=mu.base; p<mu.base + mu.span; p++) if(lights ? !blackKey(p) : true) if(!blackKey(p)) whites.push(p);
+  const ww = 100 / whites.length;
+  whites.forEach((p, i)=>{
+    const k = document.createElement('button'); k.type = 'button';
+    k.className = 'pk white' + (lights ? ' color' : '');
+    k.style.left = (i*ww) + '%'; k.style.width = ww + '%';
+    if(lights) k.style.background = `linear-gradient(180deg, #ffffff 0%, ${NOTE_COL[p % 12]} 70%)`;
+    k.dataset.p = p;
+    if(mu.names || lights) k.innerHTML = `<span>${LETTERS[p % 12]}${lights ? '' : '<small>' + (Math.floor(p/12) - 1) + '</small>'}</span>`;
+    box.appendChild(k);
+  });
+  if(!lights) whites.forEach((p, i)=>{
+    if(!blackKey(p + 1) || p + 1 >= mu.base + mu.span) return;
+    const k = document.createElement('button'); k.type = 'button'; k.className = 'pk black';
+    k.style.left = ((i + .68)*ww) + '%'; k.style.width = (ww*.64) + '%'; k.dataset.p = p + 1;
+    if(mu.names) k.innerHTML = `<span>${LETTERS[(p + 1) % 12]}</span>`;
+    box.appendChild(k);
+  });
+  box.querySelectorAll('.pk').forEach(k=>k.addEventListener('pointerdown', e=>{ e.preventDefault(); keyHit(+k.dataset.p, k); }));
+  markTarget();
+}
+function markTarget(){
+  const box = $('#kbd'); if(!box) return;
+  box.querySelectorAll('.pk').forEach(k=>{
+    const p = +k.dataset.p, t = mu.target;
+    const show = t && !mu.done && (mu.mode === 'lights' || (mu.mode === 'song' && mu.hint));
+    k.classList.toggle('want', !!(show && t.p === p));
+  });
+}
+function pianoTone(p, dur){
+  Audio_.init(); const ac = Audio_.ac; if(!ac) return;
+  const f = 440*Math.pow(2, (p - 69)/12), t = ac.currentTime, g = ac.createGain();
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.22, t + .006);
+  g.gain.exponentialRampToValueAtTime(.07, t + .3); g.gain.exponentialRampToValueAtTime(.0001, t + (dur || .9) + .5);
+  g.connect(ac.destination);
+  [[1,'triangle',1], [2,'sine',.3], [3,'sine',.1]].forEach(([m, type, a])=>{ const o = ac.createOscillator(), og = ac.createGain();
+    o.type = type; o.frequency.value = f*m; og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(t + (dur || .9) + .6); });
+}
+function keyHit(p, el){
+  pianoTone(p);
+  if(el){ el.classList.add('down'); setTimeout(()=>el.classList.remove('down'), 160); }
+  mu.pressed[p] = mu.t + .25;
+  played(p);
+}
+function played(p){
+  const t = mu.target; if(!t || mu.done) return;
+  if(mu.mode === 'read'){
+    if(p === t.p){
+      mu.readOk++; mu.flash = {ok:true, t:mu.t}; Audio_.tone(1046, .12, 'sine', .06, .05);
+      if(mu.readOk >= 10){
+        mu.readOk = 0; save.pearls += 6; updateHud();
+        if(mu.readLv < READ_LV.length - 1){ mu.readLv++; save.readLv = Math.max(save.readLv || 0, mu.readLv); toast(`Level up! ${READ_LV[mu.readLv][0]} +6 🫧`); Audio_.great(); }
+        else toast('You can read them all! +6 🫧');
+        persist();
+      }
+      setTimeout(()=>{ if(mu && mu.mode === 'read') nextReadNote(); }, 350);
+    } else {
+      mu.readOk = 0; mu.flash = {ok:false, t:mu.t, p};
+      $('#muSub').textContent = `That was ${LETTERS[p % 12]}. This one is ${spellNote(t)}: find it on the keys.`;
+      markTarget();
+      $('#kbd').querySelectorAll('.pk').forEach(k=>{ if(+k.dataset.p === t.p) k.classList.add('want'); });
+    }
+    return;
+  }
+  if(mu.mode === 'free') return;
+  // songs: the right note moves the song on
+  const ok = p === t.p || (mu.micHeard && (p - t.p) % 12 === 0 && Math.abs(p - t.p) <= 12);
+  if(ok){
+    mu.i++;
+    if(mu.i >= mu.notes.length){ songDone(); return; }
+    mu.target = mu.notes[mu.i];
+    if(mu.mode !== 'lights' && mu.follow && (mu.target.p < mu.base || mu.target.p >= mu.base + mu.span)){
+      mu.base = clamp(Math.floor((mu.target.p - 2) / 12) * 12, 36, 72); drawKeys();
+    } else markTarget();
+  } else { mu.wrong++; }
+}
+function spellNote(t){ const n = t.flat ? ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'][t.p % 12] : LETTERS[t.p % 12].replace('E♭','D♯').replace('A♭','G♯').replace('B♭','A♯'); return n; }
+function songDone(){
+  mu.done = true; markTarget();
+  const n = mu.notes.length, stars = mu.wrong <= n*.05 ? 3 : mu.wrong <= n*.25 ? 2 : 1;
+  save.songStars = save.songStars || {};
+  save.songStars[mu.song.id] = Math.max(save.songStars[mu.song.id] || 0, stars);
+  const pearls = mu.mode === 'lights' ? 6 : 10;
+  save.pearls += pearls; save.songs = (save.songs || 0) + 1; persist(); updateHud();
+  Audio_.great();
+  // play the whole tune back as a reward
+  let t0 = 0; const spb = .42;
+  mu.notes.forEach(nn=>{ setTimeout(()=>{ if(mu && mu.done) pianoTone(nn.p, nn.d*spb); }, t0*1000); t0 = (nn.q + nn.d)*spb; });
+  $('#muSub').textContent = `${'★'.repeat(stars)} You played “${mu.song.name}”! +${pearls} 🫧 Listen to your song, or pick another.`;
+}
+/* the canvas: falling coloured bubbles for the lights, a staff for reading and songs */
+function musicLoop(){
+  if(!mu || overlay !== 'lMusic'){ return; }
+  mu.t += 1/60;
+  const cv = $('#muCv'), g = cv.getContext('2d');
+  const w = cv.clientWidth, h = cv.clientHeight, d = Math.min(2, devicePixelRatio || 1);
+  if(cv.width !== Math.round(w*d)){ cv.width = Math.round(w*d); cv.height = Math.round(h*d); }
+  g.setTransform(d, 0, 0, d, 0, 0);
+  g.clearRect(0, 0, w, h);
+  if(mu.mode === 'lights') drawLights(g, w, h);
+  else if(mu.mode === 'read') drawRead(g, w, h);
+  else if(mu.mode === 'song') drawSongStaff(g, w, h);
+  else { g.fillStyle = 'rgba(234,249,255,.7)'; g.font = '600 18px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillText('Play anything you like ♪', w/2, h/2); }
+  requestAnimationFrame(musicLoop);
+}
+function keyCenter(p){
+  const k = $('#kbd').querySelector(`.pk[data-p="${p}"]`); if(!k) return null;
+  const a = k.getBoundingClientRect(), b = $('#muCv').getBoundingClientRect();
+  return (a.left + a.right)/2 - b.left;
+}
+function drawLights(g, w, h){
+  const t = mu.target; if(!t || mu.done){ drawCelebrate(g, w, h); return; }
+  const x = keyCenter(t.p); if(x === null) return;
+  const bounce = Math.abs(Math.sin(mu.t*4))*10, r = Math.min(46, w/14);
+  const col = NOTE_COL[t.p % 12];
+  g.strokeStyle = col; g.globalAlpha = .35; g.lineWidth = r*1.2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h - r - 6); g.stroke(); g.globalAlpha = 1;
+  const bg = g.createRadialGradient(x - r*.3, h - r - 10 - bounce - r*.3, 2, x, h - r - 10 - bounce, r);
+  bg.addColorStop(0, '#ffffff'); bg.addColorStop(.35, col); bg.addColorStop(1, shade(col.slice(0, 7), -40));
+  g.fillStyle = bg; g.beginPath(); g.arc(x, h - r - 10 - bounce, r, 0, 7); g.fill();
+  g.fillStyle = '#ffffff'; g.font = `700 ${Math.round(r*.8)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(LETTERS[t.p % 12], x, h - r - 10 - bounce);
+  // the next few notes, waiting in a little queue
+  for(let k=1; k<=3; k++){ const n = mu.notes[mu.i + k]; if(!n) break; const nx = keyCenter(n.p); if(nx === null) continue;
+    g.globalAlpha = .55 - k*.13; g.fillStyle = NOTE_COL[n.p % 12]; g.beginPath(); g.arc(nx, h - r - 10 - k*(r*1.5) - 20, r*.55, 0, 7); g.fill(); }
+  g.globalAlpha = 1;
+  const pr = mu.i / mu.notes.length;
+  g.fillStyle = 'rgba(255,255,255,.15)'; roundRect(g, 10, 10, w - 20, 10, 5); g.fill();
+  g.fillStyle = '#ffd479'; roundRect(g, 10, 10, (w - 20)*pr, 10, 5); g.fill();
+}
+function drawCelebrate(g, w, h){
+  for(let i=0; i<30; i++){ const x = (i*97 + mu.t*60*((i % 3) + 1)) % w, y = (i*53 + mu.t*40) % h;
+    g.fillStyle = NOTE_COL[i % 12]; g.globalAlpha = .7; g.beginPath(); g.arc(x, y, 4 + i % 4, 0, 7); g.fill(); }
+  g.globalAlpha = 1; g.fillStyle = '#ffd479'; g.font = '700 30px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('Bravo! ★', w/2, h/2);
+}
+// staff geometry: steps from middle C, where each step is a line or a space
+const STEP_OF = [0,0,1,1,2,3,3,4,4,5,5,6];
+function staffStep(p, flat){ const pc = ((p % 12) + 12) % 12; let s = STEP_OF[pc] + (Math.floor(p/12) - 5)*7; if(flat && blackKey(p)) s += 1; return s; }
+function drawStaff(g, x0, x1, yMid, gap, clef){
+  g.strokeStyle = 'rgba(234,249,255,.75)'; g.lineWidth = 1.4;
+  for(let i=-2; i<=2; i++){ g.beginPath(); g.moveTo(x0, yMid + i*gap); g.lineTo(x1, yMid + i*gap); g.stroke(); }
+  g.fillStyle = 'rgba(234,249,255,.9)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = `${Math.round(gap*(clef === 'bass' ? 3.2 : 5.6))}px serif`;
+  g.fillText(clef === 'bass' ? '𝄢' : '𝄞', x0 + gap*1.6, yMid + (clef === 'bass' ? -gap*.3 : gap*.2));
+}
+function noteY(step, yMid, gap, clef){ const mid = clef === 'bass' ? -6 : 6; return yMid - (step - mid) * gap/2; }
+function drawHead(g, x, y, gap, step, clef, col, hollow, acc){
+  // ledger lines
+  const mid = clef === 'bass' ? -6 : 6, rel = step - mid;
+  g.strokeStyle = 'rgba(234,249,255,.75)'; g.lineWidth = 1.4;
+  for(let s = (rel > 0 ? 6 : -6); Math.abs(s) <= Math.abs(rel); s += rel > 0 ? 2 : -2){
+    const ly = y + (rel - s) * gap/2; g.beginPath(); g.moveTo(x - gap*1.1, ly); g.lineTo(x + gap*1.1, ly); g.stroke(); }
+  g.save(); g.translate(x, y); g.rotate(-.35);
+  g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 2;
+  g.beginPath(); g.ellipse(0, 0, gap*.62, gap*.44, 0, 0, 7); hollow ? g.stroke() : g.fill();
+  g.restore();
+  g.strokeStyle = col; g.lineWidth = 1.6;
+  const up = rel < 0; g.beginPath(); g.moveTo(x + (up ? gap*.58 : -gap*.58), y); g.lineTo(x + (up ? gap*.58 : -gap*.58), y + (up ? -gap*3.2 : gap*3.2)); g.stroke();
+  if(acc){ g.fillStyle = col; g.font = `${Math.round(gap*1.9)}px serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(acc, x - gap*1.6, y); }
+}
+function drawRead(g, w, h){
+  const t = mu.target; if(!t) return;
+  const gap = Math.min(16, h/14), yMid = h/2 + gap*.5;
+  drawStaff(g, w*.2, w*.8, yMid, gap, t.clef);
+  const step = staffStep(t.p, t.flat), y = noteY(step, yMid, gap, t.clef);
+  const f = mu.flash, col = f && mu.t - f.t < .4 ? (f.ok ? '#6ee6a0' : '#ff8aa0') : '#ffffff';
+  const acc = blackKey(t.p) ? (t.flat ? '♭' : '♯') : '';
+  drawHead(g, w/2, y, gap, step, t.clef, col, false, acc);
+  if(mu.names){ g.fillStyle = 'rgba(255,212,121,.0)'; }
+  g.fillStyle = 'rgba(234,249,255,.6)'; g.font = '600 13px Nunito, sans-serif'; g.textAlign = 'center';
+  g.fillText('Find this note on the keyboard', w/2, h - 10);
+}
+function drawSongStaff(g, w, h){
+  if(!mu.notes) return;
+  const gap = Math.min(13, h/16), yMid = h/2 + gap*.6, lineX = w*.28, pxQ = Math.max(52, w/9);
+  const want = mu.done ? mu.len : mu.notes[mu.i].q;
+  mu.x += (want - mu.x) * .12;                         // glide to the next note, then wait
+  drawStaff(g, 0, w, yMid, gap, 'treble');
+  g.fillStyle = 'rgba(255,212,121,.25)'; g.fillRect(lineX - 3, yMid - gap*5, 6, gap*10);
+  mu.notes.forEach((n, i)=>{
+    const x = lineX + (n.q - mu.x) * pxQ;
+    if(x < -20 || x > w + 20) return;
+    const step = staffStep(n.p, false), y = noteY(step, yMid, gap, 'treble');
+    const col = i < mu.i ? 'rgba(110,230,160,.8)' : i === mu.i && !mu.done ? '#ffd479' : '#eaf9ff';
+    drawHead(g, x, y, gap, step, 'treble', col, n.d >= 2, blackKey(n.p) ? '♯' : '');
+    if(mu.names){ g.fillStyle = col; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(LETTERS[n.p % 12], x, yMid + gap*5.4); }
+  });
+  const pr = mu.done ? 1 : mu.i / mu.notes.length;
+  g.fillStyle = 'rgba(255,255,255,.15)'; roundRect(g, 10, 8, w - 20, 8, 4); g.fill();
+  g.fillStyle = '#ffd479'; roundRect(g, 10, 8, (w - 20)*pr, 8, 4); g.fill();
+  if(mu.done) drawCelebrate(g, w, h);
+}
+// a real piano, heard through the microphone
+let pmic = null;
+async function startPianoMic(){
+  if(pmic) return;
+  try{
+    Audio_.init(); const ac = Audio_.ac;
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    const src = ac.createMediaStreamSource(stream), an = ac.createAnalyser(); an.fftSize = 2048; src.connect(an);
+    const buf = new Float32Array(an.fftSize); pmic = {an};
+    mu.mic = true;
+    let lastP = -1, stable = 0, cool = 0;
+    (function listen(){
+      if(!mu){ return; }
+      an.getFloatTimeDomainData(buf);
+      const f = micPitch(buf, ac.sampleRate);
+      if(cool > 0) cool--;
+      if(f){ const p = Math.round(69 + 12*Math.log2(f/440)); if(p === lastP) stable++; else { stable = 0; lastP = p; }
+        if(stable === 3 && !cool){ mu.micHeard = true; mu.pressed[p] = mu.t + .25; played(p); mu.micHeard = false; cool = 8; } }
+      else { stable = 0; lastP = -1; }
+      requestAnimationFrame(listen);
+    })();
+    toast('Listening! Play your piano.');
+  }catch(e){ toast('The microphone is not available here'); }
+}
+function micPitch(b, sr){
+  let rms = 0; for(let i=0; i<b.length; i++) rms += b[i]*b[i]; rms = Math.sqrt(rms/b.length);
+  if(rms < 0.012) return 0;
+  const half = b.length >> 1; let c0 = 0; for(let i=0; i<half; i++) c0 += b[i]*b[i];
+  let prev = 1, rising = false;
+  for(let lag = Math.floor(sr/1400); lag < Math.min(half, sr/50); lag++){
+    let s = 0; for(let i=0; i<half; i++) s += b[i]*b[i + lag];
+    const v = s / c0;
+    if(v > prev) rising = true;
+    if(rising && v < prev && prev > .55) return sr / (lag - 1);
+    prev = v;
+  }
+  return 0;
+}
+$('#muOut').onclick = ()=>{ mu = null; leaveDome(); };
+addEventListener('keydown', e=>{
+  if(overlay !== 'lMusic' || !mu) return;
+  const map = 'awsedftgyhujk';                  // a computer keyboard as a piano: a=C, w=C#, s=D …
+  const i = map.indexOf(e.key.toLowerCase());
+  if(i >= 0 && !e.repeat){ const p = (mu.mode === 'lights' ? 60 : mu.base) + i; const el = $('#kbd').querySelector(`.pk[data-p="${p}"]`); keyHit(p, el); }
+});
 
 /* ---- DANCE DOME ---- */
 const POSES = [
