@@ -97,11 +97,61 @@ function listProjects(){
     open.onclick = ()=>{ try{ proj = JSON.parse(localStorage.getItem(LS + 'p.' + it.id)); origAudio = null; showScore(); }catch(e){ alert('Could not open that song.'); } };
     const del = document.createElement('button'); del.className = 'btn sm'; del.textContent = 'Delete';
     del.onclick = ()=>{ if(!confirm('Delete “' + it.title + '”?')) return;
-      localStorage.removeItem(LS + 'p.' + it.id);
+      localStorage.removeItem(LS + 'p.' + it.id); PDFDB.del(it.id);
       localStorage.setItem(LS + 'list', JSON.stringify(list.filter(x=>x.id !== it.id))); listProjects(); if(list.length === 1) box.innerHTML = '<p class="note">No songs yet.</p>'; };
     const r = document.createElement('span'); r.className = 'row'; r.append(open, del);
+    PDFDB.get(it.id).then(rec=>{ if(!rec) return; const pb = document.createElement('button'); pb.className = 'btn sm'; pb.textContent = 'PDF';
+      pb.title = 'Open the saved PDF'; pb.onclick = ()=>openPdf(rec); r.insertBefore(pb, del); });
     d.append(r); box.append(d);
   }
+}
+
+/* ---------------- saved PDFs ----------------
+   A finished PDF is kept in IndexedDB (one per song, as raw bytes so older
+   Safari can store it too). Tapping PDF again hands back the saved file at
+   once unless something that changes the music has changed since. */
+const PDFDB = {
+  db:null,
+  open(){
+    if(this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej)=>{
+      if(!window.indexedDB) return rej(new Error('no storage'));
+      const r = indexedDB.open('coverstudio', 1);
+      r.onupgradeneeded = ()=>r.result.createObjectStore('pdfs', {keyPath:'id'});
+      r.onsuccess = ()=>{ this.db = r.result; res(this.db); };
+      r.onerror = ()=>rej(r.error);
+    });
+  },
+  async run(mode, fn){
+    const db = await this.open();
+    return new Promise((res, rej)=>{ const t = db.transaction('pdfs', mode), req = fn(t.objectStore('pdfs'));
+      t.oncomplete = ()=>res(req ? req.result : undefined); t.onerror = ()=>rej(t.error); t.onabort = ()=>rej(t.error); });
+  },
+  get(id){ return this.run('readonly', st=>st.get(id)).catch(()=>null); },
+  put(rec){ return this.run('readwrite', st=>st.put(rec)); },
+  del(id){ return this.run('readwrite', st=>st.delete(id)).catch(()=>{}); },
+};
+// everything that changes what is printed
+function pdfSig(){ const P = proj; return JSON.stringify([P.title, P.level, P.tonic, P.mode, P.outTonic, P.bpm, P.offset, P.tsNum, P.tsDen, P.crate, P.moct, P.showChords, P.showRoman, P.chordEdits]); }
+function pdfFile(rec){ return new File([rec.data], rec.name, {type:'application/pdf'}); }
+function openPdf(rec){ download(new Blob([rec.data], {type:'application/pdf'}), rec.name); }
+async function sharePdf(rec){
+  const f = pdfFile(rec);
+  if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title:rec.title}); }catch(e){} }
+  else openPdf(rec);
+}
+async function showSavedPdf(){
+  const box = $('#pdfSaved'); if(!box || !proj) return;
+  const rec = await PDFDB.get(proj.id);
+  const fresh = rec && rec.sig === pdfSig();
+  $('#pdfBtn').textContent = fresh ? 'PDF ✓' : 'PDF';
+  if(!rec){ box.hidden = true; return; }
+  box.hidden = false; box.innerHTML = '';
+  const t = document.createElement('span'); t.className = 'note';
+  t.textContent = `Saved PDF: ${rec.name} · ${new Date(rec.date).toLocaleString()} · ` + (fresh ? 'matches what you see' : 'made before your latest changes; tap PDF to update it');
+  const o = document.createElement('button'); o.className = 'btn sm'; o.textContent = 'Open'; o.onclick = ()=>openPdf(rec);
+  box.append(t, o);
+  if(navigator.canShare){ const sh = document.createElement('button'); sh.className = 'btn sm'; sh.textContent = 'Share / Save to Files'; sh.onclick = ()=>sharePdf(rec); box.append(sh); }
 }
 
 /* ---------------- import ---------------- */
@@ -173,9 +223,52 @@ async function transcribe(mono, label, from, span){
   return ev.map(n=>({p:n.pitchMidi, t:n.startTimeSeconds, d:n.durationSeconds, a:n.amplitude}));
 }
 
+/* the song's real name: the title tag inside the file (MP3 ID3 or M4A), else a tidied file name */
+function cleanName(n){
+  return (n || '').replace(/\.[a-z0-9]+$/i, '').replace(/\s*\(\d+\)\s*$/, '').replace(/[_]+/g, ' ')
+    .replace(/\b(vocals?|bass|drums|other|instrumental|stems?|acapella|mix)\b/ig, '').replace(/[(\[]\s*[)\]]/g, '').replace(/\s*[-–]\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+}
+async function tagTitle(f){
+  if(!f.file) return '';
+  try{
+    const buf = new Uint8Array(await f.file.slice(0, Math.min(f.file.size, 4e6)).arrayBuffer());
+    const txt = (b, enc)=>{
+      try{ return new TextDecoder(enc === 1 ? 'utf-16' : enc === 2 ? 'utf-16be' : enc === 3 ? 'utf-8' : 'iso-8859-1').decode(b).replace(/\0/g, '').trim(); }catch(e){ return ''; }
+    };
+    if(buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33){            // ID3v2
+      const ver = buf[3], end = 10 + ((buf[6] & 127) << 21 | (buf[7] & 127) << 14 | (buf[8] & 127) << 7 | (buf[9] & 127));
+      let i = 10;
+      while(i + 10 < Math.min(end, buf.length)){
+        const id = String.fromCharCode(buf[i], buf[i + 1], buf[i + 2], buf[i + 3]);
+        const sz = ver === 4 ? ((buf[i + 4] & 127) << 21 | (buf[i + 5] & 127) << 14 | (buf[i + 6] & 127) << 7 | (buf[i + 7] & 127))
+                             : (buf[i + 4] << 24 | buf[i + 5] << 16 | buf[i + 6] << 8 | buf[i + 7]) >>> 0;
+        if(!/^[A-Z0-9]{4}$/.test(id) || sz <= 0) break;
+        if(id === 'TIT2') return txt(buf.subarray(i + 11, i + 10 + sz), buf[i + 10]);
+        i += 10 + sz;
+      }
+    }
+    for(let i=0; i + 24 < buf.length; i++){                                // M4A: the ©nam atom
+      if(buf[i] === 0xa9 && buf[i + 1] === 0x6e && buf[i + 2] === 0x61 && buf[i + 3] === 0x6d &&
+         buf[i + 8] === 0x64 && buf[i + 9] === 0x61 && buf[i + 10] === 0x74 && buf[i + 11] === 0x61){
+        const sz = (buf[i + 4] << 24 | buf[i + 5] << 16 | buf[i + 6] << 8 | buf[i + 7]) >>> 0;
+        return txt(buf.subarray(i + 20, i + 4 + sz), 3);
+      }
+    }
+  }catch(e){}
+  return '';
+}
+async function songTitle(){
+  const order = ['mix', 'harmony', 'vocals', 'bass', 'drums'];
+  const sorted = files.slice().sort((a, b)=>order.indexOf(a.role) - order.indexOf(b.role));
+  for(const f of sorted){ const t = await tagTitle(f); if(t) return cleanName(t) || t; }
+  return cleanName(sorted[0] && sorted[0].name) || 'My song';
+}
+
 async function analyse(){
   $('#goBtn').disabled = true;
   ac();
+  const title = await songTitle();
+  $('#progTitle').textContent = '“' + title + '”';
   const use = files.filter(f=>f.role !== 'drums');
   const notes = {mix:[], vocals:[], bass:[], harmony:[]};
   let mixMono = null, mixBuf = null, durMax = 0;
@@ -195,7 +288,6 @@ async function analyse(){
   const all = [].concat(notes.mix, notes.vocals, notes.bass, notes.harmony);
   const tempo = detectTempo(all, notes.bass.length ? notes.bass : all.filter(n=>n.p < 55), mixMono);
   const key = detectKey(notes.harmony.length || notes.bass.length ? [].concat(notes.harmony, notes.bass, notes.mix) : all);
-  const title = (files[0].name || 'My song').replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').replace(/\b(vocals?|bass|drums|other|instrumental|stem)\b/ig, '').trim() || 'My song';
   proj = {
     id:Date.now().toString(36), title, created:Date.now(), dur:durMax,
     bpm:tempo.bpm, offset:tempo.offset, tsNum:4, tsDen:4, tonic:key.t, mode:key.m, outTonic:key.t,
@@ -204,7 +296,7 @@ async function analyse(){
       melody: notes.vocals.length ? 'vocals' : 'mix',
       vocals:pack(notes.vocals), mix:pack(notes.mix), bass:pack(notes.bass), harmony:pack(notes.harmony),
     },
-    detected:{bpm:tempo.bpm, key:keyName(key.t, key.m), sources:use.map(f=>f.role)},
+    detected:{bpm:tempo.bpm, key:keyName(key.t, key.m), sources:use.map(f=>f.role), files:use.map(f=>f.name)},
   };
   saveProj();
   $('#progBox').hidden = true; $('#goBtn').disabled = false;
@@ -559,7 +651,9 @@ function fillKeys(sel, mode){
 function showScore(){
   $('#scrImport').hidden = true; $('#scrScore').hidden = false;
   const P = proj;
-  $('#title').value = P.title;
+  $('#title').value = P.title; sizeTitle();
+  const when = new Date(P.created).toLocaleDateString();
+  $('#titleFrom').textContent = (P.detected.files && P.detected.files.length ? 'Converted from ' + P.detected.files.join(', ') + ' · ' : 'Converted ') + when;
   $('#level').value = P.level; $('#bpm').value = P.bpm; $('#offset').value = P.offset;
   $('#ts').value = P.tsDen === 8 ? '6' : String(P.tsNum); $('#crate').value = P.crate; $('#moct').value = String(P.moct || 0);
   $('#showChords').checked = P.showChords; $('#showRoman').checked = P.showRoman;
@@ -575,6 +669,7 @@ function refresh(){
   $('#loopB').value = $('#loopB').value || A.bars;
   drawChordStrip();
   drawSheet();
+  showSavedPdf();
   if(tab === 'scroll') drawScroll();
   saveProj();
 }
@@ -644,7 +739,9 @@ bind('#showChords', el=>{ proj.showChords = el.checked; });
 bind('#showRoman', el=>{ proj.showRoman = el.checked; });
 bind('#keyIn', el=>{ const [t, m] = el.value.split(':'); const d = transposeBy(proj); proj.tonic = +t; proj.mode = m; proj.outTonic = (proj.tonic + d + 12) % 12; fillKeys($('#keyOut'), m); $('#keyOut').value = proj.outTonic + ':' + m; });
 bind('#keyOut', el=>{ proj.outTonic = +el.value.split(':')[0]; });
-$('#title').addEventListener('change', ()=>{ proj.title = $('#title').value.trim() || 'My song'; saveProj(); });
+$('#title').addEventListener('change', ()=>{ proj.title = $('#title').value.trim() || 'My song'; $('#title').value = proj.title; saveProj(); showSavedPdf(); });
+$('#title').addEventListener('input', sizeTitle);
+function sizeTitle(){ const t = $('#title'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
 $('#backBtn').onclick = ()=>{ stop(); $('#scrScore').hidden = true; $('#scrImport').hidden = false; listProjects(); };
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick = ()=>{
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on', x === b));
@@ -890,7 +987,10 @@ function renderPages(){
 }
 $('#printBtn').onclick = ()=>{ renderPages(); setTimeout(()=>window.print(), 100); };
 $('#pdfBtn').onclick = async ()=>{
-  const btn = $('#pdfBtn'); btn.disabled = true; btn.textContent = 'Making PDF…';
+  const btn = $('#pdfBtn'), sig = pdfSig();
+  const saved = await PDFDB.get(proj.id);
+  if(saved && saved.sig === sig){ openPdf(saved); return; }     // already made: no need to build it again
+  btn.disabled = true; btn.textContent = 'Making PDF…';
   try{
     const svgs = renderPages();
     const doc = new jspdf.jsPDF({unit:'pt', format:'letter'});
@@ -908,9 +1008,12 @@ $('#pdfBtn').onclick = async ()=>{
       await doc.svg(svgs[i].svg, {x:M, y, width:760*scale, height:svgs[i].h*scale});
       doc.setFontSize(9); doc.setTextColor(120); doc.text(`${proj.title} · page ${i + 1} of ${svgs.length}`, pw/2, doc.internal.pageSize.getHeight() - 20, {align:'center'}); doc.setTextColor(0);
     }
-    doc.save(fileName('pdf'));
+    const rec = {id:proj.id, sig, name:fileName('pdf'), title:proj.title, date:Date.now(), data:doc.output('arraybuffer')};
+    try{ await PDFDB.put(rec); }catch(e){ console.warn('could not keep the PDF', e); }
+    openPdf(rec);
   }catch(e){ console.error(e); alert('The PDF could not be made here. Use Print and choose “Save as PDF” instead.'); }
-  btn.disabled = false; btn.textContent = 'PDF';
+  btn.disabled = false;
+  showSavedPdf();
 };
 $('#midiBtn').onclick = ()=>download(new Blob([midiFile()], {type:'audio/midi'}), fileName('mid'));
 $('#xmlBtn').onclick = ()=>download(new Blob([musicXml()], {type:'application/vnd.recordare.musicxml+xml'}), fileName('musicxml'));
