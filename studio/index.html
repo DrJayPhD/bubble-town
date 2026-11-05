@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cover Studio">
+<meta name="theme-color" content="#f6f1e7">
+<title>Cover Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a music-desk feel. Warm manuscript paper for the score, a dark
+   lacquered strip for the transport, one accent (brass) for actions. */
+:root{
+  --paper:#f6f1e7; --paper2:#ece4d3; --ink:#1f1a14; --ink2:#5d5446; --rule:#d6cbb5;
+  --lacquer:#1d1b22; --lacquer2:#2b2832; --brass:#b5832a; --brass2:#d9a441;
+  --rh:#2f6fb3; --lh:#3f8f5a; --warn:#b3402f;
+  --display:"Fraunces",Georgia,serif; --body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root{ --paper:#1c1a17; --paper2:#26231f; --ink:#f1ead9; --ink2:#b9ae98; --rule:#3d382f; } }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px}
+body{padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+[hidden]{display:none!important}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,5vw,40px);margin:0;letter-spacing:-.01em}
+h2{font-family:var(--display);font-weight:600;font-size:22px;margin:0 0 8px}
+.lede{color:var(--ink2);max-width:62ch;line-height:1.5;margin:6px 0 18px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:10px}
+header .tag{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+button,select,input{font:inherit;color:inherit}
+.btn{border:1.5px solid var(--ink);background:transparent;border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:#fff}
+.btn.primary:hover{background:var(--brass2);border-color:var(--brass2)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.sm{padding:6px 10px;font-size:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.drop{border:2px dashed var(--rule);border-radius:16px;padding:28px 18px;text-align:center;background:var(--paper2)}
+.drop.over{border-color:var(--brass)}
+.files{margin:14px 0;display:grid;gap:8px}
+.file{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:12px;background:var(--paper)}
+.file .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note{font-size:14px;color:var(--ink2);line-height:1.5}
+.prog{height:8px;border-radius:4px;background:var(--paper2);overflow:hidden;margin:10px 0}
+.prog > i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+.projects{display:grid;gap:8px;margin-top:10px}
+.proj{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:12px}
+.proj b{font-family:var(--display);font-weight:600}
+/* score screen */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end;padding:12px 0;border-bottom:1px solid var(--rule)}
+.field{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.field select,.field input{font-size:15px;text-transform:none;letter-spacing:0;color:var(--ink);background:var(--paper);border:1.5px solid var(--rule);border-radius:8px;padding:6px 8px;min-width:0}
+.field input[type=number]{width:84px}
+.chk{display:flex;gap:6px;align-items:center;font-size:15px;color:var(--ink)}
+.tabs{display:flex;gap:4px;margin:14px 0 10px;border-bottom:1px solid var(--rule)}
+.tabs button{border:0;background:none;padding:10px 14px;font-weight:700;color:var(--ink2);border-bottom:3px solid transparent;cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--brass)}
+#sheetWrap{background:#fffdf8;border-radius:12px;padding:10px;overflow:hidden;color:#111}
+#sheet svg{display:block;max-width:100%}
+#scrollWrap{background:#fffdf8;border-radius:12px;overflow-x:auto;position:relative;height:300px}
+#scrollWrap .playhead{position:sticky;left:30%;top:0;width:2px;height:100%;background:var(--warn);z-index:2;float:left;margin-right:-2px}
+#fall{display:block;width:100%;height:clamp(300px,calc(100vh - 430px),600px);border-radius:12px;background:var(--lacquer)}
+.transport{position:sticky;bottom:0;z-index:5;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:10px 14px;margin-top:14px;
+  background:var(--lacquer);color:#f1ead9;border-radius:14px}
+.transport .btn{border-color:#f1ead9}
+.transport .field{color:#b9ae98}
+.transport .field select,.transport .field input{background:var(--lacquer2);border-color:#47424f;color:#f1ead9}
+.transport .time{font-family:var(--mono);font-size:14px;min-width:96px}
+.chordstrip{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px}
+.chordstrip button{flex:0 0 auto;border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:4px 8px;cursor:pointer;font-weight:700;min-width:52px}
+.chordstrip button small{display:block;font-weight:400;color:var(--ink2);font-size:11px}
+.chordstrip button.edited{border-color:var(--brass)}
+.pop{position:fixed;z-index:20;background:var(--paper);border:1px solid var(--rule);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:10px;max-width:min(360px,92vw)}
+.pop .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+.pop .grid button{border:1px solid var(--rule);background:var(--paper2);border-radius:8px;padding:6px 4px;font-weight:700;cursor:pointer}
+.warn{color:var(--warn)}
+.mono{font-family:var(--mono)}
+#printArea{position:absolute;left:-10000px;top:0;width:760px;background:#fff}
+@media print{
+  body *{visibility:hidden} #printArea,#printArea *{visibility:visible}
+  #printArea{position:absolute;left:0;top:0;width:100%}
+}
+:focus-visible{outline:3px solid var(--brass2);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cover Studio</h1>
+  <span class="tag">your songs → piano music</span>
+</header>
+
+<!-- IMPORT -->
+<section id="scrImport">
+  <p class="lede">Load a song (MP3, WAV or M4A). It listens on this device, finds the notes, tempo, key and chords,
+  and writes a piano cover you can read as sheet music, watch as falling notes, or print as a PDF.
+  For the cleanest result add stems too: the <b>vocals</b> stem gives the melody, and the <b>bass</b> and
+  <b>instrumental</b> stems give the chords.</p>
+  <div class="drop" id="drop">
+    <p style="margin:0 0 10px"><b>Drop audio files here</b> or</p>
+    <label class="btn primary" for="fileIn">Choose files</label>
+    <input id="fileIn" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" multiple hidden>
+    <p class="note" style="margin:10px 0 0">Nothing is uploaded. Everything happens in this browser.</p>
+  </div>
+  <div class="files" id="files"></div>
+  <div class="row">
+    <button class="btn primary" id="goBtn" disabled>Make piano music</button>
+    <button class="btn" id="demoBtn">Try a demo song</button>
+  </div>
+  <div id="progBox" hidden>
+    <div class="prog"><i id="progBar"></i></div>
+    <p class="note" id="progTxt">Starting…</p>
+  </div>
+  <h2 style="margin-top:28px">Your songs</h2>
+  <div class="projects" id="projects"><p class="note">Songs you finish appear here, so you can come back without listening again.</p></div>
+</section>
+
+<!-- SCORE -->
+<section id="scrScore" hidden>
+  <div class="row" style="justify-content:space-between">
+    <input id="title" class="field" style="font-family:var(--display);font-size:26px;font-weight:700;border:0;background:transparent;color:var(--ink);padding:0;min-width:0;flex:1" aria-label="Song title">
+    <button class="btn sm" id="backBtn">‹ All songs</button>
+  </div>
+  <div class="toolbar">
+    <label class="field">Arrangement
+      <select id="level">
+        <option value="easy">Easy: melody + bass notes</option>
+        <option value="medium" selected>Medium: melody + chords</option>
+        <option value="full">Full: fuller melody + flowing left hand</option>
+        <option value="raw">Every note heard</option>
+      </select></label>
+    <label class="field">Song key <select id="keyIn"></select></label>
+    <label class="field">Play in key <select id="keyOut"></select></label>
+    <label class="field">Tempo (BPM) <input id="bpm" type="number" min="40" max="240" step="0.5"></label>
+    <label class="field">Beat 1 starts (s) <input id="offset" type="number" step="0.01"></label>
+    <label class="field">Time <select id="ts"><option value="4">4/4</option><option value="3">3/4</option><option value="2">2/4</option><option value="6">6/8</option></select></label>
+    <label class="field">Chords every <select id="crate"><option value="bar">bar</option><option value="half">half bar</option></select></label>
+    <label class="field">Melody octave <select id="moct"><option value="-1">down</option><option value="0" selected>as heard</option><option value="1">up</option></select></label>
+    <div class="field">Show
+      <span class="row" style="gap:12px">
+        <label class="chk"><input type="checkbox" id="showChords" checked> chords</label>
+        <label class="chk"><input type="checkbox" id="showRoman"> I · IV · V</label>
+      </span></div>
+  </div>
+  <p class="note" id="detected"></p>
+  <div class="chordstrip" id="chordStrip" aria-label="Chords by measure; tap to change"></div>
+  <div class="tabs" role="tablist">
+    <button class="on" data-tab="sheet">Sheet music</button>
+    <button data-tab="scroll">Scrolling sheet</button>
+    <button data-tab="fall">Falling notes</button>
+  </div>
+  <div id="tabSheet"><div id="sheetWrap"><div id="sheet"></div></div></div>
+  <div id="tabScroll" hidden><div id="scrollWrap"><div class="playhead"></div><div id="scrollSheet"></div></div></div>
+  <div id="tabFall" hidden><canvas id="fall"></canvas></div>
+  <div class="transport">
+    <button class="btn sm" id="playBtn">▶ Play</button>
+    <span class="time" id="timeTxt">bar 1</span>
+    <label class="field">Speed <select id="speed"><option>0.5</option><option>0.6</option><option>0.75</option><option selected>1</option></select></label>
+    <label class="field">Hear <select id="hands"><option value="both">both hands</option><option value="R">right hand</option><option value="L">left hand</option><option value="orig">original song</option></select></label>
+    <label class="field">Loop bars <span class="row" style="gap:4px"><input id="loopA" type="number" min="1" value="1" style="width:58px"> – <input id="loopB" type="number" min="1" style="width:58px"></span></label>
+    <label class="chk" style="color:#f1ead9"><input type="checkbox" id="loopOn"> loop</label>
+    <label class="chk" style="color:#f1ead9" title="The music waits until you play the next right-hand note on your piano"><input type="checkbox" id="waitOn"> wait for me 🎤</label>
+    <span style="flex:1"></span>
+    <button class="btn sm" id="pdfBtn">PDF</button>
+    <button class="btn sm" id="printBtn">Print</button>
+    <button class="btn sm" id="midiBtn">MIDI</button>
+    <button class="btn sm" id="xmlBtn">MusicXML</button>
+  </div>
+  <p class="note">Automatic transcription is a first draft. Fix chords in the strip above, and open the MusicXML in MuseScore (free) for detailed note edits.</p>
+</section>
+<div id="printArea"></div>
+
+<script src="vendor/vexflow.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/svg2pdf.umd.min.js"></script>
+<script src="vendor/basic-pitch.bundle.js" defer></script>
+<script src="studio.js" defer></script>
+</body>
+</html>
