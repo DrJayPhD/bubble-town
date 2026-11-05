@@ -43,6 +43,16 @@ seals and gulls, race the buoys, and light the lighthouse to sail at sunset.
 constellations in English and Russian. The boat also has a radio (Bubble FM), a GPS with directions,
 and a fish finder.
 
+**Home and town:** there is a house beside the pool. Tap it to get in the car, or sail the boat to the
+harbor on the coast and drive from there. The car drives itself along the roads to anywhere you tap
+(📍 Places lists them all), or steer it yourself. Market Street has a **school** (counting, sums and
+Russian numbers), a **church** (a Psalm verse each day, a candle to light, and bells to ring back in
+order), a **grocery store** (shopping lists in Russian and English), a **dentist** (scrub away the
+sugar bugs), an **ice-cream shop**, a **park** and **Gus's Gas** for when the tank runs low. Friendly
+neighbors on Maple Lane each have a favor to ask (find Mrs. Rosa's cat, bring Grandpa Ivan bread, find
+the twins' ball), Mo the mail carrier brings a Russian postcard every day, and every neighbor helped
+counts on the treasure chart. Neighbors' lines are read aloud for younger players.
+
 **Playing together:** in the Home dome, make a family code on one iPad and type it on the others.
 Each iPad picks a different player: Diver One, Diver Two, **Papa**, **Mama** (grown-ups have their own
 look and saves), or **A friend** (a visiting friend's iPad asks for the code on the title screen; several

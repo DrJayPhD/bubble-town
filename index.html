@@ -185,6 +185,11 @@ table.habits{border-collapse:collapse;width:100%;min-width:480px;font-size:14px;
 table.habits th{font-size:12px;color:#7fc0d6;padding:4px;font-weight:700}
 table.habits td{text-align:center;padding:5px 3px;border-top:1px solid rgba(125,240,255,.12)}
 table.habits td.hn{text-align:left;white-space:nowrap}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));grid-gap:8px;margin-top:8px}
+.grid3 .tile{padding:8px 6px;text-align:center;font-weight:700;color:#eaf9ff}
+.plHead{display:grid;grid-template-columns:120px 1fr;grid-gap:12px;align-items:center}
+.plHead canvas{width:120px;height:100px}
+.plHead canvas[hidden]{display:none}
 .chk{display:inline-flex;gap:6px;align-items:center;color:#cfeef7;font-size:14px}
 .btn.sm{padding:8px 14px;font-size:14px}
 
@@ -473,6 +478,15 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <input class="namein" id="pinIn" inputmode="numeric" autocomplete="off" style="width:200px;font-size:22px;text-align:center;margin:6px auto;display:block">
   <input class="namein" id="pinIn2" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="new 4-digit PIN" style="width:200px;font-size:22px;text-align:center;margin:6px auto;display:block">
   <div class="row center"><button class="btn ghost" id="pinCancel" type="button">Not now</button><button class="btn gold" id="pinOk" type="button">OK</button></div>
+</div></div>
+
+<!-- IN TOWN: shops and neighbors -->
+<div class="layer" id="lPlace"><div class="scrim"></div><div class="port">
+  <p class="eyebrow" id="plEye">Town</p>
+  <h2 id="plTitle">Town</h2>
+  <div class="plHead"><canvas id="plFace" width="240" height="200"></canvas><p class="sub" id="plSay"></p></div>
+  <div id="plBody"></div>
+  <div class="row end" style="margin-top:16px"><button class="btn ghost" id="plLeave" type="button">Back to the car</button></div>
 </div></div>
 
 <!-- RESULT -->
@@ -2656,7 +2670,7 @@ function drawInstruments(g, t){
 const Net = {peer:null, st:'off', code:'', peers:{}, sendT:0, mic:null, holding:false, open:false, crewTalk:true, err:'', ice:null};
 const SCENE_SAYS = {title:'is choosing a diver', yard:'is in the backyard', drive:'is driving the car', tunnel:'is digging tunnels', maze:'is in the glowing cave',
   dive:'is diving down', ocean:'is swimming in Bubble Town', boat:'is out on the boat', run:'is in Coral Run', blocks:'is in the Snow Palace', show:'is dancing'};
-const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in the Home dome', lWord:'is at a letter door', lDock:'is visiting an island', lChart:'is looking at the treasure chart'};
+const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in the Home dome', lWord:'is at a letter door', lDock:'is visiting an island', lChart:'is looking at the treasure chart', lPlace:'is visiting the town'};
 const FIXED_ROLES = ['sophia', 'angelina', 'papa', 'mama'];
 function familyCode(){ try{ return localStorage.getItem('bubbletown.family') || ''; }catch(e){ return ''; } }
 function newFamilyCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for(let i=0; i<6; i++) c += A[Math.floor(Math.random()*A.length)]; return c; }
@@ -2958,6 +2972,7 @@ const CHART = [
   {id:'letters', ic:'🔤', name:'Russian letters',       tiers:[5, 15, 33],      get:()=>abcKnown().length},
   {id:'songs',   ic:'🎹', name:'Songs played',          tiers:[2, 5, 11],       get:()=>Object.keys(save.songStars || {}).length},
   {id:'adv',     ic:'🗺️', name:'Big adventures',        tiers:[3, 10, 30],      get:()=>{ const t = save.tally || {}; return (t.runs || 0) + (t.caves || 0) + (t.digs || 0) + (save.sharkLv || 0); }},
+  {id:'town',    ic:'🏘️', name:'Neighbors helped',      tiers:[2, 5, 9],        get:()=>(save.town || {}).helped || 0},
   {id:'habits',  ic:'⭐', name:'Good-habit stickers',   tiers:[10, 50, 150],    get:()=>habitCount()},
 ];
 const PRIZES = [
@@ -3244,10 +3259,6 @@ const TOWN_HOUSES = [
   {x:560, y:600, w:150, h:130, c:'#ffe0b0', roof:'#a8643a'},
   {x:860, y:600, w:150, h:130, c:'#f0e0c8', roof:'#7a5a40'},
 ];
-const ROUTES = {
-  home:[[1900,1360],[1900,1200],[1200,1200],[1200,500],[570,500],[570,385]],
-  harbor:[[570,470],[570,500],[1200,500],[1200,1200],[1900,1200],[1900,1370]],
-};
 let dv2 = null;
 function startDrive(from){
   scene = 'drive'; openLayer(null); sparks = [];
@@ -3260,10 +3271,11 @@ function startDrive(from){
 }
 function driveBar(){
   const bar = $('#boatBar'); bar.hidden = false;
-  const D = dv2, want = [['home', '🏠 Drive home'], ['harbor', '⚓ Drive to the harbor'], ['honk', '📯 Honk']];
+  const D = dv2, want = [['places', '📍 Places'], ['home', '🏠 Drive home'], ['harbor', '⚓ Harbor'], ['honk', '📯 Honk']];
+  if(D.at && !D.park) want.unshift(D.at.k === 'place' ? ['enter', `🚪 Go into ${D.at.name}`] : ['talk', `👋 Say hi to ${D.at.name}`]);
   if(D.park === 'garage') want.unshift(['garage', '🏠 Park in the garage']);
   if(D.park === 'lot') want.unshift(['boat', '⛵ Get on the boat']);
-  const key = want.map(w=>w[0]).join();
+  const key = want.map(w=>w[1]).join();
   if(bar.dataset.key === key) return;
   bar.dataset.key = key; bar.innerHTML = '';
   for(const [id, label] of want){ const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
@@ -3271,9 +3283,11 @@ function driveBar(){
 }
 function driveAction(id){
   const D = dv2; if(!D) return; Audio_.blip(700);
-  if(id === 'home' || id === 'harbor'){ D.auto = ROUTES[id]; D.ai = 0; D.goal = null;
-    let best = 0, bd = 1e9; D.auto.forEach((p, i)=>{ const d = Math.hypot(p[0] - D.x, p[1] - D.y); if(d < bd){ bd = d; best = i; } }); D.ai = best;
-    toast(id === 'home' ? '🏠 Heading home' : '⚓ Heading to the harbor'); }
+  if(id === 'home') driveTo(570, 385, '🏠 Heading home');
+  else if(id === 'harbor') driveTo(1900, 1370, '⚓ Heading to the harbor');
+  else if(id === 'places') placesMenu();
+  else if(id === 'enter' && D.at){ D.v = 0; enterPlace(D.at.id); }
+  else if(id === 'talk' && D.at){ D.v = 0; talkTo(D.at.id); }
   else if(id === 'honk'){ honk(); }
   else if(id === 'garage'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>yardStart('home')); }
   else if(id === 'boat'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>startBoat('harbor')); }
@@ -3282,30 +3296,37 @@ function honk(){ const D = dv2; if(!D || D.t - D.honk < .6) return; D.honk = D.t
 let fadeT = 0, fadeFn = null;
 function fadeTo(fn){ fadeT = .001; fadeFn = fn; Audio_.sweep(300, 120, .4, 'triangle', .06); }
 function nearRoad(x, y){ let best = 1e9; for(const r of ROADS){ const px = clamp(x, Math.min(r.x1, r.x2), Math.max(r.x1, r.x2)), py = clamp(y, Math.min(r.y1, r.y2), Math.max(r.y1, r.y2)); best = Math.min(best, Math.hypot(x - px, y - py)); }
-  if(x > LOT.x1 && x < LOT.x2 && y > LOT.y1 && y < LOT.y2) best = 0; return best; }
+  if(x > LOT.x1 && x < LOT.x2 && y > LOT.y1 && y < LOT.y2) best = 0;
+  if(x > GAS_PAD.x1 && x < GAS_PAD.x2 && y > GAS_PAD.y1 && y < GAS_PAD.y2) best = 0; return best; }
 function updateDrive(dt){
   const D = dv2; if(!D) return;
   D.t += dt;
   const v = stickVec(), onRoad = nearRoad(D.x, D.y) < 48;
-  const maxV = onRoad ? 330 : 140;
+  const maxV = (onRoad ? 330 : 140)*fuelSlow();
   let want = null, gas = 0;
   if(Math.hypot(v.x, v.y) > .2){ want = Math.atan2(v.y, v.x); gas = Math.min(1, Math.hypot(v.x, v.y)); D.auto = null; D.goal = null; }
   else if(D.goal){ const dx = D.goal.x - D.x, dy = D.goal.y - D.y, d = Math.hypot(dx, dy); if(d < 30) D.goal = null; else { want = Math.atan2(dy, dx); gas = Math.min(1, d/200); } }
   else if(D.auto){
     const p = D.auto[D.ai], dx = p[0] - D.x, dy = p[1] - D.y, d = Math.hypot(dx, dy);
     if(d < 30){ D.ai++; if(D.ai >= D.auto.length){ D.auto = null; } }
-    else { want = Math.atan2(dy, dx); gas = D.ai === D.auto.length - 1 ? Math.min(1, d/220) : d < 140 ? .4 : 1; }   // slow down for corners
+    else {
+      // follow the line of the road (aim a little ahead on it), so corners don't drift into the buildings
+      const q = D.ai > 0 ? D.auto[D.ai - 1] : null; let tx = p[0], ty = p[1];
+      if(q){ const vx = p[0] - q[0], vy = p[1] - q[1], L = Math.hypot(vx, vy);
+        if(L > 1){ const u = ((D.x - q[0])*vx + (D.y - q[1])*vy)/L, k = Math.min(L, Math.max(0, u) + 70); tx = q[0] + vx/L*k; ty = q[1] + vy/L*k; } }
+      want = Math.atan2(ty - D.y, tx - D.x); gas = D.ai === D.auto.length - 1 ? Math.min(1, d/220) : d < 140 ? .4 : 1; }   // slow down for corners
   }
   if(want !== null){ const da = wrapA(want - D.a); D.a += clamp(da, -3*dt, 3*dt); if(Math.abs(da) > 1.3) gas *= .3; }
   D.v = lerp(D.v, gas*maxV, Math.min(1, dt*(gas ? 1.6 : 3)));
   const nx = D.x + Math.cos(D.a)*D.v*dt, ny = D.y + Math.sin(D.a)*D.v*dt;
   let blocked = nx < 30 || nx > TOWN.w - 30 || ny < 30 || ny > 1440;
-  for(const h of TOWN_HOUSES){ if(h.ours && nx > GARAGE.x1 - 10 && nx < GARAGE.x2 + 10 && ny > GARAGE.y1 - 10) continue;   // the open garage door
-    if(nx > h.x - 18 && nx < h.x + h.w + 18 && ny > h.y - 18 && ny < h.y + h.h + 18){ blocked = true; } }
+  for(const h of SOLID()){ if(h.ours && nx > GARAGE.x1 - 10 && nx < GARAGE.x2 + 10 && ny > GARAGE.y1 - 10) continue;   // the open garage door
+    if(nx > h.x - 10 && nx < h.x + h.w + 10 && ny > h.y - 10 && ny < h.y + h.h + 10){ blocked = true; } }
   if(blocked){ D.v = -D.v*.3; if(Math.abs(D.v) > 40) Audio_.thud(); } else { D.x = nx; D.y = ny; }
   D.park = (D.x > GARAGE.x1 && D.x < GARAGE.x2 && D.y > GARAGE.y1 && D.y < GARAGE.y2 + 40 && Math.abs(D.v) < 60) ? 'garage'
     : (D.x > LOT.x1 && D.x < LOT.x2 && D.y > LOT.y1 && D.y < LOT.y2 && Math.abs(D.v) < 60) ? 'lot' : null;
   D.door = lerp(D.door, Math.hypot(D.x - 570, D.y - 390) < 160 ? 1 : 0, Math.min(1, dt*3));
+  townTick(D, dt);
   driveBar();
 }
 function drawDrive(t){
@@ -3326,7 +3347,7 @@ function drawDrive(t){
   for(const r of ROADS){ if(!r.name) continue; g.beginPath(); g.moveTo(sx(r.x1), sy(r.y1)); g.lineTo(sx(r.x2), sy(r.y2)); g.stroke(); }
   g.setLineDash([]);
   g.font = `700 ${Math.round(11*z + 3)}px Comfortaa, sans-serif`; g.fillStyle = 'rgba(255,255,255,.85)'; g.textAlign = 'center';
-  for(const r of ROADS){ if(!r.name) continue; const mx = (r.x1 + r.x2)/2, my = (r.y1 + r.y2)/2;
+  for(const r of ROADS){ if(!r.name) continue; const mx = r.lx || (r.x1 + r.x2)/2, my = (r.y1 + r.y2)/2;
     g.save(); g.translate(sx(mx) + (r.x1 === r.x2 ? 0 : 0), sy(my) - (r.x1 === r.x2 ? 0 : 50*z)); if(r.x1 === r.x2) g.rotate(-Math.PI/2); g.fillText(r.name, 0, r.x1 === r.x2 ? -50*z : 0); g.restore(); }
   // harbour lot and pier, with the boat waiting
   g.fillStyle = '#8f969c'; g.fillRect(sx(LOT.x1), sy(LOT.y1), (LOT.x2 - LOT.x1)*z, (LOT.y2 - LOT.y1)*z);
@@ -3356,9 +3377,10 @@ function drawDrive(t){
       g.fillStyle = '#fff'; g.fillText('🏠 Our house', x + w/2, y + hh/2 + 5);
     }
   }
-  for(let i=0; i<26; i++){ const tx = 80 + (i*331) % 2250, ty = 140 + (i*197) % 1000; if(nearRoad(tx, ty) < 90 || TOWN_HOUSES.some(h=>tx > h.x - 40 && tx < h.x + h.w + 40 && ty > h.y - 180 && ty < h.y + h.h + 40)) continue;
+  for(let i=0; i<26; i++){ const tx = 80 + (i*331) % 2250, ty = 140 + (i*197) % 1000; if(nearRoad(tx, ty) < 90 || SOLID().concat(PLACES).some(h=>tx > h.x - 40 && tx < h.x + h.w + 40 && ty > h.y - 180 && ty < h.y + h.h + 40)) continue;
     g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(sx(tx) + 6*z, sy(ty) + 6*z, 30*z, 0, 7); g.fill();
     g.fillStyle = '#3f8f45'; g.beginPath(); g.arc(sx(tx), sy(ty), 30*z, 0, 7); g.fill(); g.fillStyle = '#5fb15a'; g.beginPath(); g.arc(sx(tx) - 8*z, sy(ty) - 8*z, 18*z, 0, 7); g.fill(); }
+  drawTown(g, t, sx, sy, z);
   // the car, with you inside
   carTop(g, VW/2, VH/2, D.a, z, SUITS[save.suit]);
   g.save(); g.translate(VW/2, VH/2); g.rotate(D.a); g.fillStyle = '#f7dcc6'; g.beginPath(); g.arc(-4*z, -5*z, 5*z, 0, 7); g.fill(); g.fillStyle = HAIRS[save.hair]; g.beginPath(); g.arc(-6*z, -5*z, 5*z, 0, 7); g.fill(); g.restore();
@@ -3369,9 +3391,16 @@ function drawDrive(t){
   g.fillStyle = '#ffd479'; g.font = '700 16px "JetBrains Mono", monospace'; g.textAlign = 'left'; g.fillText(Math.round(Math.abs(D.v)/10) + ' mph', 26, VH - 34);
   if(D.park === 'garage') shadowText(g, 'Tap 🏠 Park in the garage', VW/2, VH*.2, 22, '#ffffff');
   if(D.park === 'lot') shadowText(g, 'Tap ⛵ Get on the boat', VW/2, VH*.2, 22, '#ffffff');
+  drawTownHud(g, t);
 }
 cv.addEventListener('pointerdown', e=>{ if(scene !== 'drive' || !dv2 || overlay) return;
-  const z = clamp(Math.min(VW, VH)/760, .6, 1.25); dv2.goal = {x:dv2.x + (e.clientX - VW/2)/z, y:dv2.y + (e.clientY - VH/2)/z}; dv2.auto = null; });
+  const z = clamp(Math.min(VW, VH)/760, .6, 1.25), wx = dv2.x + (e.clientX - VW/2)/z, wy = dv2.y + (e.clientY - VH/2)/z;
+  // tapping a building or a neighbor drives you there along the roads
+  const p = PLACES.find(q=>wx > q.x - 20 && wx < q.x + q.w + 20 && wy > q.y - 20 && wy < q.y + q.h + 20);
+  if(p){ driveTo(p.stop[0], p.stop[1], `${p.ic} Driving to ${p.name}`); return; }
+  for(const id in FOLKS){ const f = FOLKS[id]; if(!f.stop) continue; if(Math.hypot(wx - f.at[0], wy - f.at[1]) < 50){ driveTo(f.stop[0], f.stop[1], `🏡 Driving to ${f.name}`); return; } }
+  if(wx > 420 && wx < 610 && wy > 260 && wy < 430){ driveTo(570, 385, '🏠 Heading home'); return; }
+  dv2.goal = {x:wx, y:wy}; dv2.auto = null; });
 function drawFade(dt){
   if(!fadeT) return;
   fadeT += dt;
@@ -3379,6 +3408,490 @@ function drawFade(dt){
   if(fadeT >= .45 && fadeFn){ const f = fadeFn; fadeFn = null; f(); }
   ctx.fillStyle = 'rgba(0,0,0,' + a + ')'; ctx.fillRect(0, 0, VW, VH);
   if(fadeT > .9) fadeT = 0;
+}
+
+/* ============================ THE TOWN ============================
+   Market Street, east of Main Street: a school, a church, a grocery store,
+   a dentist, an ice-cream shop, a park and a gas station. Friendly neighbors
+   live along Maple Lane and work in the shops; each one has a small favor to
+   ask, and helping them fills the treasure chart.
+   =================================================================== */
+ROADS.push(
+  {x1:1200, y1:800, x2:2300, y2:800, name:'Market Street', lx:1605},
+  {x1:2000, y1:800, x2:2000, y2:1200, name:'Bell Lane'},
+  {x1:1440, y1:1200, x2:1440, y2:1290, name:''},             // into the gas station
+);
+const GAS_PAD = {x1:1320, y1:1240, x2:1560, y2:1400};
+const PLACES = [
+  {id:'school',  name:'School',        ic:'🏫', x:1290, y:540, w:270, h:200, roof:'#b5523b', stop:[1340, 800], who:'lily'},
+  {id:'church',  name:'Church',        ic:'⛪', x:1650, y:500, w:190, h:240, roof:'#efe9dc', stop:[1700, 800], who:'james'},
+  {id:'grocery', name:'Grocery store', ic:'🛒', x:1930, y:560, w:330, h:180, roof:'#c3c9cf', stop:[2095, 800], who:'maple'},
+  {id:'dentist', name:'Dentist',       ic:'🦷', x:1460, y:860, w:170, h:140, roof:'#5fc6c0', stop:[1545, 800], who:'penny'},
+  {id:'icecream',name:'Ice cream',     ic:'🍦', x:1790, y:860, w:150, h:130, roof:'#ff9cc2', stop:[1865, 800], who:'sunny'},
+  {id:'park',    name:'Park',          ic:'🌳', x:2060, y:860, w:260, h:300, roof:'#79c15a', stop:[2000, 1010]},
+  {id:'gas',     name:'Gus’s Gas',     ic:'⛽', x:1330, y:1250, w:220, h:140, roof:'#e84a4a', stop:[1440, 1290], who:'gus', open:true},
+];
+const SOLID = ()=>TOWN_HOUSES.concat(PLACES.filter(p=>!p.open));
+/* the neighbors: how they look (drawFolk), where they stand, what they say */
+const FOLKS = {
+  rosa:  {name:'Mrs. Rosa',    skin:'#f7dcc6', hair:'#d9d4cc', style:'bun',   shirt:'#e86a8f', glasses:1, at:[155, 410], stop:[155, 500],
+          hi:['My roses love the sunshine today!', 'Pirozhok says meow. That means thank you.', 'Come by any time, dear.']},
+  ivan:  {name:'Grandpa Ivan', skin:'#f0cfb4', hair:'#ececec', style:'bald',  shirt:'#5b7db8', beard:'#ececec', at:[945, 410], stop:[945, 500],
+          hi:['Привет! That means hello.', 'In Russia, we drink tea with jam. Try it some time!', 'Your bread made my soup perfect.']},
+  kims:  {name:'The Kim twins', twins:1, skin:'#e9c39e', hair:'#1a1a22', style:'bob', shirt:'#ffd23f', shirt2:'#4caf6a', at:[335, 570], stop:[335, 500],
+          hi:['Want to race to the park?', 'We are building a fort in the backyard!', 'Our ball bounces SO high now.']},
+  mo:    {name:'Mo the mail carrier', skin:'#c68a5e', hair:'#2a1a12', style:'short', shirt:'#4a78c2', hat:'cap', hatC:'#2d4f8f', walk:1,
+          hi:['Rain or shine, the mail gets through!', 'I know every house on Maple Lane.']},
+  lily:  {name:'Ms. Lily',     skin:'#8d5a3b', hair:'#2a1a12', style:'curly', shirt:'#9d8cff', glasses:1,
+          hi:['Learning is an adventure!', 'You are a very good listener.']},
+  james: {name:'Pastor James', skin:'#c68a5e', hair:'#2a1a12', style:'short', shirt:'#2a2e38', collar:1,
+          hi:['Peace be with you, friend.', 'The bells sound lovely when you ring them.']},
+  maple: {name:'Mrs. Maple',   skin:'#f7dcc6', hair:'#b5532b', style:'long',  shirt:'#4caf6a', apron:'#ffffff',
+          hi:['The apples are extra crunchy today.', 'Need a basket?']},
+  penny: {name:'Dr. Penny',    skin:'#e8b896', hair:'#3a2418', style:'pony',  shirt:'#ffffff', mirror:1,
+          hi:['Brush, brush, brush! Two minutes, morning and night.', 'What a sparkly smile!']},
+  sunny: {name:'Sunny',        skin:'#f7dcc6', hair:'#f3d27a', style:'short', shirt:'#ff9cc2', hat:'paper',
+          hi:['One scoop or three?', 'Mint chip is my favourite.']},
+  gus:   {name:'Mr. Gus',      skin:'#c68a5e', hair:'#6b4423', style:'short', shirt:'#e84a4a', hat:'cap', hatC:'#b8322f', mustache:'#4a2f1a', at:[1500, 1345],
+          hi:['Fill ’er up?', 'Drive safe, and wave at everybody!']},
+};
+const CAT_SPOTS = [[1120, 700], [1600, 1130], [2330, 740], [760, 1140], [1260, 300]];
+const BALL_AT = [2200, 1050];
+function town(){ save.town = save.town || {fuel:1, met:{}, q:{}, bag:{}, helped:0}; return save.town; }
+const kidName = ()=>diverName(playerDef(P));
+function moAt(t){ const p = (t*38) % 1980, x = p < 990 ? 160 + p : 160 + 1980 - p; return [x, 452, p < 990 ? 1 : -1]; }
+function folkPos(id, t){ return id === 'mo' ? moAt(t) : FOLKS[id].at; }
+function folkStop(id, t){ if(id === 'mo'){ const m = moAt(t); return [m[0], 500]; } return FOLKS[id].stop; }
+
+/* ---- read aloud, so the little one can follow along ---- */
+function sayEn(text){
+  try{ if(!('speechSynthesis' in window)) return; speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[^\w\s.,!?’'-]/g, ' ')); u.lang = 'en-US'; u.rate = .95; u.pitch = 1.05;
+    const v = speechSynthesis.getVoices().filter(x=>/^en/i.test(x.lang)).sort((a, b)=>(/enhanced|premium|natural|samantha/i.test(b.name) ? 1 : 0) - (/enhanced|premium|natural|samantha/i.test(a.name) ? 1 : 0))[0];
+    if(v) u.voice = v; speechSynthesis.speak(u); }catch(e){}
+}
+
+/* ---- finding the way along the roads ---- */
+function roadPath(ax, ay, bx, by){
+  const proj = (x, y)=>{ let best = null, bd = 1e12; ROADS.forEach((r, i)=>{ const px = clamp(x, Math.min(r.x1, r.x2), Math.max(r.x1, r.x2)), py = clamp(y, Math.min(r.y1, r.y2), Math.max(r.y1, r.y2)), d = Math.hypot(x - px, y - py); if(d < bd){ bd = d; best = {x:px, y:py, r:i}; } }); return best; };
+  const pts = [], add = (x, y)=>{ let i = pts.findIndex(p=>Math.abs(p.x - x) < 1 && Math.abs(p.y - y) < 1); if(i < 0){ i = pts.length; pts.push({x, y}); } return i; };
+  const on = ROADS.map(r=>[add(r.x1, r.y1), add(r.x2, r.y2)]);
+  for(let i=0; i<ROADS.length; i++) for(let j=i+1; j<ROADS.length; j++){
+    const a = ROADS[i], b = ROADS[j], h = a.y1 === a.y2 ? a : b.y1 === b.y2 ? b : null, v = a.x1 === a.x2 ? a : b.x1 === b.x2 ? b : null;
+    if(!h || !v || h === v) continue;
+    if(v.x1 >= Math.min(h.x1, h.x2) && v.x1 <= Math.max(h.x1, h.x2) && h.y1 >= Math.min(v.y1, v.y2) && h.y1 <= Math.max(v.y1, v.y2)){ const k = add(v.x1, h.y1); on[i].push(k); on[j].push(k); }
+  }
+  const A = proj(ax, ay), B = proj(bx, by), ia = add(A.x, A.y), ib = add(B.x, B.y); on[A.r].push(ia); on[B.r].push(ib);
+  const adj = pts.map(()=>[]);
+  on.forEach((L, i)=>{ const hor = ROADS[i].y1 === ROADS[i].y2, u = Array.from(new Set(L)).sort((p, q)=>hor ? pts[p].x - pts[q].x : pts[p].y - pts[q].y);
+    for(let k=0; k+1<u.length; k++){ const d = Math.hypot(pts[u[k]].x - pts[u[k+1]].x, pts[u[k]].y - pts[u[k+1]].y); adj[u[k]].push([u[k+1], d]); adj[u[k+1]].push([u[k], d]); } });
+  const dist = pts.map(()=>1e12), prev = pts.map(()=>-1), done = pts.map(()=>false); dist[ia] = 0;
+  for(;;){ let m = -1; for(let i=0; i<pts.length; i++) if(!done[i] && (m < 0 || dist[i] < dist[m])) m = i;
+    if(m < 0 || dist[m] >= 1e12 || m === ib) break; done[m] = true;
+    for(const [n, d] of adj[m]) if(dist[m] + d < dist[n]){ dist[n] = dist[m] + d; prev[n] = m; } }
+  const path = []; for(let i = ib; i >= 0; i = prev[i]) path.unshift([pts[i].x, pts[i].y]);
+  // keep only the corners, so the car only slows where it turns
+  const out = [path[0]];
+  for(let k=1; k<path.length - 1; k++){ const a = out[out.length - 1], b = path[k], c = path[k+1]; if(Math.abs((b[0] - a[0])*(c[1] - b[1]) - (b[1] - a[1])*(c[0] - b[0])) > 1) out.push(b); }
+  if(path.length > 1) out.push(path[path.length - 1]);
+  if(Math.hypot(bx - B.x, by - B.y) > 5) out.push([bx, by]);
+  return out;
+}
+function driveTo(x, y, label){
+  const D = dv2; if(!D) return;
+  D.auto = roadPath(D.x, D.y, x, y); D.ai = 0; D.goal = null;
+  if(D.auto.length > 1 && Math.hypot(D.auto[0][0] - D.x, D.auto[0][1] - D.y) < 30) D.ai = 1;
+  if(label) toast(label);
+}
+
+/* ---- what's near the car ---- */
+function townAt(D, t){
+  if(Math.abs(D.v) > 70) return null;
+  let best = null, bd = 1e9;
+  for(const p of PLACES){ const d = Math.hypot(D.x - p.stop[0], D.y - p.stop[1]); if(d < 90 && d < bd){ bd = d; best = {k:'place', id:p.id, name:p.name, ic:p.ic}; } }
+  for(const id in FOLKS){ const f = FOLKS[id]; if(!f.stop && !f.walk) continue; const s = folkStop(id, t), d = Math.hypot(D.x - s[0], D.y - s[1]); if(d < (f.walk ? 120 : 90) && d < bd){ bd = d; best = {k:'folk', id, name:f.name}; } }
+  return best;
+}
+function townTick(D, dt){
+  const T = town();
+  // gas: a full tank lasts a good long drive; running low only slows you down
+  T.fuel = Math.max(0, T.fuel - Math.abs(D.v)*dt/90000);
+  if(T.fuel < .15 && !D.lowWarn){ D.lowWarn = 1; toast('⛽ Low on gas! Stop at Gus’s Gas on Coast Road'); }
+  if(T.fuel > .3) D.lowWarn = 0;
+  if(T.q.rosa === 1 && T.cat && Math.hypot(D.x - T.cat[0], D.y - T.cat[1]) < 95){ T.q.rosa = 2; T.cat = null; persist(); Audio_.chirp(); toast('🐱 You found Pirozhok! She hopped in. Take her home to Mrs. Rosa'); }
+  if(T.q.kims === 1 && Math.hypot(D.x - BALL_AT[0], D.y - BALL_AT[1]) < 230){ T.q.kims = 2; persist(); Audio_.pop(); toast('⚽ There’s the twins’ ball! Into the car it goes. Bring it back to them'); }
+  D.at = townAt(D, D.t);
+}
+const fuelSlow = ()=>{ const f = town().fuel; return f <= 0 ? .3 : f < .15 ? .6 : 1; };
+
+/* ---- drawing the town from above ---- */
+function drawFolkTop(g, x, y, z, f, t, wave, color){
+  g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(x + 3*z, y + 4*z, 11*z, 8*z, 0, 0, 7); g.fill();
+  g.fillStyle = color || f.shirt; g.beginPath(); g.ellipse(x, y + 3*z, 10*z, 8*z, 0, 0, 7); g.fill();
+  if(wave){ g.strokeStyle = f.skin; g.lineWidth = 3*z; g.lineCap = 'round'; const a = Math.sin(t*10)*.5; g.beginPath(); g.moveTo(x + 7*z, y); g.lineTo(x + 7*z + Math.cos(-1.2 + a)*12*z, y + Math.sin(-1.2 + a)*12*z); g.stroke(); }
+  g.fillStyle = f.skin; g.beginPath(); g.arc(x, y - 4*z, 7*z, 0, 7); g.fill();
+  if(f.style !== 'bald'){ g.fillStyle = f.hair; g.beginPath(); g.arc(x, y - 6*z, 6.5*z, Math.PI*.95, Math.PI*2.05); g.fill(); }
+  if(f.hat){ g.fillStyle = f.hatC || '#fff'; g.beginPath(); g.arc(x, y - 7*z, 6*z, Math.PI, 0); g.fill(); }
+}
+function placeLabel(g, x, y, txt, z){
+  g.font = `700 ${Math.round(11*z + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center';
+  const w = g.measureText(txt).width + 16; g.fillStyle = 'rgba(3,24,43,.62)'; roundRect(g, x - w/2, y - 13, w, 24, 12); g.fill();
+  g.fillStyle = '#fff'; g.fillText(txt, x, y + 4);
+}
+function drawTown(g, t, sx, sy, z){
+  const T = town(), D = dv2;
+  // the gas station forecourt
+  g.fillStyle = '#9aa1a7'; g.fillRect(sx(GAS_PAD.x1), sy(GAS_PAD.y1), (GAS_PAD.x2 - GAS_PAD.x1)*z, (GAS_PAD.y2 - GAS_PAD.y1)*z);
+  for(const p of PLACES){
+    const x = sx(p.x), y = sy(p.y), w = p.w*z, h = p.h*z;
+    if(x > VW + 80 || x + w < -80 || y > VH + 80 || y + h < -80) continue;
+    if(p.id === 'park'){
+      g.fillStyle = '#79c15a'; roundRect(g, x, y, w, h, 18*z); g.fill(); g.strokeStyle = '#5a9a3f'; g.lineWidth = 4*z; g.stroke();
+      g.strokeStyle = '#e8d7a8'; g.lineWidth = 10*z; g.beginPath(); g.moveTo(x, y + 150*z); g.quadraticCurveTo(x + 130*z, y + 90*z, x + w, y + 170*z); g.stroke();
+      g.fillStyle = '#4fb3d6'; g.beginPath(); g.ellipse(x + 180*z, y + 230*z, 50*z, 30*z, .2, 0, 7); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x + 170*z, y + 225*z, 6*z, 4*z, 0, 0, 7); g.fill();                 // a duck
+      g.strokeStyle = '#c0504d'; g.lineWidth = 4*z; g.strokeRect(x + 30*z, y + 30*z, 70*z, 40*z);                          // swings
+      for(let k=0; k<3; k++){ g.strokeStyle = '#555'; g.lineWidth = 2*z; const s = Math.sin(t*2 + k)*6*z; g.beginPath(); g.moveTo(x + (45 + k*20)*z, y + 30*z); g.lineTo(x + (45 + k*20)*z + s, y + 70*z); g.stroke(); }
+      g.fillStyle = '#ffcf3f'; g.beginPath(); g.moveTo(x + 150*z, y + 30*z); g.lineTo(x + 220*z, y + 30*z); g.lineTo(x + 230*z, y + 70*z); g.lineTo(x + 140*z, y + 70*z); g.fill();   // slide
+      for(const [tx, ty] of [[30, 240], [235, 40], [90, 270], [240, 270]]){ g.fillStyle = '#3f8f45'; g.beginPath(); g.arc(x + tx*z, y + ty*z, 22*z, 0, 7); g.fill(); g.fillStyle = '#5fb15a'; g.beginPath(); g.arc(x + (tx - 6)*z, y + (ty - 6)*z, 13*z, 0, 7); g.fill(); }
+      if(T.q.kims === 1){ g.fillStyle = '#fff'; g.beginPath(); g.arc(sx(BALL_AT[0]), sy(BALL_AT[1]), 9*z, 0, 7); g.fill(); g.fillStyle = '#e84a4a'; g.beginPath(); g.arc(sx(BALL_AT[0]), sy(BALL_AT[1]), 9*z, -.6, .6); g.fill(); }
+      placeLabel(g, x + w/2, y + h/2, '🌳 Park', z); continue;
+    }
+    if(p.id === 'gas'){
+      for(let k=0; k<2; k++){ g.fillStyle = '#ddd'; g.fillRect(x + (60 + k*80)*z, y + 60*z, 16*z, 24*z); g.fillStyle = '#e84a4a'; g.fillRect(x + (60 + k*80)*z, y + 60*z, 16*z, 8*z); }
+      g.fillStyle = 'rgba(232,74,74,.85)'; g.fillRect(x + 30*z, y + 40*z, 160*z, 10*z); g.fillRect(x + 30*z, y + 100*z, 160*z, 10*z);
+      placeLabel(g, x + w/2, y + h + 18*z, '⛽ Gus’s Gas', z); continue;
+    }
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(x + 7*z, y + 7*z, w, h);
+    g.fillStyle = p.roof; g.fillRect(x, y, w, h);
+    g.fillStyle = shade(p.roof, 22); g.beginPath(); g.moveTo(x, y); g.lineTo(x + w, y); g.lineTo(x + w - h*.5, y + h*.5); g.lineTo(x + h*.5, y + h*.5); g.fill();
+    if(p.id === 'school'){
+      g.fillStyle = '#d9d2c3'; g.fillRect(x + w*.42, y - 26*z, 40*z, 40*z); g.fillStyle = '#ffcf3f'; g.beginPath(); g.arc(x + w*.42 + 20*z, y - 6*z, 8*z, 0, 7); g.fill();  // bell tower
+      g.strokeStyle = '#888'; g.lineWidth = 2*z; g.beginPath(); g.moveTo(x + w + 20*z, y + h); g.lineTo(x + w + 20*z, y + h - 70*z); g.stroke();
+      g.fillStyle = '#4f8dff'; g.fillRect(x + w + 20*z, y + h - 70*z, 22*z + Math.sin(t*3)*2*z, 14*z);                       // flag
+      g.strokeStyle = '#fff'; g.lineWidth = 2*z; for(let k=0; k<4; k++) g.strokeRect(x + (20 + k*22)*z, y + h + 6*z, 20*z, 14*z);   // hopscotch
+    } else if(p.id === 'church'){
+      g.fillStyle = shade(p.roof, -10); g.fillRect(x - 30*z, y + 70*z, w + 60*z, 60*z);                                   // the cross-shaped roof
+      g.fillStyle = '#ffffff'; g.fillRect(x + w/2 - 24*z, y + h - 60*z, 48*z, 48*z);
+      g.fillStyle = '#8a8f9a'; g.beginPath(); g.moveTo(x + w/2 - 24*z, y + h - 60*z); g.lineTo(x + w/2 + 24*z, y + h - 60*z); g.lineTo(x + w/2, y + h - 36*z); g.fill();   // steeple
+      g.strokeStyle = '#ffcf3f'; g.lineWidth = 3*z; g.beginPath(); g.moveTo(x + w/2, y + h - 48*z); g.lineTo(x + w/2, y + h - 24*z); g.moveTo(x + w/2 - 8*z, y + h - 40*z); g.lineTo(x + w/2 + 8*z, y + h - 40*z); g.stroke();
+      if(T.candle === dayKey()){ g.fillStyle = 'rgba(255,207,63,' + (.5 + Math.sin(t*5)*.2) + ')'; g.beginPath(); g.arc(x + w/2, y + 40*z, 10*z, 0, 7); g.fill(); }
+    } else if(p.id === 'grocery'){
+      for(let k=0; k<4; k++){ g.fillStyle = '#aab0b6'; g.fillRect(x + (40 + k*70)*z, y + 30*z, 30*z, 20*z); }               // rooftop units
+      for(let k=0; k<10; k++){ g.fillStyle = k % 2 ? '#2f8f4e' : '#ffffff'; g.fillRect(x + k*w/10, y + h - 18*z, w/10, 18*z); }  // awning
+    } else if(p.id === 'icecream'){
+      for(let k=0; k<8; k++){ g.fillStyle = k % 2 ? '#ff9cc2' : '#ffffff'; g.fillRect(x + k*w/8, y, w/8, 22*z); }
+      g.fillStyle = '#f2c27a'; g.beginPath(); g.moveTo(x + w/2 - 12*z, y + 60*z); g.lineTo(x + w/2 + 12*z, y + 60*z); g.lineTo(x + w/2, y + 100*z); g.fill();
+      g.fillStyle = '#ff6f9c'; g.beginPath(); g.arc(x + w/2, y + 56*z, 14*z, 0, 7); g.fill();
+    } else if(p.id === 'dentist'){
+      g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(x + w/2 - 18*z, y + 40*z); g.quadraticCurveTo(x + w/2, y + 30*z, x + w/2 + 18*z, y + 40*z);
+      g.lineTo(x + w/2 + 12*z, y + 84*z); g.lineTo(x + w/2 + 4*z, y + 70*z); g.lineTo(x + w/2 - 4*z, y + 70*z); g.lineTo(x + w/2 - 12*z, y + 84*z); g.fill();
+    }
+    placeLabel(g, x + w/2, p.stop[1] < p.y ? y - 16*z : y + h + 18*z, p.ic + ' ' + p.name, z);
+  }
+  // the neighbors, waving when you honk or pull up
+  for(const id in FOLKS){ const f = FOLKS[id]; if(!f.at && !f.walk) continue;
+    const pos = folkPos(id, t), x = sx(pos[0]), y = sy(pos[1]); if(x < -40 || x > VW + 40 || y < -40 || y > VH + 40) continue;
+    const near = D && Math.hypot(D.x - pos[0], D.y - pos[1]) < 220, wave = near && (D.t - D.honk < 2 || Math.abs(D.v) < 40);
+    if(f.twins){ drawFolkTop(g, x - 9*z, y, z, f, t, wave); drawFolkTop(g, x + 9*z, y + 2*z, z, f, t + .5, wave, f.shirt2); }
+    else drawFolkTop(g, x, y, z, f, t, wave);
+    if(near){ g.font = `700 ${Math.round(9*z + 4)}px Nunito, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.6)';
+      const w = g.measureText(f.name).width + 10; roundRect(g, x - w/2, y - 34*z - 9, w, 17, 8); g.fill(); g.fillStyle = '#fff'; g.fillText(f.name, x, y - 34*z + 4); }
+  }
+  if(T.q.rosa === 1 && T.cat){ const x = sx(T.cat[0]), y = sy(T.cat[1]); g.font = Math.round(22*z) + 'px serif'; g.textAlign = 'center'; g.fillText('🐈', x, y + Math.sin(t*3)*2); }
+  // other family cars on the road
+  if(Net.st === 'on') for(const pp of peerList()){ const f = pp.s; if(f.sc !== 'drive' || f.fx === null) continue;
+    carTop(g, sx(f.fx), sy(f.fy), f.fh, z, SUITS[f.su] || SUITS[0]); drawFriendTag(g, sx(f.fx), sy(f.fy) - 40*z, f); }
+}
+function drawTownHud(g, t){
+  const D = dv2, T = town();
+  // fuel gauge beside the speedometer
+  g.fillStyle = 'rgba(3,24,43,.6)'; roundRect(g, 142, VH - 60, 110, 40, 12); g.fill();
+  g.fillStyle = 'rgba(255,255,255,.2)'; roundRect(g, 176, VH - 46, 64, 12, 6); g.fill();
+  g.fillStyle = T.fuel < .15 ? '#ff6b6b' : '#6ee6a0'; roundRect(g, 176, VH - 46, Math.max(6, 64*T.fuel), 12, 6); g.fill();
+  g.font = '18px serif'; g.textAlign = 'left'; g.fillText('⛽', 150, VH - 33);
+  if(T.q.rosa === 2 || T.q.kims === 2 || (T.bag && Object.keys(T.bag).length)){
+    const items = (T.q.rosa === 2 ? '🐈' : '') + (T.q.kims === 2 ? '⚽' : '') + Object.keys(T.bag || {}).map(k=>(GROCERIES.find(x=>x.id === k) || {ic:''}).ic).join('');
+    g.fillStyle = 'rgba(3,24,43,.6)'; const w = 16 + items.length*12; roundRect(g, 260, VH - 60, Math.max(60, w), 40, 12); g.fill(); g.fillText(items, 270, VH - 33);
+  }
+  if(D.at && !D.park) shadowText(g, D.at.k === 'place' ? `Tap 🚪 Go into ${D.at.name}` : `Tap 👋 Say hi to ${D.at.name}`, VW/2, VH*.2, 22, '#ffffff');
+}
+
+/* ---- a neighbor's face, for the conversations ---- */
+function drawFolk(g, cx, cy, s, f, t, shirt){
+  g.save(); g.translate(cx, cy); g.scale(s, s);
+  const hairD = shade(f.hair, -35);
+  // long hair falls behind the shoulders
+  if(f.style === 'long'){ g.fillStyle = f.hair; g.beginPath(); g.ellipse(0, 10, 38, 46, 0, 0, 7); g.fill(); }
+  // shoulders
+  g.fillStyle = shirt || f.shirt; g.beginPath(); g.moveTo(-50, 80); g.quadraticCurveTo(-48, 34, 0, 32); g.quadraticCurveTo(48, 34, 50, 80); g.fill();
+  if(f.apron){ g.fillStyle = f.apron; g.fillRect(-18, 46, 36, 34); }
+  if(f.collar){ g.fillStyle = '#fff'; g.fillRect(-6, 30, 12, 8); }
+  if(f.mirror){ g.strokeStyle = '#9aa1a7'; g.lineWidth = 2; g.beginPath(); g.moveTo(-26, 44); g.lineTo(-26, 66); g.stroke(); g.fillStyle = '#cfe9ff'; g.beginPath(); g.arc(-26, 42, 4, 0, 7); g.fill(); }
+  g.fillStyle = f.skin; g.fillRect(-9, 18, 18, 18);
+  // hair behind the head
+  g.fillStyle = f.hair;
+  if(f.style === 'bob'){ g.beginPath(); g.ellipse(0, 0, 36, 36, 0, 0, 7); g.fill(); }
+  if(f.style === 'curly'){ for(let k=0; k<12; k++){ const a = k/12*Math.PI*2; g.beginPath(); g.arc(Math.cos(a)*30, -4 + Math.sin(a)*32, 12, 0, 7); g.fill(); } }
+  if(f.style === 'bun'){ g.beginPath(); g.arc(0, -38, 14, 0, 7); g.fill(); }
+  if(f.style === 'pony'){ g.beginPath(); g.ellipse(30, 6, 9, 24, -.3, 0, 7); g.fill(); }
+  // head and ears
+  g.fillStyle = f.skin; g.beginPath(); g.arc(-30, 2, 6, 0, 7); g.arc(30, 2, 6, 0, 7); g.fill();
+  g.beginPath(); g.ellipse(0, 0, 29, 33, 0, 0, 7); g.fill();
+  // hair on top
+  g.fillStyle = f.hair; g.strokeStyle = hairD; g.lineWidth = 1;
+  if(f.style === 'bald'){ g.beginPath(); g.ellipse(-26, -6, 6, 10, .2, 0, 7); g.ellipse(26, -6, 6, 10, -.2, 0, 7); g.fill(); }
+  else { g.beginPath(); g.moveTo(-30, 0); g.bezierCurveTo(-34, -38, 34, -42, 30, -2); g.quadraticCurveTo(14, -22, -6, -18); g.quadraticCurveTo(-20, -16, -30, 0); g.fill(); }
+  // eyes, brows, nose, smile
+  const blink = t && (t % 4) < .12;
+  g.fillStyle = '#2a1f2e';
+  for(const ex of [-11, 11]){ if(blink){ g.fillRect(ex - 4, -2, 8, 2); } else { g.beginPath(); g.ellipse(ex, -2, 3.2, 4, 0, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(ex + 1.2, -3.4, 1.1, 0, 7); g.fill(); g.fillStyle = '#2a1f2e'; } }
+  g.strokeStyle = f.style === 'bald' ? '#bbb' : hairD; g.lineWidth = 2.4; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-16, -11); g.quadraticCurveTo(-11, -14, -6, -11); g.moveTo(6, -11); g.quadraticCurveTo(11, -14, 16, -11); g.stroke();
+  g.strokeStyle = shade(f.skin, -30); g.lineWidth = 2; g.beginPath(); g.moveTo(0, 2); g.quadraticCurveTo(3, 8, -1, 9); g.stroke();
+  g.fillStyle = 'rgba(255,120,140,.3)'; g.beginPath(); g.arc(-17, 8, 5, 0, 7); g.arc(17, 8, 5, 0, 7); g.fill();
+  if(f.beard){ g.fillStyle = f.beard; g.beginPath(); g.moveTo(-28, 4); g.quadraticCurveTo(-26, 40, 0, 42); g.quadraticCurveTo(26, 40, 28, 4); g.quadraticCurveTo(14, 12, 10, 12); g.quadraticCurveTo(0, 8, -10, 12); g.quadraticCurveTo(-14, 12, -28, 4); g.fill(); }
+  if(f.mustache){ g.fillStyle = f.mustache; g.beginPath(); g.ellipse(-6, 12, 8, 3.4, .15, 0, 7); g.ellipse(6, 12, 8, 3.4, -.15, 0, 7); g.fill(); }
+  g.strokeStyle = '#8a3a48'; g.lineWidth = 2.4; g.beginPath(); g.arc(0, 13, 8, .15*Math.PI, .85*Math.PI); g.stroke();
+  if(f.glasses){ g.strokeStyle = '#3a3a48'; g.lineWidth = 2; g.beginPath(); g.arc(-11, -2, 7, 0, 7); g.moveTo(18, -2); g.arc(11, -2, 7, 0, 7); g.moveTo(-4, -3); g.lineTo(4, -3); g.stroke(); }
+  if(f.hat === 'cap'){ g.fillStyle = f.hatC; g.beginPath(); g.ellipse(0, -24, 30, 16, 0, Math.PI, 0); g.fill(); g.fillRect(-4, -26, 42, 6); }
+  if(f.hat === 'paper'){ g.fillStyle = '#fff'; g.beginPath(); g.moveTo(-26, -24); g.lineTo(26, -24); g.lineTo(18, -42); g.lineTo(-18, -42); g.fill(); g.fillStyle = '#ff6f9c'; g.fillRect(-26, -28, 52, 4); }
+  g.restore();
+}
+
+/* ---- inside: one panel for every visit ---- */
+function placeShow(eye, title, folk, say, body){
+  $('#plEye').textContent = eye; $('#plTitle').textContent = title;
+  const c = $('#plFace'), g = c.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
+  c.hidden = !folk;
+  if(folk){ if(folk.twins){ drawFolk(g, 72, 104, 1.05, folk, 1); drawFolk(g, 168, 108, 1.05, Object.assign({}, folk, {style:'short'}), 2.3, folk.shirt2); } else drawFolk(g, 120, 104, 1.45, folk, 1); }
+  placeSay(say);
+  const b = $('#plBody'); b.innerHTML = ''; if(body) body(b);
+  openLayer('lPlace');
+}
+function placeSay(txt){ $('#plSay').textContent = txt; sayEn(txt); }
+function plBtn(box, label, fn, cls){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || 'gold') + ' sm'; b.textContent = label; b.style.margin = '6px 8px 0 0'; b.onclick = fn; box.appendChild(b); return b; }
+function placeLeave(){ try{ speechSynthesis.cancel(); }catch(e){} clearInterval(pumpT); openLayer(null); showHud(true); if(dv2){ $('#boatBar').dataset.key = ''; driveBar(); } }
+$('#plLeave').onclick = placeLeave;
+function helped(id, pearls, msg){
+  const T = town(); if(T.q[id] === 3) return;
+  T.q[id] = 3; T.helped = (T.helped || 0) + 1; save.pearls += pearls; persist(); updateHud(); Audio_.great(); checkPrizes();
+  setTimeout(()=>toast(`💛 You helped ${FOLKS[id].name}! +${pearls} 🫧`), 300);
+  if(msg) placeSay(msg);
+}
+function meet(id){ const T = town(); if(!T.met[id]){ T.met[id] = 1; persist(); setTimeout(()=>toast(`🏘️ New friend: ${FOLKS[id].name}`), 900); } }
+
+/* ---- the neighbors' favors ---- */
+function talkTo(id){
+  const T = town(), f = FOLKS[id], q = T.q[id] || 0, nm = kidName(); meet(id);
+  const eye = 'Neighbors · ' + f.name;
+  if(id === 'rosa'){
+    if(q === 0) return placeShow(eye, f.name, f, `Hello, ${nm}! I grow the roses on Maple Lane. Oh dear, my cat Pirozhok has wandered off again. Could you drive around town and look for her?`,
+      b=>plBtn(b, '🐱 I’ll find her!', ()=>{ T.q.rosa = 1; T.cat = pick(CAT_SPOTS); persist(); placeLeave(); toast('Look for a little orange cat near the roads 🐈'); }));
+    if(q === 1) return placeShow(eye, f.name, f, 'Any sign of Pirozhok? She loves warm sunny spots near the roads.');
+    if(q === 2) return placeShow(eye, f.name, f, '', b=>helped('rosa', 15, `Pirozhok! You found her! Thank you, ${nm}. Here are some pearls I found in my garden.`));
+  }
+  if(id === 'ivan'){
+    if(q === 0) return placeShow(eye, f.name, f, `Привет, ${nm}! I am making my famous soup, but I have no bread. Could you bring me some from the grocery store on Market Street?`,
+      b=>plBtn(b, '🍞 I’ll bring bread!', ()=>{ T.q.ivan = 1; persist(); placeLeave(); toast('🛒 Get bread at the grocery store'); }));
+    if(q === 1 && T.bag.bread) return placeShow(eye, f.name, f, '', b=>{ delete T.bag.bread; helped('ivan', 15, 'Fresh bread! Хлеб! Now my soup will be perfect. Спасибо, thank you!'); });
+    if(q === 1) return placeShow(eye, f.name, f, 'The grocery store is on Market Street. Bread is called хлеб in Russian.');
+  }
+  if(id === 'kims'){
+    if(q === 0) return placeShow(eye, f.name, f, `Hi ${nm}! We kicked our ball SO high it flew all the way to the park! Can you find it?`,
+      b=>plBtn(b, '⚽ I’ll look in the park!', ()=>{ T.q.kims = 1; persist(); placeLeave(); toast('🌳 The park is on Bell Lane'); }));
+    if(q === 1) return placeShow(eye, f.name, f, 'The park is on Bell Lane, past the shops. Look near the pond!');
+    if(q === 2) return placeShow(eye, f.name, f, '', b=>helped('kims', 15, 'Our ball! You’re the best! Come play with us any time.'));
+  }
+  if(id === 'mo'){
+    if(T.post !== dayKey()){
+      const w = POSTCARDS[Math.floor(Date.now()/86400000) % POSTCARDS.length];
+      return placeShow(eye, f.name, f, `Mail for ${nm}! A postcard came today.`, b=>{
+        const card = document.createElement('div'); card.className = 'tile'; card.style.cssText = 'text-align:center;max-width:260px;margin:8px 0';
+        card.innerHTML = `<span class="big">${w.ic}</span><b style="font-size:26px">${w.ru}</b><span class="cost">${w.tr} · ${w.en}</span>`; b.appendChild(card);
+        card.onclick = ()=>Audio_.say(w.ru); setTimeout(()=>Audio_.say(w.ru), 2600);
+        T.post = dayKey(); save.pearls += 5; persist(); updateHud();
+        if(!T.q.mo){ T.q.mo = 0; helped('mo', 5); } else toast('+5 🫧 Come back tomorrow for more mail!');
+      });
+    }
+  }
+  // everyone else, or a favor already done: a friendly word
+  return placeShow(eye, f.name, f, pick(f.hi));
+}
+const POSTCARDS = [
+  {ic:'👋', ru:'привет', tr:'privyet', en:'hello'}, {ic:'🏠', ru:'дом', tr:'dom', en:'house'}, {ic:'☀️', ru:'солнце', tr:'solntse', en:'sun'},
+  {ic:'🌊', ru:'море', tr:'morye', en:'sea'}, {ic:'🤝', ru:'друг', tr:'drug', en:'friend'}, {ic:'🐈', ru:'кошка', tr:'koshka', en:'cat'},
+  {ic:'🐕', ru:'собака', tr:'sobaka', en:'dog'}, {ic:'🌳', ru:'дерево', tr:'derevo', en:'tree'}, {ic:'🚗', ru:'машина', tr:'mashina', en:'car'},
+  {ic:'💛', ru:'спасибо', tr:'spasibo', en:'thank you'},
+];
+
+/* ---- the places ---- */
+const GROCERIES = [
+  {id:'bread', ic:'🍞', en:'bread', ru:'хлеб'}, {id:'milk', ic:'🥛', en:'milk', ru:'молоко'}, {id:'apple', ic:'🍎', en:'apple', ru:'яблоко'},
+  {id:'cheese', ic:'🧀', en:'cheese', ru:'сыр'}, {id:'eggs', ic:'🥚', en:'eggs', ru:'яйца'}, {id:'banana', ic:'🍌', en:'banana', ru:'банан'},
+  {id:'carrot', ic:'🥕', en:'carrot', ru:'морковь'}, {id:'honey', ic:'🍯', en:'honey', ru:'мёд'}, {id:'tea', ic:'🍵', en:'tea', ru:'чай'},
+];
+const PSALMS = [
+  ['This is the day which the Lord hath made; we will rejoice and be glad in it.', 'Psalm 118:24'],
+  ['The Lord is my shepherd; I shall not want.', 'Psalm 23:1'],
+  ['Make a joyful noise unto the Lord, all ye lands.', 'Psalm 100:1'],
+  ['Let every thing that hath breath praise the Lord.', 'Psalm 150:6'],
+  ['God is our refuge and strength, a very present help in trouble.', 'Psalm 46:1'],
+  ['I will both lay me down in peace, and sleep: for thou, Lord, only makest me dwell in safety.', 'Psalm 4:8'],
+  ['O give thanks unto the Lord; for he is good: for his mercy endureth for ever.', 'Psalm 136:1'],
+  ['Thy word is a lamp unto my feet, and a light unto my path.', 'Psalm 119:105'],
+  ['I will lift up mine eyes unto the hills, from whence cometh my help.', 'Psalm 121:1'],
+  ['The Lord is good to all.', 'Psalm 145:9'],
+];
+let pumpT = 0;
+function enterPlace(id){
+  const T = town(), p = PLACES.find(x=>x.id === id), f = p.who ? FOLKS[p.who] : null, nm = kidName(), easy = save.mode === 'easy';
+  if(f) meet(p.who);
+  const eye = p.ic + ' ' + p.name;
+  if(id === 'park'){
+    return placeShow(eye, 'The park', null, T.q.kims === 1 ? 'The twins’ ball must be here somewhere. Drive along Bell Lane past the pond!' : 'Ducks on the pond, swings and a big yellow slide. What a lovely day!',
+      b=>plBtn(b, '🛝 Go down the slide!', ()=>{ Audio_.sweep(900, 300, .7, 'sine', .1); toast('Wheee! +1 🫧'); if(!T.slide || T.slide !== dayKey()){ T.slide = dayKey(); save.pearls++; persist(); updateHud(); } }));
+  }
+  if(id === 'gas'){
+    return placeShow(eye, p.name, f, T.fuel > .95 ? `Your tank is already full, ${nm}! Drive safe.` : `Hi ${nm}! Hold the pump button to fill your tank.`, b=>{
+      const bar = document.createElement('div'); bar.style.cssText = 'height:22px;border-radius:11px;background:rgba(255,255,255,.15);overflow:hidden;margin:10px 0;max-width:320px';
+      const fill = document.createElement('div'); fill.style.cssText = 'height:100%;background:linear-gradient(90deg,#6ee6a0,#ffd479);width:' + Math.round(T.fuel*100) + '%'; bar.appendChild(fill); b.appendChild(bar);
+      const pump = plBtn(b, '⛽ Hold to pump', ()=>{});
+      const start = e=>{ e.preventDefault(); clearInterval(pumpT); pumpT = setInterval(()=>{ T.fuel = Math.min(1, T.fuel + .02); fill.style.width = Math.round(T.fuel*100) + '%'; Audio_.tone(180 + T.fuel*200, .06, 'triangle', .03);
+        if(T.fuel >= 1){ clearInterval(pumpT); const pay = Math.min(3, save.pearls); save.pearls -= pay; persist(); updateHud(); placeSay(pay ? `Full tank! That’s ${pay} pearls. Thank you, ${nm}!` : 'Full tank! This one is on me.'); if(T.q.gus !== 3) helped('gus', 5); } }, 60); };
+      const stop = ()=>clearInterval(pumpT);
+      pump.addEventListener('pointerdown', start); pump.addEventListener('pointerup', stop); pump.addEventListener('pointerleave', stop); pump.addEventListener('pointercancel', stop);
+    });
+  }
+  if(id === 'grocery'){
+    const need = []; if(T.q.ivan === 1 && !T.bag.bread) need.push('bread'); if(T.q.lily === 1 && !T.bag.apple) need.push('apple');
+    const pool = GROCERIES.filter(x=>need.indexOf(x.id) < 0).sort(()=>Math.random() - .5);
+    const list = need.concat(pool.slice(0, Math.max(1, 3 - need.length)).map(x=>x.id)), got = {};
+    const name = id=>GROCERIES.find(x=>x.id === id);
+    return placeShow(eye, p.name, f, `Welcome, ${nm}! Here is your shopping list. Can you find everything on the shelves?`, b=>{
+      const ls = document.createElement('p'); ls.className = 'sub'; b.appendChild(ls);
+      const show = ()=>{ ls.innerHTML = '🧾 ' + list.map(k=>`<span style="${got[k] ? 'text-decoration:line-through;opacity:.5' : ''}">${easy ? name(k).ic + ' ' + name(k).en : name(k).ru + ' (' + name(k).en + ')'}</span>`).join(' · '); };
+      show();
+      const grid = document.createElement('div'); grid.className = 'grid3'; b.appendChild(grid);
+      for(const it of GROCERIES.slice().sort(()=>Math.random() - .5)){
+        const t2 = document.createElement('div'); t2.className = 'tile'; t2.innerHTML = `<span class="big">${it.ic}</span>${it.ru}<span class="cost">${it.en}</span>`;
+        t2.onclick = ()=>{ Audio_.say(it.ru);
+          if(list.indexOf(it.id) < 0 || got[it.id]){ Audio_.nope(); toast(list.indexOf(it.id) < 0 ? `${it.en} is not on the list` : 'Already in the basket'); return; }
+          got[it.id] = 1; if(need.indexOf(it.id) >= 0) T.bag[it.id] = 1; t2.classList.add('sel'); Audio_.blip(880); show();
+          if(list.every(k=>got[k])){ save.pearls += 6; persist(); updateHud(); Audio_.great(); placeSay(`You found everything! Here are 6 pearls for being such a good shopper.` + (need.length ? ' Don’t forget who the ' + need.map(k=>name(k).en).join(' and ') + ' is for!' : ''));
+            if(T.q.maple !== 3) helped('maple', 5); }
+          else persist();
+        };
+        grid.appendChild(t2);
+      }
+    });
+  }
+  if(id === 'school'){
+    const RU_N = ['ноль','один','два','три','четыре','пять','шесть','семь','восемь','девять','десять'];
+    let qn = 0, right = 0;
+    return placeShow(eye, 'School', f, `Good morning, ${nm}! Welcome to class. Let’s do five quick questions.`, b=>{
+      if(T.q.lily === 1 && T.bag.apple) plBtn(b, '🍎 Give Ms. Lily the apple', ()=>{ delete T.bag.apple; helped('lily', 15, 'A crunchy apple! You remembered. Thank you!'); }, 'ghost');
+      const qp = document.createElement('p'); qp.className = 'sub'; qp.style.fontSize = '22px'; b.appendChild(qp);
+      const ans = document.createElement('div'); ans.className = 'grid3'; b.appendChild(ans);
+      const ask = ()=>{
+        ans.innerHTML = '';
+        if(qn >= 5){ const pz = right*2; save.pearls += pz; tally('school'); persist(); updateHud(); Audio_.great();
+          qp.textContent = `⭐ ${right} out of 5!`; placeSay(`Wonderful work, ${nm}! ${right} out of 5. Here are ${pz} pearls.` + (T.q.lily ? '' : ' Could you bring me a crunchy apple from the grocery store some time?'));
+          if(!T.q.lily){ T.q.lily = 1; persist(); }
+          plBtn(ans, '🔁 Another lesson', ()=>{ qn = 0; right = 0; ask(); }, 'ghost'); return; }
+        let q, opts, good;
+        const kind = easy ? (qn % 2 ? 'count' : 'ru') : ['add', 'sub', 'ru', 'add', 'ru'][qn];
+        if(kind === 'count'){ const n = 1 + Math.floor(Math.random()*6), e = pick(['🐟','🌸','⭐','🍎','🐚']); q = 'How many? ' + e.repeat(n); good = n; opts = [n, n + 1, Math.max(1, n - 1)]; }
+        else if(kind === 'ru'){ const n = 1 + Math.floor(Math.random()*10); q = `Which number is “${RU_N[n]}”?`; good = n; opts = [n, (n % 10) + 1, ((n + 4) % 10) + 1]; setTimeout(()=>Audio_.say(RU_N[n]), 700); }
+        else if(kind === 'add'){ const a = 2 + Math.floor(Math.random()*9), c = 1 + Math.floor(Math.random()*9); q = `${a} + ${c} = ?`; good = a + c; opts = [good, good + 1, good - 2]; }
+        else { const a = 8 + Math.floor(Math.random()*11), c = 1 + Math.floor(Math.random()*7); q = `${a} − ${c} = ?`; good = a - c; opts = [good, good + 2, good - 1]; }
+        opts = Array.from(new Set(opts)).sort(()=>Math.random() - .5);
+        qp.textContent = `${qn + 1}. ${q}`;
+        for(const o of opts){ const t2 = document.createElement('div'); t2.className = 'tile'; t2.innerHTML = `<span class="big">${o}</span>${kind === 'ru' ? RU_N[o] || '' : ''}`;
+          t2.onclick = ()=>{ if(o === good){ right++; Audio_.blip(900); toast('✓ Right!'); } else { Audio_.nope(); toast(`It was ${good}`); } qn++; ask(); }; ans.appendChild(t2); }
+      };
+      ask();
+    });
+  }
+  if(id === 'church'){
+    const v = PSALMS[Math.floor(Date.now()/86400000) % PSALMS.length];
+    return placeShow(eye, 'The church', f, `Welcome, ${nm}. Here is today’s verse: ${v[0]}`, b=>{
+      const vp = document.createElement('p'); vp.className = 'sub'; vp.style.fontStyle = 'italic'; vp.textContent = `“${v[0]}” ${v[1]}`; b.appendChild(vp);
+      plBtn(b, T.candle === dayKey() ? '🕯️ Your candle is glowing' : '🕯️ Light a candle', ()=>{ if(T.candle === dayKey()) return; T.candle = dayKey(); persist(); Audio_.sparkle(); placeSay('A candle for someone you love. It will glow all day.'); renderBells(); }, 'ghost');
+      const bells = document.createElement('div'); bells.className = 'grid3'; bells.style.marginTop = '10px'; b.appendChild(bells);
+      const notes = [523.25, 659.25, 783.99, 1046.5], N = easy ? 3 : 5; let tune = [], pos = 0, busy = false;
+      const ring = (i, when)=>{ Audio_.tone(notes[i], 1.1, 'sine', .12, when || 0); Audio_.tone(notes[i]*2.01, .7, 'sine', .03, when || 0); };
+      const msg = document.createElement('p'); msg.className = 'note'; b.appendChild(msg);
+      function renderBells(){
+        bells.innerHTML = '';
+        notes.forEach((n, i)=>{ const t2 = document.createElement('div'); t2.className = 'tile'; t2.innerHTML = `<span class="big">🔔</span>${['Do','Mi','Sol','Do!'][i]}`;
+          t2.onclick = ()=>{ ring(i); t2.style.transform = 'rotate(-8deg)'; setTimeout(()=>{ t2.style.transform = ''; }, 200); if(!tune.length || busy) return;
+            if(i === tune[pos]){ pos++; if(pos === tune.length){ tune = []; msg.textContent = '🔔 Beautiful! The whole town heard the bells.'; save.pearls += 6; persist(); updateHud(); Audio_.great(); if(T.q.james !== 3) helped('james', 5, `Beautiful bells, ${nm}! Thank you for ringing them for the whole town.`); } }
+            else { pos = 0; msg.textContent = 'Oops! Listen again…'; busy = true; setTimeout(play, 900); } };
+          bells.appendChild(t2); });
+      }
+      const play = ()=>{ busy = true; tune.forEach((k, j)=>ring(k, j*.55)); setTimeout(()=>{ busy = false; msg.textContent = 'Now you ring them, in the same order.'; }, tune.length*550); };
+      renderBells();
+      plBtn(b, '🔔 Ring the bells with Pastor James', ()=>{ tune = []; for(let k=0; k<N; k++) tune.push(Math.floor(Math.random()*(easy ? 3 : 4))); pos = 0; msg.textContent = 'Listen…'; play(); });
+    });
+  }
+  if(id === 'dentist'){
+    return placeShow(eye, 'The dentist', f, `Hello, ${nm}! Sugar bugs love to hide on teeth. Scrub them all away with the toothbrush!`, b=>{
+      const c = document.createElement('canvas'); c.width = 640; c.height = 380; c.style.cssText = 'width:100%;max-width:420px;display:block;margin:8px auto;border-radius:16px;touch-action:none;background:#7a2f3a'; b.appendChild(c);
+      const g = c.getContext('2d'), teeth = [], bugs = [];
+      for(let k=0; k<8; k++){ teeth.push({x:60 + k*66, y:70, w:58, h:90}); teeth.push({x:60 + k*66, y:220, w:58, h:90}); }
+      for(let k=0; k<14; k++){ const th = pick(teeth); bugs.push({x:th.x + 10 + Math.random()*38, y:th.y + 15 + Math.random()*60, h:1}); }
+      let brush = null, done = false;
+      const draw = ()=>{ g.fillStyle = '#7a2f3a'; g.fillRect(0, 0, 640, 380); g.fillStyle = '#e06a7a'; g.fillRect(0, 0, 640, 60); g.fillRect(0, 320, 640, 60);
+        for(const th of teeth){ g.fillStyle = '#fbfaf5'; roundRect(g, th.x, th.y, th.w, th.h, 14); g.fill(); g.fillStyle = 'rgba(0,0,0,.06)'; g.fillRect(th.x + th.w - 10, th.y + 8, 6, th.h - 16); }
+        for(const bg of bugs){ if(bg.h <= 0) continue; g.globalAlpha = bg.h; g.fillStyle = '#7bc043'; g.beginPath(); g.arc(bg.x, bg.y, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(bg.x - 4, bg.y - 3, 3, 0, 7); g.arc(bg.x + 4, bg.y - 3, 3, 0, 7); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(bg.x - 4, bg.y - 3, 1.4, 0, 7); g.arc(bg.x + 4, bg.y - 3, 1.4, 0, 7); g.fill(); g.globalAlpha = 1; }
+        if(brush){ g.save(); g.translate(brush.x, brush.y); g.rotate(-.5); g.fillStyle = '#4fc3f7'; roundRect(g, -10, 0, 20, 120, 8); g.fill(); g.fillStyle = '#fff'; roundRect(g, -14, -26, 28, 30, 4); g.fill();
+          g.fillStyle = 'rgba(255,255,255,.85)'; for(let k=0; k<5; k++){ g.beginPath(); g.arc((Math.random() - .5)*40, -20 + (Math.random() - .5)*30, 4 + Math.random()*5, 0, 7); g.fill(); } g.restore(); }
+        if(done){ g.font = '700 46px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ffd479'; g.fillText('✨ Sparkly! ✨', 320, 205); } };
+      const at = e=>{ const r = c.getBoundingClientRect(); return {x:(e.clientX - r.left)/r.width*640, y:(e.clientY - r.top)/r.height*380}; };
+      const scrub = e=>{ if(done) return; e.preventDefault(); brush = at(e); let hit = false;
+        for(const bg of bugs) if(bg.h > 0 && Math.hypot(bg.x - brush.x, bg.y - brush.y) < 36){ bg.h -= .12; hit = true; if(bg.h <= 0) Audio_.pop(.08); }
+        if(hit && Math.random() < .3) Audio_.noise(.05, 3000, .4, .03, 'highpass');
+        if(bugs.every(bg=>bg.h <= 0)){ done = true; Audio_.great(); save.pearls += 6; persist(); updateHud();
+          placeSay(`All clean! What a sparkly smile, ${nm}! Remember: brush for two minutes, every morning and every night.`);
+          if(T.q.penny !== 3) helped('penny', 5);
+          plBtn(b, '⭐ Did you brush today? Tick it on your chart', ()=>{ placeLeave(); openChart(); }); }
+        draw(); };
+      c.addEventListener('pointerdown', e=>{ c.dragging = true; scrub(e); });
+      c.addEventListener('pointermove', e=>{ if(c.dragging || e.pointerType === 'mouse') scrub(e); });
+      c.addEventListener('pointerup', ()=>{ c.dragging = false; }); c.addEventListener('pointerleave', ()=>{ c.dragging = false; brush = null; draw(); });
+      draw();
+    });
+  }
+  if(id === 'icecream'){
+    const FL = [{c:'#ff9cc2', ru:'клубника', en:'strawberry'}, {c:'#6b4423', ru:'шоколад', en:'chocolate'}, {c:'#fff3d6', ru:'ваниль', en:'vanilla'}, {c:'#a8f0c8', ru:'мята', en:'mint'}, {c:'#ffd23f', ru:'манго', en:'mango'}];
+    let scoops = [];
+    return placeShow(eye, 'Ice cream', f, `Hi ${nm}! Pick up to three scoops. Each cone is 2 pearls.`, b=>{
+      const c = document.createElement('canvas'); c.width = 200; c.height = 260; c.style.cssText = 'width:120px;display:block;margin:4px auto'; b.appendChild(c);
+      const g = c.getContext('2d');
+      const draw = ()=>{ g.clearRect(0, 0, 200, 260); g.fillStyle = '#f2c27a'; g.beginPath(); g.moveTo(60, 160); g.lineTo(140, 160); g.lineTo(100, 255); g.fill();
+        g.strokeStyle = '#c99a4e'; g.lineWidth = 2; for(let k=0; k<5; k++){ g.beginPath(); g.moveTo(64 + k*18, 160); g.lineTo(100, 250); g.stroke(); }
+        scoops.forEach((s, i)=>{ g.fillStyle = s.c; g.beginPath(); g.arc(100, 140 - i*44, 40, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(86, 128 - i*44, 10, 0, 7); g.fill(); }); };
+      draw();
+      const grid = document.createElement('div'); grid.className = 'grid3'; b.appendChild(grid);
+      for(const fl of FL){ const t2 = document.createElement('div'); t2.className = 'tile'; t2.innerHTML = `<span class="big" style="color:${fl.c}">●</span>${fl.ru}<span class="cost">${fl.en}</span>`;
+        t2.onclick = ()=>{ if(scoops.length >= 3){ toast('Three scoops is the most!'); return; } scoops.push(fl); Audio_.say(fl.ru); Audio_.pop(); draw(); }; grid.appendChild(t2); }
+      plBtn(b, '😋 Eat it!', ()=>{ if(!scoops.length){ toast('Pick a scoop first'); return; }
+        if(save.pearls < 2){ placeSay('Oh, no pearls? This one is a gift from me!'); } else { save.pearls -= 2; persist(); updateHud(); }
+        Audio_.great(); placeSay(scoops.length === 3 ? 'Wow, a triple! Yum yum yum!' : 'Yum! Enjoy!'); scoops = []; setTimeout(draw, 800);
+        if(T.q.sunny !== 3) helped('sunny', 5); });
+    });
+  }
+}
+function placesMenu(){
+  placeShow('🚗 Where to?', 'Places in town', null, 'Tap a place and the car will drive you there.', b=>{
+    const grid = document.createElement('div'); grid.className = 'grid3'; b.appendChild(grid);
+    const add = (ic, label, x, y)=>{ const t2 = document.createElement('div'); t2.className = 'tile'; t2.innerHTML = `<span class="big">${ic}</span>${label}`;
+      t2.onclick = ()=>{ placeLeave(); driveTo(x, y, `${ic} Driving to ${label}`); }; grid.appendChild(t2); };
+    add('🏠', 'Home', 570, 385); add('⚓', 'Harbor', 1900, 1370);
+    for(const p of PLACES) add(p.ic, p.name, p.stop[0], p.stop[1]);
+    for(const id of ['rosa', 'ivan', 'kims']) add('🏡', FOLKS[id].name, FOLKS[id].stop[0], FOLKS[id].stop[1]);
+  });
 }
 
 /* ============================ OCEAN UPDATE ============================ */
