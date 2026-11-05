@@ -43,14 +43,30 @@ seals and gulls, race the buoys, and light the lighthouse to sail at sunset.
 constellations in English and Russian. The boat also has a radio (Bubble FM), a GPS with directions,
 and a fish finder.
 
-**Playing together (two iPads):** in the Home dome, make a family code on one iPad and type it on the
-other, with each iPad playing a different diver. The sisters then see each other in Bubble Town and
-out on the sea, have a radar showing where the other one is (or what she is doing), can send waves and
-hearts, hop aboard each other's boat, and talk through the iPads like walkie-talkies: hold 🎙️, or just
-talk when they are together in the game. The iPads find each other through PeerJS's free public
-broker (a small introduction only); game data and voice then go directly between the iPads with
-WebRTC. Nothing is recorded or stored. `vendor/peerjs.safari12.js` is PeerJS (MIT) rebuilt for
-Safari 12.
+**Playing together:** in the Home dome, make a family code on one iPad and type it on the others.
+Each iPad picks a different player: Diver One, Diver Two, **Papa**, **Mama** (grown-ups have their own
+look and saves), or **A friend** (a visiting friend's iPad asks for the code on the title screen; several
+friends can join, each iPad is its own friend). Everyone sees each other in Bubble Town and on the sea,
+has a radar of where the others are (or what they are doing), can send waves and hearts, hop aboard
+someone's boat, and talk through the iPads like walkie-talkies: hold 🎙️, or just talk when together in
+the game. The iPads find each other through PeerJS's free public broker (a small introduction only);
+game data and voice then go directly between them with WebRTC, so it works across the internet too.
+On very strict networks a relay (TURN) may be needed: put a JSON list of ICE servers in
+`localStorage['bubbletown.ice']`. Nothing is recorded. `vendor/peerjs.safari12.js` is PeerJS (MIT)
+rebuilt for Safari 12.
+
+**The treasure chart** (⭐ Chart) counts everything ever found: pearls, jewels, fossils and shells,
+fish, photos, constellations, Russian letters, songs and adventures, with bronze, silver and gold
+medals. Medals unlock prizes to wear (flower clip, sunglasses, tiara, captain's hat, crown).
+Below it is a **good-habits chart** for real life (brushing teeth morning and bedtime, playing outside,
+reading, helping): the child taps "I did it!" and a grown-up confirms, either with a grown-up PIN on
+that iPad (set the first time behind a sum) or by tapping Yes on Papa's or Mama's own iPad. Stickers
+give pearls, five in a day is a Super Day, and a week in a row earns a jewel.
+
+**Keeping progress safe:** saves live on each iPad. Play from the Home Screen icon (Safari may clear
+sites not opened for a week; Home Screen apps are kept). Connected family iPads each keep a copy of
+the others' progress and give it back if one iPad loses it, and the Home dome has a backup code to copy
+and paste back. After a long break the game says welcome back (with a gift after a week away).
 
 **The shark**, once tamed, is a friend to ride, do tricks with, race through hoops (levels, more
 pearls, and new outfits for her), and dress up in the Home dome.

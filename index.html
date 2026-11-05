@@ -167,6 +167,24 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
 .mutab{font-family:var(--disp);font-weight:700;font-size:14px;border-radius:999px;padding:8px 14px;border:1.5px solid var(--rim);background:rgba(125,240,255,.08);color:var(--glow);cursor:pointer}
 .mutab.on{background:var(--pearl);color:var(--ink);border-color:var(--pearl)}
 .musel{font-family:var(--body);font-size:15px;padding:8px;border-radius:10px;background:rgba(3,24,43,.75);color:#eaf9ff;border:1.5px solid var(--rim);max-width:100%}
+.guests .diver{padding:10px 8px}
+.guests .diver .nm{font-size:18px}
+.tcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.tc{display:grid;grid-template-columns:34px 1fr auto;grid-template-rows:auto auto auto auto;column-gap:8px;align-items:center;
+  background:rgba(4,28,46,.5);border:1.5px solid rgba(125,240,255,.2);border-radius:14px;padding:8px 10px}
+.tc .ic{grid-row:1 / 5;font-size:26px;text-align:center}
+.tc b{color:#eaf9ff;font-size:14px}
+.tc .n{font-family:var(--disp);font-size:20px;color:var(--pearl);text-align:right}
+.tc .medals{grid-column:2 / 4;font-size:16px;letter-spacing:2px}
+.tc .medals i{font-style:normal;opacity:.22;filter:grayscale(1)}
+.tc .medals i.on{opacity:1;filter:none}
+.tc .bar{grid-column:2 / 4;margin-top:3px;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden}
+.tc .bar i{display:block;height:100%;background:linear-gradient(90deg,#7df0ff,#ffd479)}
+.tc .nx{grid-column:2 / 4;font-size:11px;color:#7fc0d6}
+table.habits{border-collapse:collapse;width:100%;min-width:480px;font-size:14px;color:#cfeef7}
+table.habits th{font-size:12px;color:#7fc0d6;padding:4px;font-weight:700}
+table.habits td{text-align:center;padding:5px 3px;border-top:1px solid rgba(125,240,255,.12)}
+table.habits td.hn{text-align:left;white-space:nowrap}
 .chk{display:inline-flex;gap:6px;align-items:center;color:#cfeef7;font-size:14px}
 .btn.sm{padding:8px 14px;font-size:14px}
 
@@ -287,6 +305,7 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <div class="chip" id="chipBack">🏠 Home</div>
   <div class="chip" id="chipUp" hidden>⬆ Backyard</div>
   <div class="chip" id="chipPearls">🫧 <span id="pearlN">0</span></div>
+  <div class="chip" id="chipChart">⭐ Chart</div>
 </div>
 
 <div id="pads" hidden>
@@ -311,7 +330,6 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <button class="emo" type="button" aria-label="Laugh">😂</button>
   <button id="walkieBtn" type="button" aria-label="Hold to talk">🎙️</button>
 </div>
-<audio id="walkieAudio" playsinline autoplay></audio>
 <div id="toast"></div>
 <button class="chip" id="introSkip" hidden
   style="position:fixed;right:14px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border:0">Skip ›</button>
@@ -322,6 +340,8 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <h1>Bubble Town</h1>
   <p class="sub">A colony under the sea, in glass domes full of air. Pick your diver. Your town keeps growing while you're away.</p>
   <div class="divers" id="divers"></div>
+  <p class="eyebrow" style="margin-top:14px">Grown-ups &amp; friends</p>
+  <div class="divers guests" id="guests"></div>
   <div class="row"><button class="btn ghost" id="btnWipe">Start a diver over</button></div>
 </div></div>
 
@@ -338,6 +358,9 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <p class="eyebrow">Your shark friend</p>
   <div id="sharkBox"></div>
   <div id="seaBox"></div>
+  <hr class="rule">
+  <p class="eyebrow">Grown-ups · keeping progress safe</p>
+  <div id="grownBox"></div>
   <hr class="rule">
   <p class="eyebrow">Russian alphabet · Азбука</p>
   <div class="abc" id="abc"></div>
@@ -424,6 +447,32 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <h2 id="dockTitle"></h2>
   <div id="dockBody"></div>
   <div class="row end" style="margin-top:16px"><button class="btn ghost" id="dockOut" type="button">Back to the boat</button></div>
+</div></div>
+
+<!-- TREASURE CHART -->
+<div class="layer" id="lChart"><div class="scrim"></div><div class="port">
+  <p class="eyebrow">Treasure chart · <span id="chartMedals">0 medals</span></p>
+  <h2 id="chartTitle">Treasure chart</h2>
+  <p class="sub">Everything you have ever found. Every 🥉🥈🥇 medal counts toward a prize to wear.</p>
+  <div class="tcs" id="chartCats"></div>
+  <hr class="rule">
+  <p class="eyebrow">Prizes</p>
+  <div class="grid2" id="chartPrizes"></div>
+  <hr class="rule">
+  <p class="eyebrow">Good habits · real life</p>
+  <p class="note">Did it today? Tap “I did it!” and a grown-up checks it. Each sticker is +15 🫧, all five in one day is a Super Day, and a week in a row earns a jewel.</p>
+  <div id="chartHabits" style="overflow-x:auto"></div>
+  <div class="row end" style="margin-top:16px"><button class="btn" id="chartClose" type="button">Back to playing</button></div>
+</div></div>
+
+<!-- GROWN-UP PIN -->
+<div class="layer" id="lPin"><div class="scrim"></div><div class="port" style="text-align:center;max-width:420px">
+  <div class="wordpic">🔑</div>
+  <h2 id="pinTitle">Grown-up check</h2>
+  <p class="sub" id="pinSub" style="text-align:center"></p>
+  <input class="namein" id="pinIn" inputmode="numeric" autocomplete="off" style="width:200px;font-size:22px;text-align:center;margin:6px auto;display:block">
+  <input class="namein" id="pinIn2" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="new 4-digit PIN" style="width:200px;font-size:22px;text-align:center;margin:6px auto;display:block">
+  <div class="row center"><button class="btn ghost" id="pinCancel" type="button">Not now</button><button class="btn gold" id="pinOk" type="button">OK</button></div>
 </div></div>
 
 <!-- RESULT -->
@@ -651,6 +700,13 @@ const DIVERS = [
   { id:'angelina',name:'Diver Two', age:'Younger diver',
     blurb:'Big bonk, dance studio, picture words', suit:0, hair:1, mode:'easy' },
 ];
+// grown-ups and visiting friends: same game, their own saves, a different look
+const GUESTS = [
+  { id:'papa', name:'Papa', age:'Grown-up', blurb:'Join in and say hello', suit:3, hair:3, mode:'advanced', look:'papa', grown:true },
+  { id:'mama', name:'Mama', age:'Grown-up', blurb:'Join in and say hello', suit:0, hair:2, mode:'advanced', look:'mama', grown:true },
+  { id:'friend', name:'A friend', age:'Visiting friend', blurb:'Play on your own iPad with the family code', suit:4, hair:2, mode:'advanced', look:'kid' },
+];
+const ALL_PLAYERS = DIVERS.concat(GUESTS);
 /* This build is public, so no real names ship in the file. Tap the pencil on a
    card to name a diver; the name is saved on this device only and never leaves it. */
 function diverName(d){
@@ -669,11 +725,17 @@ let P = null, save = null;          // active profile id, save object
 function loadSave(id){
   let s;
   try { s = JSON.parse(localStorage.getItem('bubbletown.'+id) || 'null'); } catch(e){ s = null; }
-  if(!s || s.v !== 2){ const d = DIVERS.find(x=>x.id===id); s = DEF(); s.suit=d.suit; s.hair=d.hair; s.mode=d.mode; }
+  if(!s || s.v !== 2){ const d = ALL_PLAYERS.find(x=>x.id===id); s = DEF(); s.suit=d.suit; s.hair=d.hair; s.mode=d.mode; }
   return s;
 }
-function persist(){ if(P) try{ localStorage.setItem('bubbletown.'+P, JSON.stringify(save)); }catch(e){} }
-addEventListener('visibilitychange', ()=>{ if(document.hidden){ save && (save.lastSeen = Date.now()); persist(); } });
+// lifetime pearls only ever go up, so spending them never shrinks the treasure chart
+function trackPearls(){ if(!save) return; if(save.pearlsEver === undefined){ save.pearlsEver = save.pearls; save.lastP = save.pearls; }
+  const d = save.pearls - (save.lastP === undefined ? save.pearls : save.lastP); if(d > 0) save.pearlsEver += d; save.lastP = save.pearls; }
+function persist(){ if(P) try{ trackPearls(); save.updated = Date.now(); localStorage.setItem('bubbletown.'+P, JSON.stringify(save)); }catch(e){} }
+addEventListener('visibilitychange', ()=>{
+  if(document.hidden){ save && (save.lastSeen = Date.now()); persist(); }
+  else if(save && scene !== 'title' && typeof welcomeBack === 'function'){ const prev = save.lastSeen; save.lastSeen = Date.now(); welcomeBack(prev); }
+});
 
 /* Coral gardens grow pearls in real time, even with the iPad closed. */
 const GARDEN_MIN = 9, GARDEN_CAP = 14, GARDEN_COST = 40;
@@ -789,6 +851,7 @@ function pressA(){
   if(!overlay && scene === 'tunnel'){ tunnelDash(); return; }
   if(!overlay && scene === 'run'){ runJump(); return; }
   if(!overlay && scene === 'boat'){ boatJump(); return; }
+  if(!overlay && scene === 'drive'){ honk(); return; }
   if(overlay || scene !== 'ocean') return;
   Audio_.init();
   if(player.ride){ sharkTrick(); return; }
@@ -841,8 +904,12 @@ function toast(msg){
 function tickToast(){ if(toastT && now() > toastT){ $('#toast').classList.remove('on'); toastT = 0; } }
 
 /* ============================ DIVER ART ============================ */
-function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
+// look: {k:'kid'|'papa'|'mama', acc:prize id}; left out, it is this iPad's own player
+function myLook(){ const d = P && typeof ALL_PLAYERS !== 'undefined' ? ALL_PLAYERS.find(x=>x.id === P) : null; return {k:d && d.look || 'kid', acc:save && save.acc || ''}; }
+function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold, look){
   // a slim girl in a wetsuit: ponytail with a bow, mask pushed up on her forehead
+  look = look || myLook();
+  const kid = look.k === 'kid', papa = look.k === 'papa', mama = look.k === 'mama';
   g.save(); g.translate(x, y); g.scale(face < 0 ? -s : s, s);
   g.rotate(Math.sin(t * 3) * 0.04);
   const kick = Math.sin(t * (kicking ? 14 : 5));
@@ -850,9 +917,13 @@ function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
   // ponytail, streaming behind and swaying
   const sw = Math.sin(t * 4) * 2;
   g.fillStyle = hair; g.strokeStyle = hairD; g.lineWidth = .7;
-  g.beginPath(); g.moveTo(-4.5, -16.5);
-  g.bezierCurveTo(-12, -17 + sw*.3, -15.5, -9 + sw, -13 + sw*.6, 1.5 + sw);
-  g.bezierCurveTo(-11.5, -4 + sw*.5, -9, -9, -3.5, -12); g.closePath(); g.fill(); g.stroke();
+  if(kid){
+    g.beginPath(); g.moveTo(-4.5, -16.5);
+    g.bezierCurveTo(-12, -17 + sw*.3, -15.5, -9 + sw, -13 + sw*.6, 1.5 + sw);
+    g.bezierCurveTo(-11.5, -4 + sw*.5, -9, -9, -3.5, -12); g.closePath(); g.fill(); g.stroke();
+  } else if(mama){                            // a neat bun at the back
+    g.beginPath(); g.arc(-6.4, -16.8, 3.6, 0, 7); g.fill(); g.stroke();
+  }
   // slim air tank
   g.fillStyle = '#e8b33a'; roundRect(g, -9.6, -3.5, 4.2, 13, 2.1); g.fill();
   g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(-8.8, -2, 1, 10);
@@ -913,13 +984,15 @@ function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
   g.bezierCurveTo(7, -18.5, 8.2, -14.5, 7, -12.2);
   g.quadraticCurveTo(4, -16.4, -.6, -14.6);
   g.quadraticCurveTo(-3.6, -13, -4.2, -8.5); g.closePath(); g.fill(); g.stroke();
-  g.beginPath(); g.moveTo(-5.8, -9); g.quadraticCurveTo(-6.6, -4, -4.6, -2.6); g.quadraticCurveTo(-4.9, -6, -4.2, -8.5); g.fill();
+  if(!papa){ g.beginPath(); g.moveTo(-5.8, -9); g.quadraticCurveTo(-6.6, -4, -4.6, -2.6); g.quadraticCurveTo(-4.9, -6, -4.2, -8.5); g.fill(); }
   // a bow in her hair
-  const bow = /ff6f9c/i.test(suit) ? '#ffd479' : '#ff6f9c';
-  g.fillStyle = bow;
-  g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-7.6, -20.4); g.lineTo(-7.4, -15.6); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-.6, -20.6); g.lineTo(-1.2, -15.8); g.closePath(); g.fill();
-  g.fillStyle = shade(bow, -30); g.beginPath(); g.arc(-4, -17.6, 1.1, 0, 7); g.fill();
+  if(kid && look.acc !== 'flower'){
+    const bow = /ff6f9c/i.test(suit) ? '#ffd479' : '#ff6f9c';
+    g.fillStyle = bow;
+    g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-7.6, -20.4); g.lineTo(-7.4, -15.6); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-4, -17.5); g.lineTo(-.6, -20.6); g.lineTo(-1.2, -15.8); g.closePath(); g.fill();
+    g.fillStyle = shade(bow, -30); g.beginPath(); g.arc(-4, -17.6, 1.1, 0, 7); g.fill();
+  }
   // mask, pushed up on her forehead
   g.fillStyle = 'rgba(190,245,255,.55)'; g.strokeStyle = '#e8f8ff'; g.lineWidth = .9;
   g.beginPath(); g.ellipse(2.2, -17.4, 4.4, 2.1, -.08, 0, 7); g.fill(); g.stroke();
@@ -929,17 +1002,53 @@ function drawDiver(g, x, y, s, suit, hair, t, face, kicking, hold){
     g.fillStyle = '#2a1f2e'; g.beginPath(); g.ellipse(ex, -11.6, .95, 1.35, 0, 0, 7); g.fill();
     g.fillStyle = '#ffffff'; g.beginPath(); g.arc(ex + .35, -12.1, .38, 0, 7); g.fill();
     g.strokeStyle = '#2a1f2e'; g.lineWidth = .45;
-    g.beginPath(); g.moveTo(ex + .7, -12.7); g.lineTo(ex + 1.6, -13.5); g.stroke();
-    g.beginPath(); g.moveTo(ex + .2, -12.9); g.lineTo(ex + .7, -14); g.stroke();
+    if(!papa){
+      g.beginPath(); g.moveTo(ex + .7, -12.7); g.lineTo(ex + 1.6, -13.5); g.stroke();
+      g.beginPath(); g.moveTo(ex + .2, -12.9); g.lineTo(ex + .7, -14); g.stroke();
+    } else { g.lineWidth = .8; g.beginPath(); g.moveTo(ex - 1.2, -14.4); g.lineTo(ex + 1.3, -14.6); g.stroke(); }
   }
-  g.fillStyle = 'rgba(255,120,140,.35)';
+  g.fillStyle = papa ? 'rgba(255,120,140,.15)' : 'rgba(255,120,140,.35)';
   g.beginPath(); g.arc(-1.2, -9.4, 1.3, 0, 7); g.fill();
   g.beginPath(); g.arc(4.9, -9.4, 1.3, 0, 7); g.fill();
-  g.strokeStyle = '#a4485a'; g.lineWidth = .65;
+  if(papa){                                   // a short, friendly beard
+    g.fillStyle = shade(hair, -10);
+    g.beginPath(); g.moveTo(-5, -11); g.quadraticCurveTo(-4.6, -5, .8, -5); g.quadraticCurveTo(6.2, -5, 6.6, -11);
+    g.quadraticCurveTo(5.6, -8.2, 3.8, -8.2); g.quadraticCurveTo(1.8, -9.6, -.4, -8.2); g.quadraticCurveTo(-3, -8.2, -5, -11); g.fill();
+  }
+  if(mama){ g.fillStyle = '#ffd479'; g.beginPath(); g.arc(-4.9, -8.6, .9, 0, 7); g.fill(); }
+  g.strokeStyle = papa ? '#7a3a3a' : '#a4485a'; g.lineWidth = .65;
   g.beginPath(); g.arc(1.8, -9.4, 1.5, .25*Math.PI, .8*Math.PI); g.stroke();
+  drawAcc(g, look.acc);
   g.restore();
 }
 
+// prizes from the treasure chart, drawn on the head in the diver's own space
+function drawAcc(g, acc){
+  if(!acc) return;
+  if(acc === 'crown'){
+    g.fillStyle = '#ffcf3f'; g.strokeStyle = '#b8871f'; g.lineWidth = .5;
+    g.beginPath(); g.moveTo(-3.6, -19.4); g.lineTo(-4.4, -25); g.lineTo(-1.6, -22); g.lineTo(.8, -26.2); g.lineTo(3.2, -22); g.lineTo(6, -25); g.lineTo(5.2, -19.2); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#ff4f7a'; g.beginPath(); g.arc(.8, -21, .9, 0, 7); g.fill();
+    g.fillStyle = '#7df0ff'; g.beginPath(); g.arc(-2.4, -20.6, .6, 0, 7); g.arc(4, -20.6, .6, 0, 7); g.fill();
+  } else if(acc === 'tiara'){
+    g.strokeStyle = '#e8f4ff'; g.lineWidth = .8;
+    g.beginPath(); g.moveTo(-4, -18.6); g.quadraticCurveTo(1, -22.8, 6, -18.4); g.stroke();
+    g.fillStyle = '#ffffff'; for(const [px, py, r] of [[1, -22.4, 1.1], [-2.2, -21, .7], [4.2, -21, .7]]){ g.beginPath(); g.arc(px, py, r, 0, 7); g.fill(); }
+    g.fillStyle = '#ff9ad0'; g.beginPath(); g.arc(1, -22.4, .5, 0, 7); g.fill();
+  } else if(acc === 'shades'){
+    g.fillStyle = '#1b1d2a'; g.strokeStyle = '#ff6f9c'; g.lineWidth = .4;
+    for(const ex of [-.6, 3.8]){ g.beginPath(); g.ellipse(ex, -11.8, 1.9, 1.5, 0, 0, 7); g.fill(); g.stroke(); }
+    g.strokeStyle = '#1b1d2a'; g.lineWidth = .6; g.beginPath(); g.moveTo(1.2, -12); g.lineTo(2, -12); g.moveTo(-2.4, -12); g.lineTo(-5, -12.6); g.stroke();
+  } else if(acc === 'flower'){
+    g.fillStyle = '#ff8fc0'; for(let i=0; i<5; i++){ const a = i*1.257; g.beginPath(); g.arc(-4.4 + Math.cos(a)*1.5, -18 + Math.sin(a)*1.5, 1.2, 0, 7); g.fill(); }
+    g.fillStyle = '#ffd479'; g.beginPath(); g.arc(-4.4, -18, .9, 0, 7); g.fill();
+  } else if(acc === 'captain'){
+    g.fillStyle = '#ffffff'; g.strokeStyle = '#1d3557'; g.lineWidth = .5;
+    g.beginPath(); g.ellipse(1, -20.2, 6.6, 2.6, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#1d3557'; g.beginPath(); g.moveTo(-4.8, -19); g.lineTo(6.8, -19); g.lineTo(8.6, -17.6); g.lineTo(-4.2, -17.8); g.closePath(); g.fill();
+    g.fillStyle = '#ffcf3f'; g.beginPath(); g.arc(1.4, -20.6, .9, 0, 7); g.fill();
+  }
+}
 function drawCreature(g, c, x, y, s, t){
   g.save(); g.translate(x, y);
   g.rotate(Math.sin(t * 1.7) * 0.13);
@@ -1649,17 +1758,17 @@ const SHOP = [
 let bt = null;
 const sv = ()=>{ save.sea = save.sea || {owned:{}, sail:'plain', flag:'plain', fish:{}, photos:{}, shells:0, lit:false, raceBest:0}; return save.sea; };
 
-function startBoat(){
+function startBoat(from){
   scene = 'boat'; openLayer(null); sparks = [];
   const S = sv(), d = ISLES[0], r0 = seeded((Math.random()*1e9)|0), R = (a, b)=>a + r0()*(b - a);
-  bt = {x:d.x, y:d.y + d.r + 60, h:Math.PI/2, v:0, steer:0, throttle:0, t:0, odo:0, goal:null,
+  bt = {x:from === 'harbor' ? HARBOR.x + 70 : d.x, y:from === 'harbor' ? HARBOR.y + 60 : d.y + d.r + 60, h:Math.PI/2, v:0, steer:0, throttle:0, t:0, odo:0, goal:null,
         view:save.mode === 'easy' ? 'top' : 'fp', items:[], dol:[], turtles:[], seals:[], gulls:[], fly:[], whale:{x:0, y:0, up:-1, next:12},
         fx:[], wake:[], fish:null, race:null, visited:{}, shot:0, flash:0, sunset:false, night:false, sky:'day', horn:-9, near:null,
         lst:skyLST(), gaze:null, sonar:save.mode !== 'easy', gps:null};
   // things afloat, kept clear of the islands
   const clear = (x, y, m)=>ISLES.every(i=>Math.hypot(x - i.x, y - i.y) > i.r + m);
   for(let k=0, n=0; k<400 && n<70; k++){
-    const x = R(150, SEA.w - 150), y = R(150, SEA.h - 150); if(!clear(x, y, 90)) continue;
+    const x = R(150, SEA.w - 150), y = R(COAST_Y + 160, SEA.h - 150); if(!clear(x, y, 90)) continue;
     const r = r0(); bt.items.push({x, y, k:r < .55 ? 'pearl' : r < .7 ? 'bottle' : r < .85 ? 'shell' : 'rock', got:false, ph:R(0, 9)}); n++;
   }
   for(let i=0; i<4; i++) bt.dol.push({x:R(800, 2600), y:R(800, 2600), a:R(0, 6.3), jump:-1, ph:R(0, 9)});
@@ -1697,6 +1806,7 @@ function boatBar(){
   if(B.near && B.near.kind === 'isle') want.push(['dock', '⚓ Visit ' + B.near.o.name]);
   if(B.near && B.near.kind === 'spot' && !B.fish) want.push(['fish', '🎣 Fish here']);
   if(B.near && B.near.kind === 'race' && !B.race) want.push(['race', '🏁 Buoy race']);
+  if(B.near && B.near.kind === 'harbor' && !B.crew) want.push(['harbor', '🚗 Tie up and take the car']);
   const fr = Net.st === 'on' && Net.friend && Net.friend.sc === 'boat' && Net.friend.fx !== null ? Net.friend : null;
   if(B.crew) want.push(['crew', '⛵ Back to my own boat']);
   else if(fr && !fr.crew && Math.hypot(fr.fx - B.x, fr.fy - B.y) < 260) want.push(['crew', `⛵ Hop aboard ${fr.nm}’s boat`]);
@@ -1736,12 +1846,13 @@ function boatAction(id){
   else if(id === 'dock') openIsle(B.near.o);
   else if(id === 'fish') startFishing();
   else if(id === 'race') startBuoyRace();
+  else if(id === 'harbor'){ $('#boatBar').hidden = true; if(radioOn >= 0){ Music.stop(); radioOn = -1; } setSkip(null); bt = null; fadeTo(()=>startDrive('harbor')); }
   else if(id === 'sky'){ setSky(B.sky === 'day' ? 'sunset' : B.sky === 'sunset' ? 'night' : 'day');
     if(B.sky === 'night' && !sv().starHint){ sv().starHint = 1; toast('🌙 Night! Tap 🔭 to learn the real constellations'); } boatBar(); }
   else if(id === 'stars'){ B.gaze = B.gaze ? null : {az:(B.h + Math.PI/2 + Math.PI*2) % (Math.PI*2), alt:.65, sel:null}; showPads(!B.gaze); boatBar(); }
   else if(id === 'radio'){ radioNext(); boatBar(); }
   else if(id === 'gps') gpsMenu();
-  else if(id === 'crew'){ B.crew = !B.crew; B.v = 0; B.throttle = 0; B.goal = null; toast(B.crew ? `You’re aboard! ${friendName()} is steering` : 'Back on your own boat'); boatBar(); }
+  else if(id === 'crew'){ const fr = B.crew ? null : Net.friend; B.crewOf = fr ? fr.role : ''; B.crew = !!B.crewOf; B.v = 0; B.throttle = 0; B.goal = null; toast(B.crew ? `You’re aboard! ${friendName()} is steering` : 'Back on your own boat'); boatBar(); }
   else if(id === 'sonar'){ B.sonar = !B.sonar; boatBar(); }
 }
 
@@ -1754,7 +1865,7 @@ function updateBoat(dt){
   const v = stickVec(), maxV = boatMaxV();
   if(B.crew){                                                // she steers; you ride along
     const f = Net.friend;
-    if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null){ B.crew = false; toast('Back on your own boat'); }
+    if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null){ B.crew = false; B.crewOf = ''; toast('Back on your own boat'); }
     else { B.x = f.fx; B.y = f.fy; B.h = f.fh; B.v = 0; }
     if(B.fish){ updateFishing(dt); }
   }
@@ -1775,7 +1886,8 @@ function updateBoat(dt){
   }
   const ox = B.x, oy = B.y;
   B.x = clamp(B.x + Math.cos(B.h)*B.v*dt, 60, SEA.w - 60);
-  B.y = clamp(B.y + Math.sin(B.h)*B.v*dt, 60, SEA.h - 60);
+  B.y = clamp(B.y + Math.sin(B.h)*B.v*dt, COAST_Y + 50, SEA.h - 60);
+  if(Math.abs(B.x - HARBOR.x) < 34 && B.y < HARBOR.y + 10){ B.x = HARBOR.x + (B.x < HARBOR.x ? -34 : 34); B.v *= .5; }    // the pier
   B.odo += Math.hypot(B.x - ox, B.y - oy);
   if((B.x === 60 || B.x === SEA.w - 60 || B.y === 60 || B.y === SEA.h - 60) && Math.random() < dt*2) toast('The edge of the map! Turn around');
   for(const is of ISLES){                                     // you can't sail through land
@@ -1791,6 +1903,7 @@ function updateBoat(dt){
   for(const is of ISLES) if(Math.hypot(B.x - is.x, B.y - is.y) < is.r + 120) B.near = {kind:'isle', o:is};
   if(!B.near) for(const s of FISH_SPOTS) if(Math.hypot(B.x - s.x, B.y - s.y) < 110) B.near = {kind:'spot', o:s};
   if(!B.near && Math.hypot(B.x - RACE_BUOYS[0][0], B.y - RACE_BUOYS[0][1] + 120) < 110) B.near = {kind:'race'};
+  if(Math.hypot(B.x - HARBOR.x, B.y - HARBOR.y - 30) < 150) B.near = {kind:'harbor'};
   boatBar();
   // things afloat
   for(const it of B.items){
@@ -1892,7 +2005,7 @@ function fishTap(){
   const k = Math.random() < .06 ? 'golden' : pick(F.spot.kinds), info = FISHES[k], S = sv();
   const first = !S.fish[k]; S.fish[k] = (S.fish[k] || 0) + 1;
   F.phase = 'caught'; F.t = 0; F.kind = k;
-  save.pearls += info.rare ? 25 : first ? 6 : 2; persist(); updateHud();
+  save.pearls += info.rare ? 25 : first ? 6 : 2; persist(); updateHud(); if(info.rare) tally('jewels');
   Audio_.great();
   toast(`${info.rare ? 'WOW! ' : ''}You caught a ${info.en.toLowerCase()}! In Russian: ${info.ru} (${info.tr})` + (first ? ' · new in your fish book' : ''));
   setTimeout(()=>Audio_.say(info.ru), 500);
@@ -1936,7 +2049,7 @@ function openIsle(is){
       p('An X is scratched into the sand under the palm tree. Tap DIG three times!');
       let n = 0; const b = btn('⛏️ Dig!', 'gold', ()=>{
         n++; Audio_.crunch(); b.textContent = n < 3 ? '⛏️ Dig! (' + n + '/3)' : '…';
-        if(n === 3){ B.visited.treasure = 1; const bonus = Math.random() < .2 ? 30 : 15; save.pearls += bonus; persist(); updateHud(); Audio_.great();
+        if(n === 3){ B.visited.treasure = 1; const bonus = Math.random() < .2 ? 30 : 15; save.pearls += bonus; tally('jewels'); persist(); updateHud(); Audio_.great();
           b.remove(); p(`🪙 A treasure chest! +${bonus} 🫧` + (bonus > 15 ? ' A big one!' : '')); }
       });
     }
@@ -2033,6 +2146,7 @@ function drawSeaTop(t){
     const x = sx(wx + o + Math.sin(ph)*8), y = sy(wy + (o*1.7) % step);
     g.beginPath(); g.arc(x, y, 9*z, Math.PI*1.1, Math.PI*1.9); g.stroke();
   }
+  seaCoastTop(g, sx, sy, z, t);
   // fishing spots, buoys
   for(const s of FISH_SPOTS){ const x = sx(s.x), y = sy(s.y); if(x < -80 || x > VW + 80 || y < -80 || y > VH + 80) continue;
     for(let k=0; k<5; k++){ const ph = (t*.8 + k*.2) % 1; g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.5 + ')'; g.lineWidth = 2;
@@ -2146,6 +2260,7 @@ function drawSeaFP(t){
   const proj = (wx, wy)=>{ const dx = wx - B.x, dy = wy - B.y, c = Math.cos(B.h), s = Math.sin(B.h), f = dx*c + dy*s, side = -dx*s + dy*c;
     if(f < 18) return null; const k = FOC/f; return {x:VW/2 + side*k, y:HOR + EYE*k, k, f}; };
   const objs = [];
+  for(const o of seaCoastFP(g, proj, HOR, t)) objs.push(o);
   for(const is of ISLES){ const p = proj(is.x, is.y); if(p) objs.push({p, draw:()=>fpIsland(g, is, p, t)}); }
   for(const it of B.items){ if(it.got) continue; const p = proj(it.x, it.y); if(p && p.f < 1400) objs.push({p, draw:()=>fpItem(g, it, p, t)}); }
   for(const s of FISH_SPOTS){ const p = proj(s.x, s.y); if(p && p.f < 1600) objs.push({p, draw:()=>{ for(let k=0; k<4; k++){ const ph = (t*.8 + k*.25) % 1;
@@ -2168,7 +2283,7 @@ function drawSeaFP(t){
     g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(p.x - 6*s, p.y - 10*s, 14*s, 8*s, -.2, 0, 7); g.fill(); g.beginPath(); g.arc(p.x + 8*s, p.y - 18*s + Math.sin(t*2 + sl.ph)*2*s, 6*s, 0, 7); g.fill();
     g.fillStyle = '#10202c'; g.beginPath(); g.arc(p.x + 10*s, p.y - 19*s, 1.2*s, 0, 7); g.fill(); }}); }
   for(const f of B.fly){ if(f.t <= 0) continue; const p = proj(f.x, f.y); if(p) objs.push({p, draw:()=>{ const s = p.k*3; g.fillStyle = '#cfe9ff'; g.beginPath(); g.ellipse(p.x, p.y - Math.sin(f.t/1.4*Math.PI)*40*s, 8*s, 3*s, 0, 0, 7); g.fill(); }}); }
-  const fo = friendSeaFP(proj, g, t); if(fo) objs.push(fo);
+  const fo = friendSeaFP(proj, g, t); if(fo) for(const o of fo) objs.push(o);
   objs.sort((a, b)=>b.p.f - a.p.f).forEach(o=>o.draw());
   for(const gl of B.gulls){ const p = proj(gl.cx + Math.cos(gl.a)*gl.r, gl.cy + Math.sin(gl.a)*gl.r); if(!p) continue;
     const s = Math.max(.5, p.k*3), y = p.y - 160*p.k*3 - 40, f = Math.sin(t*8 + gl.a*3)*5*s;
@@ -2233,7 +2348,7 @@ function fpIsland(g, is, p, t){
 }
 function mixHaze(hex, k){ const n = parseInt(hex.slice(1), 16), h = [170, 205, 220]; const r = (n >> 16) + (h[0] - (n >> 16))*k, gg = (n >> 8 & 255) + (h[1] - (n >> 8 & 255))*k, b = (n & 255) + (h[2] - (n & 255))*k; return 'rgb(' + (r|0) + ',' + (gg|0) + ',' + (b|0) + ')'; }
 function fpItem(g, it, p, t){
-  const s = p.k*3, y = p.y - Math.sin(t*2 + it.ph)*2*s;
+  const s = Math.min(p.k*1.4, 3), y = p.y - Math.sin(t*2 + it.ph)*2*s;
   if(it.k === 'pearl'){ const r = clamp(10*s, 2, 30), pg = g.createRadialGradient(p.x - r*.3, y - r, 1, p.x, y - r*.7, r); pg.addColorStop(0, '#fff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)'); g.fillStyle = pg; g.beginPath(); g.arc(p.x, y - r*.7, r, 0, 7); g.fill(); }
   else if(it.k === 'shell'){ g.fillStyle = 'rgba(180,255,240,' + (.6 + Math.sin(t*4 + it.ph)*.3) + ')'; g.beginPath(); g.arc(p.x, y, clamp(9*s, 2, 28), Math.PI, 0); g.fill(); }
   else if(it.k === 'bottle'){ g.fillStyle = 'rgba(120,200,160,.85)'; roundRect(g, p.x - 10*s, y - 8*s, 20*s, 8*s, 3*s); g.fill(); }
@@ -2247,6 +2362,9 @@ function drawBoat(t){
   // minimap
   const m = Math.min(130, VW*.22), mx = VW - m - 12, my = 58;
   g.fillStyle = 'rgba(3,24,43,.55)'; roundRect(g, mx, my, m, m, 12); g.fill();
+  g.fillStyle = '#7cc35a'; g.fillRect(mx + 2, my + 2, m - 4, COAST_Y/SEA.h*m);
+  g.fillStyle = '#ff9ab6'; g.fillRect(mx + 1250/SEA.w*m - 2, my + 175/SEA.h*m - 2, 4, 4);
+  g.fillStyle = '#9b6a3c'; g.fillRect(mx + HARBOR.x/SEA.w*m - 1, my + COAST_Y/SEA.h*m, 2, (HARBOR.y - COAST_Y)/SEA.h*m);
   for(const is of ISLES){ g.fillStyle = is.id === 'light' ? '#c9ccd2' : '#ecd497'; g.beginPath(); g.arc(mx + is.x/SEA.w*m, my + is.y/SEA.h*m, Math.max(3, is.r/SEA.w*m), 0, 7); g.fill(); }
   g.fillStyle = 'rgba(255,255,255,.7)'; for(const s of FISH_SPOTS){ g.fillRect(mx + s.x/SEA.w*m - 1, my + s.y/SEA.h*m - 1, 2, 2); }
   if(B.race){ const [bx, by] = RACE_BUOYS[B.race.i % RACE_BUOYS.length]; g.fillStyle = '#ffd479'; g.beginPath(); g.arc(mx + bx/SEA.w*m, my + by/SEA.h*m, 3, 0, 7); g.fill(); }
@@ -2454,7 +2572,7 @@ function gpsMenu(){
   const body = $('#dockBody'); body.innerHTML = '';
   const pos = document.createElement('p'); pos.className = 'sub'; pos.textContent = 'You are at ' + gpsCoords(B.x, B.y) + '. Where to?'; body.appendChild(pos);
   const grid = document.createElement('div'); grid.className = 'grid2'; body.appendChild(grid);
-  const places = ISLES.map(i=>({name:i.name, x:i.x, y:i.y, r:i.r})).concat([{name:'Race start', x:RACE_BUOYS[0][0], y:RACE_BUOYS[0][1], r:40}],
+  const places = ISLES.map(i=>({name:i.name, x:i.x, y:i.y, r:i.r})).concat([{name:'Race start', x:RACE_BUOYS[0][0], y:RACE_BUOYS[0][1], r:40}, {name:'Harbor (the car)', x:HARBOR.x, y:HARBOR.y + 40, r:60}],
     FISH_SPOTS.map((s, k)=>({name:'Fishing spot ' + (k + 1), x:s.x, y:s.y, r:60})));
   places.sort((a, b)=>Math.hypot(a.x - B.x, a.y - B.y) - Math.hypot(b.x - B.x, b.y - B.y));
   for(const pl of places){
@@ -2522,115 +2640,164 @@ function drawInstruments(g, t){
 }
 
 /* ============================ PLAYING TOGETHER ============================
-   Two iPads, two divers. Both enter the same family code and pick different
-   divers; then they find each other (PeerJS's free public broker only makes
-   the introduction) and talk directly over the home Wi-Fi with WebRTC:
-     · see each other in Bubble Town and out on the sea, with name tags
-     · a radar that shows where your sister is, or what she is doing
-     · waves and hearts, and hop aboard each other's boat as crew
-     · a walkie-talkie: hold 🎙️ to talk; when you are together in the game
-       (side by side, or on the same boat) the line opens by itself
-   Voice uses each iPad's own microphone and speaker. Nothing is recorded.
+   Everyone with the same family code can play together: the two divers,
+   Papa, Mama, and friends visiting from their own iPads anywhere.
+   PeerJS's free public broker only introduces the iPads; game state and
+   voice then go directly between them (WebRTC, encrypted). Each iPad links
+   to every other one (a small mesh; fine for a family and a few friends).
+     · see each other in Bubble Town and on the sea, with name tags
+     · a radar with everyone on it, or what they are doing
+     · waves and hearts; hop aboard someone's boat as crew
+     · walkie-talkie: hold 🎙️, or talk freely when together in the game
+     · grown-ups can approve good habits from their own iPad
+     · each iPad keeps a backup of the others' progress
+   Nothing is recorded. Voice is only sent while someone talks.
    ======================================================================== */
-const Net = {peer:null, conn:null, st:'off', code:'', friend:null, sendT:0, mic:null, out:null, inCall:null,
-             holding:false, open:false, theirTalk:false, crewTalk:true, err:''};
-const SCENE_SAYS = {title:'is choosing a diver', yard:'is in the backyard', tunnel:'is digging tunnels', maze:'is in the glowing cave',
-  dive:'is diving down', ocean:'is swimming in Bubble Town', boat:'is out on her boat', run:'is in Coral Run', blocks:'is in the Snow Palace', show:'is dancing'};
-const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in her Home dome', lWord:'is at a letter door', lDock:'is visiting an island'};
+const Net = {peer:null, st:'off', code:'', peers:{}, sendT:0, mic:null, holding:false, open:false, crewTalk:true, err:'', ice:null};
+const SCENE_SAYS = {title:'is choosing a diver', yard:'is in the backyard', drive:'is driving the car', tunnel:'is digging tunnels', maze:'is in the glowing cave',
+  dive:'is diving down', ocean:'is swimming in Bubble Town', boat:'is out on the boat', run:'is in Coral Run', blocks:'is in the Snow Palace', show:'is dancing'};
+const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in the Home dome', lWord:'is at a letter door', lDock:'is visiting an island', lChart:'is looking at the treasure chart'};
+const FIXED_ROLES = ['sophia', 'angelina', 'papa', 'mama'];
 function familyCode(){ try{ return localStorage.getItem('bubbletown.family') || ''; }catch(e){ return ''; } }
 function newFamilyCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for(let i=0; i<6; i++) c += A[Math.floor(Math.random()*A.length)]; return c; }
-function setFamilyCode(c){ c = (c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); try{ if(c) localStorage.setItem('bubbletown.family', c); else localStorage.removeItem('bubbletown.family'); }catch(e){} Net.code = c; netStart(); }
-function peerOpts(){ try{ const o = JSON.parse(localStorage.getItem('bubbletown.peerServer') || 'null'); if(o) return Object.assign({debug:0}, o); }catch(e){} return {debug:0}; }
-function otherDiver(){ return DIVERS.find(d=>d.id !== P); }
-function friendName(){ const o = otherDiver(); return Net.friend && Net.friend.nm ? Net.friend.nm : o ? diverName(o) : 'Your sister'; }
-function netIds(){ return {me:'bubbletown-' + Net.code + '-' + P, them:'bubbletown-' + Net.code + '-' + otherDiver().id}; }
+function setFamilyCode(c){ c = (c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10); try{ if(c) localStorage.setItem('bubbletown.family', c); else localStorage.removeItem('bubbletown.family'); }catch(e){} netStart(); }
+function deviceTag(){ try{ let t = localStorage.getItem('bubbletown.device'); if(!t){ t = Math.random().toString(36).slice(2, 7); localStorage.setItem('bubbletown.device', t); } return t; }catch(e){ return 'x' + Math.random().toString(36).slice(2, 6); } }
+function peerOpts(){
+  let o = {debug:0};
+  try{ const x = JSON.parse(localStorage.getItem('bubbletown.peerServer') || 'null'); if(x) o = Object.assign(o, x); }catch(e){}
+  try{ const ice = JSON.parse(localStorage.getItem('bubbletown.ice') || 'null'); if(ice && ice.length) o.config = {iceServers:[{urls:'stun:stun.l.google.com:19302'}].concat(ice)}; }catch(e){}
+  return o;
+}
+const roleOf = id=>id === 'friend' ? 'friend-' + deviceTag() : id;
+const peerId = role=>'bubbletown-' + Net.code + '-' + role;
+const roleFromPeer = pid=>pid.split('-').slice(2).join('-');
+function playerDef(id){ return ALL_PLAYERS.find(d=>d.id === id) || ALL_PLAYERS.find(d=>d.id === 'friend'); }
+function peerList(){ return Object.keys(Net.peers).map(k=>Net.peers[k]).filter(p=>p.conn && p.conn.open && p.s); }
+// the one "friend" the boat and older code talk about: whoever you're crewing for, else the nearest in your place
+Object.defineProperty(Net, 'friend', {get(){
+  const L = peerList(); if(!L.length) return null;
+  if(bt && bt.crewOf){ const c = Net.peers[bt.crewOf]; if(c && c.s) return c.s; }
+  const pl = myPlace(); let best = null, bd = 1e12;
+  for(const p of L){ const s = p.s; const d = pl && s.sc === scene && s.x !== null ? Math.hypot(s.fx - pl.x, s.fy - pl.y) : 1e11; if(d < bd){ bd = d; best = s; } }
+  return best;
+}});
+function friendName(){ const f = Net.friend; return f ? f.nm : 'Your friend'; }
 function netStop(){
   clearInterval(Net.dialT);
-  try{ if(Net.conn) Net.conn.close(); }catch(e){} try{ if(Net.peer) Net.peer.destroy(); }catch(e){}
-  Net.peer = Net.conn = Net.friend = Net.out = Net.inCall = null; Net.st = 'off'; netUi();
+  for(const k in Net.peers){ const p = Net.peers[k]; try{ p.conn && p.conn.close(); }catch(e){} try{ p.out && p.out.close(); }catch(e){} if(p.audio){ p.audio.srcObject = null; p.audio.remove(); } }
+  try{ if(Net.peer) Net.peer.destroy(); }catch(e){}
+  Net.peer = null; Net.peers = {}; Net.st = 'off'; netUi();
 }
 function netStart(){
   Net.code = familyCode();
   netStop();
   if(!P || !Net.code) return;
   if(!window.Peer){ Net.st = 'nolib'; netUi(); return; }
-  const ids = netIds();
+  Net.role = roleOf(P);
   Net.st = 'connecting'; netUi();
   let peer;
-  try{ peer = Net.peer = new Peer(ids.me, peerOpts()); }catch(e){ Net.st = 'error'; Net.err = String(e); netUi(); return; }
-  peer.on('open', ()=>{ if(Net.st !== 'on') Net.st = 'waiting'; netUi(); netDial(); });
-  peer.on('connection', c=>netUse(c));
+  try{ peer = Net.peer = new Peer(peerId(Net.role), peerOpts()); }catch(e){ Net.st = 'error'; Net.err = String(e); netUi(); return; }
+  peer.on('open', ()=>{ Net.st = 'waiting'; netUi(); netDial(); });
+  peer.on('connection', c=>netUse(c, false));
   peer.on('call', call=>{ try{ call.answer(); }catch(e){} netHear(call); });
   peer.on('error', e=>{
-    if(e.type === 'peer-unavailable') return;                    // she isn't online yet; keep trying
+    if(e.type === 'peer-unavailable') return;                  // nobody there yet; keep trying quietly
     if(e.type === 'unavailable-id'){ Net.st = 'same'; netUi(); return; }
     if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){ Net.st = 'offline'; netUi(); return; }
     Net.err = e.type || String(e); netUi();
   });
-  peer.on('disconnected', ()=>{ setTimeout(()=>{ try{ if(Net.peer === peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 2000); });
-  Net.dialT = setInterval(netDial, 4000);
+  peer.on('disconnected', ()=>{ setTimeout(()=>{ try{ if(Net.peer === peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 2500); });
+  Net.dialT = setInterval(netDial, 5000);
 }
-// only the diver with the smaller id dials, so the two iPads never race each other
+// ring every family role and every friend we have heard of; a duplicate link is settled the same way on both ends
 function netDial(){
-  const ids = netIds();
-  if(!Net.peer || Net.peer.disconnected || Net.peer.destroyed || (Net.conn && Net.conn.open) || ids.me > ids.them) return;
-  try{ netUse(Net.peer.connect(ids.them, {reliable:true})); }catch(e){}
+  if(!Net.peer || Net.peer.disconnected || Net.peer.destroyed) return;
+  const known = FIXED_ROLES.concat(Net.roster || []);
+  for(const r of known){
+    if(r === Net.role) continue;
+    const p = Net.peers[r]; if(p && p.conn && p.conn.open) continue;
+    if(p && p.dialing && performance.now() - p.dialing < 8000) continue;
+    (Net.peers[r] = Net.peers[r] || {role:r}).dialing = performance.now();
+    try{ netUse(Net.peer.connect(peerId(r), {reliable:true}), true); }catch(e){}
+  }
+  if(Net.st === 'on' && !peerList().length){ Net.st = 'waiting'; netUi(); }
 }
-function netUse(c){
+function netUse(c, out){
+  const role = roleFromPeer(c.peer);
   c.on('open', ()=>{
-    if(Net.conn && Net.conn !== c && Net.conn.open){ try{ c.close(); }catch(e){} return; }
-    const was = Net.st === 'on'; Net.conn = c; Net.st = 'on';
-    if(!was){ toast(`${friendName()} is here! 👋`); Audio_.great(); }
-    netSend(true); if(Net.mic) netCallOut(); netUi();
+    const p = Net.peers[role] = Net.peers[role] || {role};
+    if(p.conn && p.conn !== c && p.conn.open){
+      // two links between the same pair: keep the one started by the smaller id
+      const keepNew = (out ? Net.role : role) < (out ? role : Net.role);
+      if(!keepNew){ try{ c.close(); }catch(e){} return; }
+      try{ p.conn.close(); }catch(e){}
+    }
+    p.conn = c; p.dialing = 0;
+    const was = Net.st === 'on'; Net.st = 'on';
+    netSend(true, c); netSendBackup(c); if(Net.mic) netCallOut(role);
+    try{ c.send({k:'roster', r:[Net.role].concat(Object.keys(Net.peers).filter(k=>Net.peers[k].conn && Net.peers[k].conn.open))}); }catch(e){}
+    netUi();
   });
-  c.on('data', netData);
-  c.on('close', ()=>{ if(Net.conn === c){ Net.conn = null; Net.out = null; Net.friend = null; Net.theirTalk = false; Net.st = 'waiting'; toast(`${friendName()} left the game`); netUi(); } });
+  c.on('data', d=>netData(role, d));
+  c.on('close', ()=>{ const p = Net.peers[role]; if(p && p.conn === c){ const nm = p.s && p.s.nm; p.conn = null; p.s = null; p.talk = false; if(nm) toast(`${nm} left the game`); netUi(); } });
   c.on('error', ()=>{});
 }
 function myPlace(){
   if(scene === 'ocean') return {x:player.x, y:player.y, h:player.face > 0 ? 0 : Math.PI};
   if(scene === 'boat' && bt) return {x:bt.x, y:bt.y, h:bt.h};
+  if(scene === 'drive' && dv2) return {x:dv2.x, y:dv2.y, h:dv2.a};
   return null;
 }
-function netSend(force){
-  if(!Net.conn || !Net.conn.open) return;
+function myState(){
+  const pl = myPlace(), me = playerDef(P);
+  return {k:'s', sc:scene, ov:overlay || '', x:pl ? Math.round(pl.x) : null, y:pl ? Math.round(pl.y) : null, h:pl ? +pl.h.toFixed(2) : 0,
+    nm:diverName(me), id:Net.role, kind:me.look || 'kid', acc:save ? save.acc || '' : '', grown:!!me.grown,
+    su:save ? save.suit : 0, ha:save ? save.hair : 0, crew:bt && bt.crewOf ? bt.crewOf : '', talk:Net.holding || Net.open, face:player.face};
+}
+function netSend(force, only){
   const now = performance.now(); if(!force && now - Net.sendT < 150) return; Net.sendT = now;
-  const pl = myPlace(), me = DIVERS.find(d=>d.id === P);
-  try{ Net.conn.send({k:'s', sc:scene, ov:overlay || '', x:pl ? Math.round(pl.x) : null, y:pl ? Math.round(pl.y) : null, h:pl ? +pl.h.toFixed(2) : 0,
-    nm:diverName(me), su:save ? save.suit : 0, ha:save ? save.hair : 0, sail:save && save.sea ? save.sea.sail : 'plain',
-    crew:!!(bt && bt.crew), talk:Net.holding || Net.open, face:player.face}); }catch(e){}
+  const s = myState();
+  for(const p of only ? [{conn:only}] : Object.values(Net.peers)) if(p.conn && p.conn.open) try{ p.conn.send(s); }catch(e){}
 }
-function netData(d){
+function netBroadcast(msg){ for(const p of Object.values(Net.peers)) if(p.conn && p.conn.open) try{ p.conn.send(msg); }catch(e){} }
+function netData(role, d){
   if(!d || typeof d !== 'object') return;
+  const p = Net.peers[role] = Net.peers[role] || {role};
   if(d.k === 's'){
-    const f = Net.friend || (Net.friend = {fx:d.x, fy:d.y, fh:d.h});
+    const first = !p.s;
+    const f = p.s || (p.s = {fx:d.x, fy:d.y, fh:d.h});
     const jump = f.sc !== d.sc || f.x === null || d.x === null;
-    Object.assign(f, d, {at:performance.now()});
+    Object.assign(f, d, {at:performance.now(), role});
     if(jump){ f.fx = d.x; f.fy = d.y; f.fh = d.h; }
-    if(d.talk !== Net.theirTalk){ Net.theirTalk = d.talk; if(d.talk) kshh(); }
-    if(bt && f.crew && f.sc === 'boat' && !f.welcomed){ f.welcomed = 1; toast(`${f.nm} hopped aboard your boat! ⛵`); }
-    if(!f.crew) f.welcomed = 0;
+    if(first){ toast(`${d.nm} is here! 👋`); Audio_.great(); }
+    if(d.talk !== p.talk){ p.talk = d.talk; if(d.talk) kshh(); }
+    if(bt && d.crew === Net.role && !f.welcomed){ f.welcomed = 1; toast(`${d.nm} hopped aboard your boat! ⛵`); }
+    if(d.crew !== Net.role) f.welcomed = 0;
   } else if(d.k === 'e'){
-    if(Net.friend){ Net.friend.emote = d.e; Net.friend.emoteT = performance.now(); }
-    toast(`${friendName()}: ${d.e}`); Audio_.sweep(600, 1200, .15, 'sine', .08);
-  }
+    if(p.s){ p.s.emote = d.e; p.s.emoteT = performance.now(); }
+    toast(`${p.s ? p.s.nm : 'Someone'}: ${d.e}`); Audio_.sweep(600, 1200, .15, 'sine', .08);
+  } else if(d.k === 'roster'){
+    Net.roster = Array.from(new Set((Net.roster || []).concat((d.r || []).filter(r=>/^[a-z0-9-]{3,24}$/.test(r) && r !== Net.role))));
+    netDial();
+  } else if(d.k === 'backup'){ storeBackup(d.id, d.data); }
+  else if(d.k === 'habitAsk'){ habitAsked(role, d); }
+  else if(d.k === 'habitOk'){ habitApproved(d); }
 }
-function netEmote(e){ if(!Net.conn || !Net.conn.open) return; try{ Net.conn.send({k:'e', e}); }catch(x){} Net.myEmote = e; Net.myEmoteT = performance.now(); Audio_.blip(900); }
+function netEmote(e){ netBroadcast({k:'e', e}); Audio_.blip(900); }
 function netTick(dt){
   if(Net.st !== 'on') return;
-  const f = Net.friend;
-  if(f && f.x !== null && f.fx !== null){ const k = Math.min(1, dt*8); f.fx += (f.x - f.fx)*k; f.fy += (f.y - f.fy)*k; f.fh += wrapA(f.h - f.fh)*k; }
-  // the line opens by itself when you are together in the game
-  const near = netNear();
-  const open = !!(Net.mic && Net.crewTalk && near);
-  if(open !== Net.open){ Net.open = open; if(open) toast(`🔊 You can talk to ${friendName()} now`); netMicGate(); }
+  const k = Math.min(1, dt*8);
+  for(const p of peerList()){ const f = p.s; if(f.x !== null && f.fx !== null){ f.fx += (f.x - f.fx)*k; f.fy += (f.y - f.fy)*k; f.fh += wrapA(f.h - f.fh)*k; } }
+  const open = !!(Net.mic && Net.crewTalk && netNear());
+  if(open !== Net.open){ Net.open = open; if(open) toast('🔊 You can talk to each other now'); netMicGate(); }
   netSend(false);
 }
 function netNear(){
-  const f = Net.friend; if(!f || f.x === null || f.sc !== scene) return false;
   const pl = myPlace(); if(!pl) return false;
-  if(scene === 'boat' && (bt.crew || f.crew)) return true;
-  return Math.hypot(pl.x - f.x, pl.y - f.y) < (scene === 'boat' ? 350 : 420);
+  for(const p of peerList()){ const f = p.s; if(f.sc !== scene || f.x === null) continue;
+    if(scene === 'boat' && (f.crew === Net.role || (bt && bt.crewOf === p.role))) return true;
+    if(Math.hypot(pl.x - f.x, pl.y - f.y) < (scene === 'boat' ? 350 : 420)) return true; }
+  return false;
 }
 /* ---- the walkie-talkie ---- */
 function kshh(){ Audio_.noise(.18, 2500, .7, .07, 'bandpass'); }
@@ -2638,18 +2805,20 @@ async function netMicOn(){
   if(Net.mic) return true;
   try{
     Net.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
-    netMicGate(); if(Net.conn && Net.conn.open) netCallOut(); netUi();
+    netMicGate(); for(const p of peerList()) netCallOut(p.role); netUi();
     return true;
   }catch(e){ toast('The walkie-talkie needs the microphone. Allow it in Safari, then try again.'); return false; }
 }
 function netMicGate(){ if(!Net.mic) return; const on = Net.holding || Net.open; Net.mic.getAudioTracks().forEach(t=>{ t.enabled = on; }); netSend(true); }
-function netCallOut(){ try{ if(Net.out) Net.out.close(); }catch(e){} try{ Net.out = Net.peer.call(netIds().them, Net.mic); }catch(e){} }
+function netCallOut(role){ const p = Net.peers[role]; if(!p || !Net.peer) return; try{ if(p.out) p.out.close(); }catch(e){} try{ p.out = Net.peer.call(peerId(role), Net.mic); }catch(e){} }
 function netHear(call){
-  Net.inCall = call;
-  call.on('stream', st=>{ const a = $('#walkieAudio'); a.srcObject = st; const p = a.play(); if(p && p.catch) p.catch(()=>{}); });
-  call.on('close', ()=>{ if(Net.inCall === call) Net.inCall = null; });
+  const role = roleFromPeer(call.peer), p = Net.peers[role] = Net.peers[role] || {role};
+  call.on('stream', st=>{
+    if(!p.audio){ p.audio = document.createElement('audio'); p.audio.setAttribute('playsinline', ''); p.audio.autoplay = true; document.body.appendChild(p.audio); }
+    p.audio.srcObject = st; const pr = p.audio.play(); if(pr && pr.catch) pr.catch(()=>{});
+  });
 }
-addEventListener('pointerdown', ()=>{ const a = $('#walkieAudio'); if(a && a.srcObject && a.paused){ const p = a.play(); if(p && p.catch) p.catch(()=>{}); } });
+addEventListener('pointerdown', ()=>{ for(const p of Object.values(Net.peers)) if(p.audio && p.audio.srcObject && p.audio.paused){ const pr = p.audio.play(); if(pr && pr.catch) pr.catch(()=>{}); } });
 (function(){
   const b = $('#walkieBtn');
   const down = async e=>{ e.preventDefault(); e.stopPropagation(); if(!Net.mic && !(await netMicOn())) return;
@@ -2660,23 +2829,23 @@ addEventListener('pointerdown', ()=>{ const a = $('#walkieAudio'); if(a && a.src
 })();
 /* ---- what's on screen ---- */
 function netUi(){
-  const on = Net.st === 'on' && !!P && scene !== 'title';
+  const on = Net.st === 'on' && !!P && scene !== 'title' && peerList().length > 0;
   $('#togetherBar').hidden = !on;
   if($('#lHome').classList.contains('on')) renderTogether();
 }
 function drawFriendTag(g, x, y, f){
   g.font = '700 13px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   const label = (f.talk ? '🔊 ' : '') + f.nm, w = g.measureText(label).width + 18;
-  g.fillStyle = 'rgba(255,111,156,.85)'; roundRect(g, x - w/2, y - 11, w, 22, 11); g.fill();
+  g.fillStyle = f.grown ? 'rgba(79,141,255,.88)' : 'rgba(255,111,156,.85)'; roundRect(g, x - w/2, y - 11, w, 22, 11); g.fill();
   g.fillStyle = '#ffffff'; g.fillText(label, x, y);
   if(f.emote && performance.now() - f.emoteT < 3000){ g.font = '34px serif'; g.fillText(f.emote, x, y - 32 - Math.sin(performance.now()/200)*4); }
 }
-function drawFriendOcean(g, t){                          // world coordinates, called inside the ocean camera
-  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'ocean' || f.fx === null) return;
-  g.save(); g.globalAlpha = .95;
-  drawDiver(g, f.fx, f.fy, 1.5, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, f.face || 1, 1);
-  g.restore();
-  drawFriendTag(g, f.fx, f.fy - 50, f);
+const lookFrom = f=>({k:f.kind || 'kid', acc:f.acc || ''});
+function drawFriendOcean(g, t){
+  if(Net.st !== 'on') return;
+  for(const p of peerList()){ const f = p.s; if(f.sc !== 'ocean' || f.fx === null) continue;
+    drawDiver(g, f.fx, f.fy, 1.5, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, f.face || 1, 1, null, lookFrom(f));
+    drawFriendTag(g, f.fx, f.fy - 52, f); }
 }
 function friendBoatTop(g, sx, sy, h, z, t, f){
   g.save(); g.translate(sx, sy); g.rotate(h);
@@ -2685,82 +2854,83 @@ function friendBoatTop(g, sx, sy, h, z, t, f){
   g.rotate(.5 + Math.sin(t*1.5)*.05); g.fillStyle = SUITS[f.su] || '#ff6f9c';
   g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-10*z, 30*z, -36*z, 34*z); g.lineTo(0, 0); g.fill();
   g.restore();
-  g.save(); g.translate(sx, sy); drawDiver(g, -6*z, -6*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, Math.cos(h) >= 0 ? 1 : -1, 0); g.restore();
+  g.save(); g.translate(sx, sy); drawDiver(g, -6*z, -6*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, Math.cos(h) >= 0 ? 1 : -1, 0, null, lookFrom(f)); g.restore();
 }
 function drawFriendSeaTop(g, t, sx, sy, z){
-  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null) return;
-  if(f.crew || (bt && bt.crew)){                          // the same boat: she stands on your deck
-    g.save(); g.translate(VW/2, VH/2); drawDiver(g, 14*z, -4*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, 1, 0); g.restore();
-    drawFriendTag(g, VW/2 + 14*z, VH/2 - 50*z, f); return;
+  if(Net.st !== 'on') return;
+  let crewN = 0;
+  for(const p of peerList()){ const f = p.s; if(f.sc !== 'boat' || f.fx === null) continue;
+    const onMine = f.crew === Net.role, iAmOnHers = bt && bt.crewOf === p.role;
+    if(onMine || (bt && bt.crewOf && f.crew === bt.crewOf)){          // standing on the same deck as you
+      crewN++; g.save(); g.translate(VW/2, VH/2); drawDiver(g, (8 + crewN*10)*z, -4*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + crewN, 1, 0, null, lookFrom(f)); g.restore();
+      drawFriendTag(g, VW/2 + (8 + crewN*10)*z, VH/2 - (50 + crewN*24)*z, f); continue; }
+    if(f.crew) continue;                                               // crewing on someone else's boat
+    if(iAmOnHers){ drawFriendTag(g, VW/2, VH/2 - 56*z, f); continue; }
+    friendBoatTop(g, sx(f.fx), sy(f.fy), f.fh, z, t, f);
+    drawFriendTag(g, sx(f.fx), sy(f.fy) - 56*z, f);
   }
-  friendBoatTop(g, sx(f.fx), sy(f.fy), f.fh, z, t, f);
-  drawFriendTag(g, sx(f.fx), sy(f.fy) - 56*z, f);
 }
-function friendSeaFP(proj, g, t){                        // her boat on the water ahead of you
-  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null || f.crew || (bt && bt.crew)) return null;
-  const p = proj(f.fx, f.fy); if(!p) return null;
-  return {p, draw:()=>{ const s = Math.min(p.k*1.6, 4);
-    g.fillStyle = '#8a5a2b'; g.beginPath(); g.moveTo(p.x - 50*s, p.y - 10*s); g.lineTo(p.x + 50*s, p.y - 10*s); g.lineTo(p.x + 36*s, p.y + 4*s); g.lineTo(p.x - 36*s, p.y + 4*s); g.fill();
-    g.strokeStyle = '#6b4a2a'; g.lineWidth = Math.max(1, 3*s); g.beginPath(); g.moveTo(p.x, p.y - 10*s); g.lineTo(p.x, p.y - 110*s); g.stroke();
-    g.fillStyle = SUITS[f.su] || '#ff6f9c'; g.beginPath(); g.moveTo(p.x + 3*s, p.y - 106*s); g.quadraticCurveTo(p.x + 50*s, p.y - 60*s, p.x + 44*s, p.y - 16*s); g.lineTo(p.x + 3*s, p.y - 16*s); g.fill();
-    g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(p.x - 3*s, p.y - 100*s); g.quadraticCurveTo(p.x - 34*s, p.y - 60*s, p.x - 36*s, p.y - 18*s); g.lineTo(p.x - 3*s, p.y - 18*s); g.fill();
-    drawFriendTag(g, p.x, p.y - 130*s, f); }};
+function friendSeaFP(proj, g, t){
+  if(Net.st !== 'on') return null;
+  const list = [];
+  for(const p of peerList()){ const f = p.s; if(f.sc !== 'boat' || f.fx === null || f.crew || (bt && bt.crewOf === p.role)) continue;
+    const q = proj(f.fx, f.fy); if(!q) continue;
+    list.push({p:q, draw:()=>{ const s = Math.min(q.k*1.6, 4);
+      g.fillStyle = '#8a5a2b'; g.beginPath(); g.moveTo(q.x - 50*s, q.y - 10*s); g.lineTo(q.x + 50*s, q.y - 10*s); g.lineTo(q.x + 36*s, q.y + 4*s); g.lineTo(q.x - 36*s, q.y + 4*s); g.fill();
+      g.strokeStyle = '#6b4a2a'; g.lineWidth = Math.max(1, 3*s); g.beginPath(); g.moveTo(q.x, q.y - 10*s); g.lineTo(q.x, q.y - 110*s); g.stroke();
+      g.fillStyle = SUITS[f.su] || '#ff6f9c'; g.beginPath(); g.moveTo(q.x + 3*s, q.y - 106*s); g.quadraticCurveTo(q.x + 50*s, q.y - 60*s, q.x + 44*s, q.y - 16*s); g.lineTo(q.x + 3*s, q.y - 16*s); g.fill();
+      g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(q.x - 3*s, q.y - 100*s); g.quadraticCurveTo(q.x - 34*s, q.y - 60*s, q.x - 36*s, q.y - 18*s); g.lineTo(q.x - 3*s, q.y - 18*s); g.fill();
+      drawFriendTag(g, q.x, q.y - 130*s, f); }});
+  }
+  return list;
 }
-// the radar: where she is, or what she's doing
 function drawRadar(t){
-  if(Net.st !== 'on' || !P || scene === 'title') return;
-  const g = ctx, f = Net.friend, R = 46;
-  const cx = VW - R - 14, cy = scene === 'boat' ? 250 : 110;
+  if(Net.st !== 'on' || !P || scene === 'title' || !peerList().length) return;
   if(scene === 'boat' && bt && bt.gaze) return;
+  const g = ctx, R = 46, cx = VW - R - 14, cy = scene === 'boat' ? 250 : 110;
   g.save();
   g.fillStyle = 'rgba(2,20,16,.82)'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
   g.strokeStyle = 'rgba(110,255,170,.35)'; g.lineWidth = 1;
   [R*.33, R*.66, R - 2].forEach(r=>{ g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); });
   g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
   const a = (t*1.6) % (Math.PI*2);
-  const sw = g.createLinearGradient(cx, cy, cx + Math.cos(a)*R, cy + Math.sin(a)*R);
   g.fillStyle = 'rgba(110,255,170,.22)'; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R - 2, a - .5, a); g.closePath(); g.fill();
   g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
-  let label;
-  const pl = myPlace();
-  if(f && pl && f.sc === scene && f.x !== null){
-    const dx = f.fx - pl.x, dy = f.fy - pl.y, d = Math.hypot(dx, dy), range = scene === 'boat' ? 2400 : 1800;
-    const k = Math.min(1, d/range) * (R - 8), ang = Math.atan2(dy, dx);
-    let bx = cx + Math.cos(ang)*k, by = cy + Math.sin(ang)*k;
-    const pulse = .6 + .4*Math.sin(t*6);
-    g.fillStyle = 'rgba(255,111,156,' + pulse + ')'; g.beginPath(); g.arc(bx, by, 6, 0, 7); g.fill();
-    label = `${f.nm} · ${Math.round(d/10)} m ${compass(ang)}`;
-  } else if(f){ label = `${f.nm} ${LAYER_SAYS[f.ov] || SCENE_SAYS[f.sc] || 'is playing'}`; }
-  else label = 'Looking for your sister…';
+  const pl = myPlace(), labels = [];
+  for(const p of peerList()){ const f = p.s;
+    if(pl && f.sc === scene && f.x !== null){
+      const dx = f.fx - pl.x, dy = f.fy - pl.y, d = Math.hypot(dx, dy), range = scene === 'boat' ? 2400 : scene === 'drive' ? 1600 : 1800;
+      const k = Math.min(1, d/range)*(R - 8), ang = Math.atan2(dy, dx);
+      g.fillStyle = (f.grown ? 'rgba(110,170,255,' : 'rgba(255,111,156,') + (.6 + .4*Math.sin(t*6)) + ')';
+      g.beginPath(); g.arc(cx + Math.cos(ang)*k, cy + Math.sin(ang)*k, 6, 0, 7); g.fill();
+      labels.push(`${f.talk ? '🔊 ' : ''}${f.nm} · ${Math.round(d/10)} m ${compass(ang)}`);
+    } else labels.push(`${f.talk ? '🔊 ' : ''}${f.nm} ${LAYER_SAYS[f.ov] || SCENE_SAYS[f.sc] || 'is playing'}`);
+  }
   g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'top';
-  const lines = []; let line = '';
-  for(const w of label.split(' ')){ const t2 = line ? line + ' ' + w : w; if(g.measureText(t2).width > 170 && line){ lines.push(line); line = w; } else line = t2; }
-  lines.push(line);
-  const ly = cy - lines.length*9;                       // the words sit to the left of the radar
-  lines.forEach((l, i)=>{ g.fillStyle = 'rgba(2,20,16,.7)'; const w = g.measureText(l).width + 12; roundRect(g, cx - R - 8 - w, ly + i*18, w, 17, 8); g.fill();
+  const ly = cy - labels.length*9;
+  labels.forEach((l, i)=>{ g.fillStyle = 'rgba(2,20,16,.7)'; const w = g.measureText(l).width + 12; roundRect(g, cx - R - 8 - w, ly + i*18, w, 17, 8); g.fill();
     g.fillStyle = '#b8ffd6'; g.fillText(l, cx - R - 14, ly + 2 + i*18); });
-  if(Net.theirTalk){ g.fillStyle = '#ffd479'; g.textAlign = 'right'; g.font = '700 13px Comfortaa, sans-serif'; g.fillText(`📻 ${f ? f.nm : ''} is talking…`, cx - R - 14, ly + lines.length*18 + 6); }
   g.restore();
 }
-/* ---- pairing, in the Home dome ---- */
+/* ---- pairing and grown-up settings, in the Home dome ---- */
 function renderTogether(){
   const box = $('#togetherBox'); if(!box) return;
   box.innerHTML = '';
   const p = (html, cls)=>{ const e = document.createElement('p'); e.className = cls || 'note'; e.innerHTML = html; box.appendChild(e); return e; };
   const b = (label, fn, cls)=>{ const x = document.createElement('button'); x.type = 'button'; x.className = 'btn ' + (cls || 'ghost') + ' sm'; x.textContent = label; x.onclick = fn; box.appendChild(x); return x; };
-  const other = otherDiver();
   if(!Net.code){
-    p(`Play with ${diverName(other)} on another iPad. Make a family code here, then type the same code on the other iPad. Each iPad picks a different diver.`);
+    p('Play with your family and friends on other iPads. Make a family code here, then type the same code on the other iPads. Each iPad picks its own player.');
     b('✨ Make a family code', ()=>{ setFamilyCode(newFamilyCode()); renderTogether(); }, 'gold');
-    const inp = document.createElement('input'); inp.className = 'namein'; inp.placeholder = 'or type a code'; inp.maxLength = 8; inp.style.cssText = 'width:150px;margin:8px 8px 0 0;font-size:17px';
+    const inp = document.createElement('input'); inp.className = 'namein'; inp.placeholder = 'or type a code'; inp.maxLength = 10; inp.style.cssText = 'width:150px;margin:8px 8px 0 0;font-size:17px';
     box.appendChild(inp);
     b('Join', ()=>{ if(inp.value.trim().length >= 4){ setFamilyCode(inp.value); renderTogether(); } else toast('Type the code from the other iPad'); });
     return;
   }
   p(`Family code <b class="stat" style="font-size:22px;letter-spacing:.12em">${Net.code}</b>`, 'sub');
-  const say = {connecting:'Connecting…', waiting:`Waiting for ${diverName(other)} on the other iPad…`, on:`✅ Playing with ${friendName()}!`,
-    same:`Both iPads picked ${diverName(DIVERS.find(d=>d.id === P))}. On the other iPad, pick ${diverName(other)}.`,
-    offline:'Can’t reach the internet to find the other iPad. Check the Wi-Fi.', nolib:'Playing together could not load. Check the internet, then reopen the game.',
+  const who = peerList().map(x=>x.s.nm);
+  const say = {connecting:'Connecting…', waiting:'Waiting for someone else to join with this code…', on:who.length ? `✅ Playing with ${who.join(', ')}` : 'Waiting for someone else to join with this code…',
+    same:'Another iPad is already playing as this player. Pick a different player on one of them.',
+    offline:'Can’t reach the internet to find the others. Check the Wi-Fi.', nolib:'Playing together could not load. Check the internet, then reopen the game.',
     error:'Something went wrong connecting (' + Net.err + ').', off:'Off'}[Net.st] || Net.st;
   p(say);
   b(Net.mic ? '🎙️ Walkie-talkie is on' : '🎙️ Turn on the walkie-talkie', async ()=>{ await netMicOn(); renderTogether(); }, Net.mic ? 'ghost' : 'gold');
@@ -2768,7 +2938,447 @@ function renderTogether(){
   const c = document.createElement('input'); c.type = 'checkbox'; c.checked = Net.crewTalk; c.onchange = ()=>{ Net.crewTalk = c.checked; };
   lab.appendChild(c); lab.appendChild(document.createTextNode(' talk freely when we’re together in the game')); box.appendChild(lab);
   b('Change code', ()=>{ setFamilyCode(''); renderTogether(); });
-  p('Hold 🎙️ to talk like a walkie-talkie. Both iPads need the internet to find each other the first time; after that they talk straight to each other over your Wi-Fi.');
+  p('Hold 🎙️ to talk like a walkie-talkie. The iPads use the internet only to find each other; then they talk straight to each other. Share the code only with people you trust, and change it any time.');
+}
+
+/* ============================ THE TREASURE CHART ============================
+   A lifetime tally of everything found and done, with bronze, silver and gold
+   medals per category. Medals add up to prizes to wear. Underneath sits the
+   good-habits chart: real-life things (brushing teeth, playing outside…) that
+   a grown-up confirms, either with a PIN on this iPad or from their own iPad.
+   ========================================================================== */
+function tally(k, n){ if(!save) return; save.tally = save.tally || {}; save.tally[k] = (save.tally[k] || 0) + (n || 1); checkPrizes(); persist(); }
+const CHART = [
+  {id:'pearls',  ic:'🫧', name:'Pearls found',          tiers:[100, 500, 2000], get:()=>save.pearlsEver || save.pearls},
+  {id:'jewels',  ic:'💎', name:'Jewels and treasure',   tiers:[5, 20, 60],      get:()=>(save.tally || {}).jewels || 0},
+  {id:'fossils', ic:'🦴', name:'Fossils and shells',    tiers:[5, 20, 50],      get:()=>((save.tally || {}).fossils || 0) + ((save.sea || {}).shells || 0) + ((save.tally || {}).shellsEver || 0)},
+  {id:'fish',    ic:'🐟', name:'Fish caught',           tiers:[3, 15, 40],      get:()=>{ const f = (save.sea || {}).fish || {}; return Object.keys(f).reduce((a, k)=>a + f[k], 0); }},
+  {id:'photos',  ic:'📷', name:'Sea creature photos',   tiers:[2, 4, 6],        get:()=>Object.keys((save.sea || {}).photos || {}).length},
+  {id:'stars',   ic:'✨', name:'Constellations',        tiers:[2, 5, 10],       get:()=>Object.keys((save.sea || {}).stars || {}).length},
+  {id:'letters', ic:'🔤', name:'Russian letters',       tiers:[5, 15, 33],      get:()=>abcKnown().length},
+  {id:'songs',   ic:'🎹', name:'Songs played',          tiers:[2, 5, 11],       get:()=>Object.keys(save.songStars || {}).length},
+  {id:'adv',     ic:'🗺️', name:'Big adventures',        tiers:[3, 10, 30],      get:()=>{ const t = save.tally || {}; return (t.runs || 0) + (t.caves || 0) + (t.digs || 0) + (save.sharkLv || 0); }},
+  {id:'habits',  ic:'⭐', name:'Good-habit stickers',   tiers:[10, 50, 150],    get:()=>habitCount()},
+];
+const PRIZES = [
+  {id:'flower', ic:'🌸', name:'Flower clip',    need:2},
+  {id:'shades', ic:'🕶️', name:'Sunglasses',     need:5},
+  {id:'tiara',  ic:'👸', name:'Sparkly tiara',  need:9},
+  {id:'captain',ic:'⚓', name:'Captain’s hat',  need:13},
+  {id:'crown',  ic:'👑', name:'Golden crown',   need:18},
+];
+function medals(){ let n = 0; for(const c of CHART){ const v = c.get(); n += c.tiers.filter(x=>v >= x).length; } return n; }
+function checkPrizes(){
+  if(!save) return;
+  const m = medals(); save.prizes = save.prizes || {};
+  for(const pz of PRIZES) if(m >= pz.need && !save.prizes[pz.id]){ save.prizes[pz.id] = 1; setTimeout(()=>{ toast(`🏆 New prize: ${pz.ic} ${pz.name}! Wear it from the treasure chart`); Audio_.great(); }, 600); }
+}
+/* ---- good habits ---- */
+const HABITS = [
+  {id:'teethAM', ic:'🪥', name:'Brushed teeth this morning'},
+  {id:'teethPM', ic:'🌙', name:'Brushed teeth at bedtime'},
+  {id:'outside', ic:'🌳', name:'Played outside'},
+  {id:'read',    ic:'📚', name:'Read a book'},
+  {id:'help',    ic:'🧺', name:'Helped at home'},
+];
+const dayKey = d=>{ d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function habitCount(){ const h = save.habits || {}; return Object.keys(h).reduce((a, k)=>a + Object.keys(h[k]).length, 0); }
+function habitStreak(id){ let n = 0; const d = new Date(); for(let i=0; i<60; i++){ const k = dayKey(d); if(save.habits && save.habits[k] && save.habits[k][id]) n++; else if(i) break; d.setDate(d.getDate() - 1); } return n; }
+function markHabit(id, day, by){
+  save.habits = save.habits || {}; const h = save.habits[day] = save.habits[day] || {};
+  if(h[id]) return;
+  h[id] = by || 1;
+  let gain = 15; const all = HABITS.every(x=>h[x.id]);
+  if(all){ gain += 25; }
+  save.pearls += gain; updateHud(); persist(); checkPrizes(); Audio_.great();
+  const hb = HABITS.find(x=>x.id === id), st = habitStreak(id);
+  toast(`${hb.ic} ${hb.name}! +${gain} 🫧` + (all ? ' · SUPER DAY, every habit done!' : '') + (st >= 3 ? ` · ${st} days in a row!` : ''));
+  if(st === 7){ save.pearls += 50; tally('jewels', 1); setTimeout(()=>toast('🌟 A whole week in a row! +50 🫧 and a jewel'), 1800); }
+  if($('#lChart').classList.contains('on') || $('#lPin').classList.contains('on')) renderChart();
+}
+// a grown-up confirms: from a grown-up iPad if one is connected, otherwise with the PIN here
+function askHabit(id){
+  const day = dayKey(), hb = HABITS.find(x=>x.id === id), grown = peerList().filter(p=>p.s.grown);
+  if(grown.length){
+    netBroadcast({k:'habitAsk', habit:id, day, nm:diverName(playerDef(P)), who:Net.role});
+    toast(`Asked ${grown.map(p=>p.s.nm).join(' and ')} to check “${hb.name}” ✓`);
+  }
+  pinGate(`Grown-up check: “${hb.name}”`, ()=>markHabit(id, day, 'pin'), !!grown.length);
+}
+function habitAsked(role, d){
+  const me = playerDef(P); if(!me.grown) return;
+  const hb = HABITS.find(x=>x.id === d.habit); if(!hb) return;
+  choose('Good habit check', `${d.nm}: ${hb.ic} ${hb.name}`, `Did ${d.nm} really do it today? Your answer goes straight to her iPad.`,
+    {ic:'✅', label:'Yes, well done!', desc:'Give the sticker and pearls', fn:()=>{ const p = Net.peers[role]; if(p && p.conn && p.conn.open) p.conn.send({k:'habitOk', habit:d.habit, day:d.day, by:diverName(me)}); toast('Sticker sent ⭐'); }},
+    {ic:'⏳', label:'Not yet', desc:'Maybe later today', fn:()=>{}});
+}
+function habitApproved(d){ if($('#lPin').classList.contains('on')){ pinCb = null; openLayer('lChart'); } markHabit(d.habit, d.day, d.by || 'grown-up'); }
+/* ---- the PIN gate (grown-ups set it the first time, behind a sum children are unlikely to know) ---- */
+function getPin(){ try{ return localStorage.getItem('bubbletown.pin') || ''; }catch(e){ return ''; } }
+let pinCb = null;
+function pinGate(title, cb, waiting){
+  pinCb = cb;
+  const has = !!getPin();
+  $('#pinTitle').textContent = title;
+  const a = 6 + Math.floor(Math.random()*7), b = 12 + Math.floor(Math.random()*8);
+  $('#pinSub').textContent = has ? (waiting ? 'A grown-up can tap Yes on their iPad, or type the grown-up PIN here.' : 'Ask a grown-up to type the PIN.')
+    : `No grown-up PIN yet. Grown-up: what is ${a} × ${b}? Then choose a 4-digit PIN.`;
+  $('#pinIn').value = ''; $('#pinIn2').value = ''; $('#pinIn2').hidden = has; $('#pinIn').placeholder = has ? 'PIN' : `${a} × ${b} = ?`;
+  $('#pinIn').dataset.ans = has ? '' : String(a*b);
+  openLayer('lPin');
+}
+$('#pinOk').onclick = ()=>{
+  const v = $('#pinIn').value.trim(), has = !!getPin();
+  if(has){ if(v === getPin()){ openLayer('lChart'); const f = pinCb; pinCb = null; f && f(); } else { Audio_.nope(); toast('That’s not the PIN'); } return; }
+  const nu = $('#pinIn2').value.trim();
+  if(v !== $('#pinIn').dataset.ans){ Audio_.nope(); toast('Not quite. Grown-ups only!'); return; }
+  if(!/^\d{4}$/.test(nu)){ toast('Choose a 4-digit PIN'); return; }
+  try{ localStorage.setItem('bubbletown.pin', nu); }catch(e){}
+  toast('PIN saved. Keep it secret from the divers!'); openLayer('lChart'); const f = pinCb; pinCb = null; f && f();
+};
+$('#pinCancel').onclick = ()=>{ pinCb = null; openLayer('lChart'); };
+/* ---- the chart itself ---- */
+function openChart(){ checkPrizes(); renderChart(); openLayer('lChart'); }
+function renderChart(){
+  const me = playerDef(P);
+  $('#chartTitle').textContent = `${diverName(me)}’s treasure chart`;
+  const box = $('#chartCats'); box.innerHTML = '';
+  for(const c of CHART){
+    const v = c.get(), got = c.tiers.filter(x=>v >= x).length, next = c.tiers[got];
+    const prev = got ? c.tiers[got - 1] : 0, pr = next ? Math.min(1, (v - prev)/(next - prev)) : 1;
+    const t = document.createElement('div'); t.className = 'tc';
+    t.innerHTML = `<span class="ic">${c.ic}</span><b>${c.name}</b><span class="n">${v}</span>
+      <span class="medals">${['🥉','🥈','🥇'].map((m, i)=>`<i class="${i < got ? 'on' : ''}">${m}</i>`).join('')}</span>
+      <span class="bar"><i style="width:${Math.round(pr*100)}%"></i></span><span class="nx">${next ? 'next medal at ' + next : 'all medals!'}</span>`;
+    box.appendChild(t);
+  }
+  const m = medals();
+  $('#chartMedals').textContent = `${m} medal${m === 1 ? '' : 's'}`;
+  const pb = $('#chartPrizes'); pb.innerHTML = '';
+  for(const pz of PRIZES){
+    const own = save.prizes && save.prizes[pz.id], wear = save.acc === pz.id;
+    const t = document.createElement('div'); t.className = 'tile' + (own ? '' : ' locked') + (wear ? ' sel' : '');
+    t.innerHTML = `<span class="big">${own ? pz.ic : '🔒'}</span>${pz.name}<span class="cost">${own ? (wear ? 'Wearing' : 'Tap to wear') : pz.need + ' medals'}</span>`;
+    t.onclick = ()=>{ if(!own){ Audio_.nope(); return; } save.acc = wear ? '' : pz.id; persist(); renderChart(); Audio_.blip(760); };
+    pb.appendChild(t);
+  }
+  // the habits week
+  const hb = $('#chartHabits'); hb.innerHTML = '';
+  const days = []; const d = new Date(); d.setDate(d.getDate() - 6);
+  for(let i=0; i<7; i++){ days.push(new Date(d)); d.setDate(d.getDate() + 1); }
+  const tbl = document.createElement('table'); tbl.className = 'habits';
+  tbl.innerHTML = '<tr><th></th>' + days.map(x=>`<th>${['Su','Mo','Tu','We','Th','Fr','Sa'][x.getDay()]}</th>`).join('') + '<th></th></tr>';
+  for(const h of HABITS){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="hn">${h.ic} ${h.name}</td>` + days.map(x=>{ const k = dayKey(x), on = save.habits && save.habits[k] && save.habits[k][h.id]; return `<td>${on ? '⭐' : '·'}</td>`; }).join('');
+    const td = document.createElement('td');
+    const today = save.habits && save.habits[dayKey()] && save.habits[dayKey()][h.id];
+    if(!today){ const bt2 = document.createElement('button'); bt2.type = 'button'; bt2.className = 'btn gold sm'; bt2.textContent = 'I did it!'; bt2.onclick = ()=>askHabit(h.id); td.appendChild(bt2); }
+    else td.textContent = '✅';
+    tr.appendChild(td); tbl.appendChild(tr);
+  }
+  hb.appendChild(tbl);
+}
+$('#chipChart').onclick = ()=>{ if(scene !== 'title') openChart(); };
+$('#chartClose').onclick = ()=>{ openLayer(null); showHud(true); };
+
+/* ============================ KEEPING PROGRESS SAFE ============================
+   · ask the browser to keep this site's storage
+   · every family iPad keeps a copy of the others' progress and offers it back
+   · a backup code a grown-up can copy anywhere and paste back later
+   ======================================================================== */
+try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+const FAMILY_IDS = ['sophia', 'angelina', 'papa', 'mama'];
+function localBundle(){
+  const out = {};
+  for(const id of FAMILY_IDS){ try{ const s = localStorage.getItem('bubbletown.' + id); if(s) out[id] = {save:s, name:localStorage.getItem('bubbletown.name.' + id) || ''}; }catch(e){} }
+  return out;
+}
+const saveScore = s=>{ try{ const o = typeof s === 'string' ? JSON.parse(s) : s; return (o.pearlsEver || o.pearls || 0) + habitsOf(o)*10 + (o.seen || 0); }catch(e){ return 0; } };
+function habitsOf(o){ const h = o.habits || {}; return Object.keys(h).reduce((a, k)=>a + Object.keys(h[k]).length, 0); }
+function netSendBackup(c){ try{ c.send({k:'backup', id:'*', data:localBundle()}); }catch(e){} }
+function storeBackup(id, data){
+  if(id !== '*' || !data) return;
+  for(const k of Object.keys(data)){
+    if(FAMILY_IDS.indexOf(k) < 0) continue;
+    const inc = data[k]; if(!inc || !inc.save) continue;
+    let loc = null; try{ loc = localStorage.getItem('bubbletown.' + k); }catch(e){}
+    try{ localStorage.setItem('bubbletown.backup.' + k, JSON.stringify({save:inc.save, name:inc.name, at:Date.now()})); }catch(e){}
+    // this iPad lost (or never had) that player's progress, but someone else kept it: bring it back
+    if(k !== P && (!loc || saveScore(inc.save) > saveScore(loc) + 40) && FAMILY_IDS.indexOf(k) >= 0){
+      const mine = loc ? JSON.parse(loc) : null;
+      if(!mine || (mine.updated || 0) < (JSON.parse(inc.save).updated || 0)){
+        try{ localStorage.setItem('bubbletown.' + k, inc.save); if(inc.name && !localStorage.getItem('bubbletown.name.' + k)) localStorage.setItem('bubbletown.name.' + k, inc.name); }catch(e){}
+      }
+    }
+  }
+}
+function backupCode(){ return 'BT1.' + btoa(unescape(encodeURIComponent(JSON.stringify(localBundle())))); }
+function restoreCode(code){
+  try{ const data = JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/^BT1\./, '')))));
+    let n = 0; for(const k of Object.keys(data)){ if(FAMILY_IDS.indexOf(k) < 0 || !data[k].save) continue;
+      localStorage.setItem('bubbletown.' + k, data[k].save); if(data[k].name) localStorage.setItem('bubbletown.name.' + k, data[k].name); n++; }
+    return n;
+  }catch(e){ return -1; }
+}
+function renderGrownups(){
+  const box = $('#grownBox'); if(!box) return; box.innerHTML = '';
+  const note = document.createElement('p'); note.className = 'note';
+  note.innerHTML = 'Progress lives on this iPad. Keep it safe: play from the Home Screen icon (Safari can clear websites that are not opened for a week), connect the family iPads with a family code so each keeps a copy, or save a backup code below.';
+  box.appendChild(note);
+  const mk = (label, fn, cls)=>{ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || 'ghost') + ' sm'; b.textContent = label; b.onclick = fn; box.appendChild(b); return b; };
+  const ta = document.createElement('textarea'); ta.className = 'namein'; ta.style.cssText = 'width:100%;height:70px;font-size:11px;text-align:left;margin:8px 0'; ta.placeholder = 'Paste a backup code here to restore';
+  mk('💾 Show my backup code', ()=>{ ta.value = backupCode(); ta.select(); try{ navigator.clipboard && navigator.clipboard.writeText(ta.value); toast('Backup code copied'); }catch(e){} }, 'gold');
+  mk('↩️ Restore from code', ()=>{ const n = restoreCode(ta.value); if(n < 0) toast('That code didn’t work'); else { toast(`Restored ${n} player${n === 1 ? '' : 's'}. Reopen the game to see it.`); } });
+  mk(getPin() ? '🔑 Change grown-up PIN' : '🔑 Set a grown-up PIN', ()=>{ try{ localStorage.removeItem('bubbletown.pin'); }catch(e){} pinGate('Set a grown-up PIN', ()=>{}); });
+  box.appendChild(ta);
+}
+
+/* ============================ WELCOME BACK ============================ */
+function welcomeBack(prevSeen){
+  const away = Date.now() - (prevSeen || Date.now()), days = Math.floor(away/86400000), me = playerDef(P), nm = diverName(me);
+  if(away < 18*3600000 || !save.introDone) return;
+  let grow = 0; (save.gardens || []).forEach(g=>{ grow += gardenYield(g); });
+  const lines = [];
+  lines.push(days >= 2 ? `It’s been ${days} days. We missed you!` : 'Good to see you again!');
+  if(grow) lines.push(`Your coral gardens grew ${grow} pearls while you were away.`);
+  if(save.shark === 'tamed') lines.push('Your shark friend has been waiting by the cove 🦈.');
+  if(days >= 7){ save.pearls += 20; lines.push('A welcome-back gift: +20 🫧!'); }
+  lines.push(`You have ${medals()} medals on your treasure chart. Tap ⭐ to fill in today’s good habits.`);
+  persist(); updateHud();
+  setTimeout(()=>result(me.grown ? '👋' : '🫧', `Welcome back, ${nm}!`, lines.join(' '), ()=>{ openLayer(null); showHud(true); }), 900);
+}
+
+/* ============================ THE COAST AND HOME ============================
+   The north edge of the sea is the mainland: a beach, your house with its
+   pool, the neighbours' houses, and the harbour pier where the car is parked.
+   From the harbour you drive through town (coast road, Main Street, Maple
+   Lane) to your own house and park in the garage, which lets you out into
+   the backyard. The garage works the other way too.
+   ======================================================================= */
+const COAST_Y = 290;                                   // where the beach meets the water, on the sea map
+const HARBOR = {x:2200, y:560};                        // the end of the pier, where the boat ties up
+const SEA_HOMES = [
+  {x:520,  c:'#7fb7e8', roof:'#4c6f9e'}, {x:860, c:'#f3d98a', roof:'#b06a3a'},
+  {x:1250, c:'#ffd0dc', roof:'#c2405f', ours:true}, {x:1620, c:'#cfe8c4', roof:'#5d8a4a'},
+  {x:1900, c:'#f0e0c8', roof:'#7a5a40'}, {x:2700, c:'#d6ccf2', roof:'#6a58a8'}, {x:3050, c:'#ffe0b0', roof:'#a8643a'},
+];
+function seaCoastTop(g, sx, sy, z, t){
+  const y0 = sy(0), y1 = sy(COAST_Y);
+  if(y1 < -20) return;
+  g.fillStyle = '#7cc35a'; g.fillRect(0, y0, VW, y1 - y0 - 60*z);
+  g.fillStyle = '#ecd497'; g.fillRect(0, y1 - 70*z, VW, 70*z + 2);
+  const sh = g.createLinearGradient(0, y1, 0, y1 + 40*z); sh.addColorStop(0, 'rgba(170,240,230,.8)'); sh.addColorStop(1, 'rgba(170,240,230,0)');
+  g.fillStyle = sh; g.fillRect(0, y1, VW, 40*z);
+  g.fillStyle = '#9aa1a8'; g.fillRect(0, sy(90) - 18*z, VW, 36*z);             // the coast road
+  g.strokeStyle = '#ffe066'; g.setLineDash([16*z, 14*z]); g.lineWidth = 2*z; g.beginPath(); g.moveTo(0, sy(90)); g.lineTo(VW, sy(90)); g.stroke(); g.setLineDash([]);
+  for(const h of SEA_HOMES){ const x = sx(h.x), y = sy(175); if(x < -120 || x > VW + 120) continue;
+    if(h.ours){ g.fillStyle = '#3fb4cf'; roundRect(g, x - 110*z, y - 20*z, 70*z, 46*z, 8*z); g.fill(); g.strokeStyle = '#f6f2ea'; g.lineWidth = 3*z; g.stroke(); }
+    g.fillStyle = h.roof; g.fillRect(x - 38*z, y - 30*z, 76*z, 60*z);
+    g.fillStyle = shade(h.roof, 30); g.fillRect(x - 38*z, y - 30*z, 76*z, 30*z);
+    if(h.ours){ g.font = `700 ${Math.round(12*z + 4)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.6)';
+      const lw = g.measureText('🏠 Our house').width + 14; roundRect(g, x - lw/2, y - 60*z, lw, 22, 11); g.fill(); g.fillStyle = '#fff'; g.fillText('🏠 Our house', x, y - 60*z + 15); } }
+  // the harbour: a parking lot, the pier, the car
+  const hx = sx(HARBOR.x);
+  g.fillStyle = '#8f969c'; g.fillRect(hx - 140*z, sy(110), 260*z, (COAST_Y - 110)*z);
+  g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2*z; for(let k=0; k<5; k++){ g.beginPath(); g.moveTo(hx - 120*z + k*50*z, sy(120)); g.lineTo(hx - 120*z + k*50*z, sy(170)); g.stroke(); }
+  carTop(g, hx - 45*z, sy(150), Math.PI/2, z*.8, SUITS[save.suit]);
+  g.fillStyle = '#9b6a3c'; g.fillRect(hx - 18*z, sy(COAST_Y - 20), 36*z, (HARBOR.y - COAST_Y + 20)*z);
+  g.strokeStyle = 'rgba(80,50,25,.5)'; g.lineWidth = 1; for(let yy=COAST_Y; yy<HARBOR.y; yy+=20){ g.beginPath(); g.moveTo(hx - 18*z, sy(yy)); g.lineTo(hx + 18*z, sy(yy)); g.stroke(); }
+  g.font = `700 ${Math.round(12*z + 4)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.6)';
+  const lw = g.measureText('⚓ Harbor').width + 14; roundRect(g, hx + 30*z, sy(HARBOR.y) - 30*z, lw, 22, 11); g.fill(); g.fillStyle = '#fff'; g.fillText('⚓ Harbor', hx + 30*z + lw/2, sy(HARBOR.y) - 30*z + 15);
+}
+// the mainland on the horizon in first person, when you face north
+function seaCoastFP(g, proj, HOR, t){
+  const pts = [];
+  for(let x=-400; x<=SEA.w + 400; x+=150){ const p = proj(x, COAST_Y); if(p) pts.push(p); }
+  if(pts.length < 2) return [];
+  const far = p=>clamp((p.f - 1200)/2600, 0, .75);
+  g.fillStyle = mixHaze('#e8cf95', far(pts[0])); g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+  for(const p of pts) g.lineTo(p.x, p.y - Math.max(1, 6*p.k));
+  for(let i=pts.length-1; i>=0; i--) g.lineTo(pts[i].x, pts[i].y); g.fill();
+  g.fillStyle = mixHaze('#6fb55a', far(pts[0])); g.beginPath(); g.moveTo(pts[0].x, pts[0].y - 6*pts[0].k);
+  for(const p of pts) g.lineTo(p.x, p.y - Math.max(2, 30*p.k));
+  for(let i=pts.length-1; i>=0; i--) g.lineTo(pts[i].x, pts[i].y - 6*pts[i].k); g.fill();
+  const objs = [];
+  for(const h of SEA_HOMES){ const p = proj(h.x, 175); if(!p) continue; objs.push({p, draw:()=>{ const k = p.k, hz = far(p), w = 90*k, hh = 60*k;
+    g.fillStyle = mixHaze(h.c, hz); g.fillRect(p.x - w/2, p.y - hh, w, hh);
+    g.fillStyle = mixHaze(h.roof, hz); g.beginPath(); g.moveTo(p.x - w*.6, p.y - hh); g.lineTo(p.x, p.y - hh*1.7); g.lineTo(p.x + w*.6, p.y - hh); g.fill();
+    g.fillStyle = mixHaze('#fff6cc', hz); g.fillRect(p.x - w*.3, p.y - hh*.7, w*.18, hh*.25); g.fillRect(p.x + w*.12, p.y - hh*.7, w*.18, hh*.25);
+    if(h.ours && p.f < 2600){ g.font = `700 ${Math.round(clamp(14*k*3, 11, 18))}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = '#ffffff'; g.fillText('🏠 Our house', p.x, p.y - hh*1.9); } }}); }
+  const pp = proj(HARBOR.x, (COAST_Y + HARBOR.y)/2);
+  if(pp) objs.push({p:pp, draw:()=>{ const k = pp.k; g.fillStyle = '#9b6a3c'; g.fillRect(pp.x - 12*k, pp.y - 8*k, 24*k, 10*k);
+    for(let i=-2; i<=2; i++) g.fillRect(pp.x + i*9*k, pp.y - 8*k, 2*k, 14*k);
+    if(pp.f < 2400){ g.font = `700 ${Math.round(clamp(14*k*3, 11, 18))}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = '#fff'; g.fillText('⚓ Harbor', pp.x, pp.y - 26*k); } }});
+  return objs;
+}
+function carTop(g, x, y, a, z, col){
+  g.save(); g.translate(x, y); g.rotate(a);
+  g.fillStyle = 'rgba(0,0,0,.25)'; roundRect(g, -26*z + 3, -14*z + 4, 52*z, 28*z, 8*z); g.fill();
+  const cg = g.createLinearGradient(0, -14*z, 0, 14*z); cg.addColorStop(0, shade(col, 40)); cg.addColorStop(1, shade(col, -40));
+  g.fillStyle = cg; roundRect(g, -26*z, -14*z, 52*z, 28*z, 8*z); g.fill();
+  g.fillStyle = '#bfe6ff'; roundRect(g, 4*z, -11*z, 11*z, 22*z, 3*z); g.fill();
+  g.fillStyle = '#9fcfee'; roundRect(g, -16*z, -10*z, 8*z, 20*z, 3*z); g.fill();
+  g.fillStyle = '#fff6b0'; g.fillRect(23*z, -11*z, 3*z, 5*z); g.fillRect(23*z, 6*z, 3*z, 5*z);
+  g.fillStyle = '#ff6b6b'; g.fillRect(-26*z, -11*z, 2*z, 5*z); g.fillRect(-26*z, 6*z, 2*z, 5*z);
+  g.restore();
+}
+
+/* ============================ DRIVING ============================ */
+const TOWN = {w:2400, h:1640};
+const ROADS = [
+  {x1:60,  y1:1200, x2:2340, y2:1200, name:'Coast Road'},
+  {x1:1200,y1:180,  x2:1200, y2:1200, name:'Main Street'},
+  {x1:140, y1:500,  x2:1200, y2:500,  name:'Maple Lane'},
+  {x1:1900,y1:1200, x2:1900, y2:1340, name:''},
+  {x1:570, y1:430,  x2:570,  y2:500,  name:''},          // our driveway
+];
+const LOT = {x1:1740, y1:1300, x2:2100, y2:1430};        // harbour parking
+const GARAGE = {x1:520, y1:330, x2:620, y2:440};
+const TOWN_HOUSES = [
+  {x:420, y:260, w:190, h:170, c:'#ffd0dc', roof:'#c2405f', ours:true},
+  {x:180, y:300, w:150, h:130, c:'#7fb7e8', roof:'#4c6f9e'},
+  {x:760, y:300, w:150, h:130, c:'#f3d98a', roof:'#b06a3a'},
+  {x:980, y:300, w:140, h:130, c:'#cfe8c4', roof:'#5d8a4a'},
+  {x:260, y:600, w:150, h:130, c:'#d6ccf2', roof:'#6a58a8'},
+  {x:560, y:600, w:150, h:130, c:'#ffe0b0', roof:'#a8643a'},
+  {x:860, y:600, w:150, h:130, c:'#f0e0c8', roof:'#7a5a40'},
+];
+const ROUTES = {
+  home:[[1900,1360],[1900,1200],[1200,1200],[1200,500],[570,500],[570,385]],
+  harbor:[[570,470],[570,500],[1200,500],[1200,1200],[1900,1200],[1900,1370]],
+};
+let dv2 = null;
+function startDrive(from){
+  scene = 'drive'; openLayer(null); sparks = [];
+  const atHome = from === 'garage';
+  dv2 = {x:atHome ? 570 : 1880, y:atHome ? 385 : 1370, a:atHome ? Math.PI/2 : -Math.PI/2, v:0, t:0, auto:null, ai:0, goal:null, door:atHome ? 1 : 0, park:null, honk:-9};
+  showHud(true); setSkip(null);
+  driveBar();
+  toast(atHome ? 'Backing out of the garage… where to?' : 'Your car is parked at the harbor. Drive home!');
+  Audio_.sweep(80, 160, .5, 'sawtooth', .05);
+}
+function driveBar(){
+  const bar = $('#boatBar'); bar.hidden = false;
+  const D = dv2, want = [['home', '🏠 Drive home'], ['harbor', '⚓ Drive to the harbor'], ['honk', '📯 Honk']];
+  if(D.park === 'garage') want.unshift(['garage', '🏠 Park in the garage']);
+  if(D.park === 'lot') want.unshift(['boat', '⛵ Get on the boat']);
+  const key = want.map(w=>w[0]).join();
+  if(bar.dataset.key === key) return;
+  bar.dataset.key = key; bar.innerHTML = '';
+  for(const [id, label] of want){ const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.onclick = e=>{ e.stopPropagation(); driveAction(id); }; bar.appendChild(b); }
+}
+function driveAction(id){
+  const D = dv2; if(!D) return; Audio_.blip(700);
+  if(id === 'home' || id === 'harbor'){ D.auto = ROUTES[id]; D.ai = 0; D.goal = null;
+    let best = 0, bd = 1e9; D.auto.forEach((p, i)=>{ const d = Math.hypot(p[0] - D.x, p[1] - D.y); if(d < bd){ bd = d; best = i; } }); D.ai = best;
+    toast(id === 'home' ? '🏠 Heading home' : '⚓ Heading to the harbor'); }
+  else if(id === 'honk'){ honk(); }
+  else if(id === 'garage'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>yardStart('home')); }
+  else if(id === 'boat'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>startBoat('harbor')); }
+}
+function honk(){ const D = dv2; if(!D || D.t - D.honk < .6) return; D.honk = D.t; Audio_.tone(392, .25, 'square', .06); Audio_.tone(330, .25, 'square', .05, .02); }
+let fadeT = 0, fadeFn = null;
+function fadeTo(fn){ fadeT = .001; fadeFn = fn; Audio_.sweep(300, 120, .4, 'triangle', .06); }
+function nearRoad(x, y){ let best = 1e9; for(const r of ROADS){ const px = clamp(x, Math.min(r.x1, r.x2), Math.max(r.x1, r.x2)), py = clamp(y, Math.min(r.y1, r.y2), Math.max(r.y1, r.y2)); best = Math.min(best, Math.hypot(x - px, y - py)); }
+  if(x > LOT.x1 && x < LOT.x2 && y > LOT.y1 && y < LOT.y2) best = 0; return best; }
+function updateDrive(dt){
+  const D = dv2; if(!D) return;
+  D.t += dt;
+  const v = stickVec(), onRoad = nearRoad(D.x, D.y) < 48;
+  const maxV = onRoad ? 330 : 140;
+  let want = null, gas = 0;
+  if(Math.hypot(v.x, v.y) > .2){ want = Math.atan2(v.y, v.x); gas = Math.min(1, Math.hypot(v.x, v.y)); D.auto = null; D.goal = null; }
+  else if(D.goal){ const dx = D.goal.x - D.x, dy = D.goal.y - D.y, d = Math.hypot(dx, dy); if(d < 30) D.goal = null; else { want = Math.atan2(dy, dx); gas = Math.min(1, d/200); } }
+  else if(D.auto){
+    const p = D.auto[D.ai], dx = p[0] - D.x, dy = p[1] - D.y, d = Math.hypot(dx, dy);
+    if(d < 30){ D.ai++; if(D.ai >= D.auto.length){ D.auto = null; } }
+    else { want = Math.atan2(dy, dx); gas = D.ai === D.auto.length - 1 ? Math.min(1, d/220) : d < 140 ? .4 : 1; }   // slow down for corners
+  }
+  if(want !== null){ const da = wrapA(want - D.a); D.a += clamp(da, -3*dt, 3*dt); if(Math.abs(da) > 1.3) gas *= .3; }
+  D.v = lerp(D.v, gas*maxV, Math.min(1, dt*(gas ? 1.6 : 3)));
+  const nx = D.x + Math.cos(D.a)*D.v*dt, ny = D.y + Math.sin(D.a)*D.v*dt;
+  let blocked = nx < 30 || nx > TOWN.w - 30 || ny < 30 || ny > 1440;
+  for(const h of TOWN_HOUSES){ if(h.ours && nx > GARAGE.x1 - 10 && nx < GARAGE.x2 + 10 && ny > GARAGE.y1 - 10) continue;   // the open garage door
+    if(nx > h.x - 18 && nx < h.x + h.w + 18 && ny > h.y - 18 && ny < h.y + h.h + 18){ blocked = true; } }
+  if(blocked){ D.v = -D.v*.3; if(Math.abs(D.v) > 40) Audio_.thud(); } else { D.x = nx; D.y = ny; }
+  D.park = (D.x > GARAGE.x1 && D.x < GARAGE.x2 && D.y > GARAGE.y1 && D.y < GARAGE.y2 + 40 && Math.abs(D.v) < 60) ? 'garage'
+    : (D.x > LOT.x1 && D.x < LOT.x2 && D.y > LOT.y1 && D.y < LOT.y2 && Math.abs(D.v) < 60) ? 'lot' : null;
+  D.door = lerp(D.door, Math.hypot(D.x - 570, D.y - 390) < 160 ? 1 : 0, Math.min(1, dt*3));
+  driveBar();
+}
+function drawDrive(t){
+  const D = dv2, g = ctx, z = clamp(Math.min(VW, VH)/760, .6, 1.25);
+  const sx = x=>(x - D.x)*z + VW/2, sy = y=>(y - D.y)*z + VH/2;
+  g.fillStyle = '#7cc35a'; g.fillRect(0, 0, VW, VH);
+  g.fillStyle = 'rgba(60,120,40,.25)';
+  for(let i=0; i<160; i++){ const wx = (i*137) % TOWN.w, wy = (i*263) % 1400; g.beginPath(); g.arc(sx(wx), sy(wy), 3*z, 0, 7); g.fill(); }
+  // the sea and the beach along the bottom
+  g.fillStyle = '#ecd497'; g.fillRect(0, sy(1440), VW, (60)*z);
+  g.fillStyle = '#2f9fc0'; g.fillRect(0, sy(1500), VW, VH);
+  g.strokeStyle = 'rgba(255,255,255,.3)'; g.lineWidth = 2; for(let k=0; k<6; k++){ g.beginPath(); for(let x=0; x<=VW; x+=20){ const y = sy(1520 + k*40) + Math.sin(x*.03 + t*1.5 + k)*3; x ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+  // roads
+  g.lineCap = 'round';
+  for(const r of ROADS){ g.strokeStyle = '#c8ccd0'; g.lineWidth = 96*z; g.beginPath(); g.moveTo(sx(r.x1), sy(r.y1)); g.lineTo(sx(r.x2), sy(r.y2)); g.stroke(); }
+  for(const r of ROADS){ g.strokeStyle = '#6f777e'; g.lineWidth = 80*z; g.beginPath(); g.moveTo(sx(r.x1), sy(r.y1)); g.lineTo(sx(r.x2), sy(r.y2)); g.stroke(); }
+  g.strokeStyle = '#ffe066'; g.lineWidth = 3*z; g.setLineDash([22*z, 18*z]);
+  for(const r of ROADS){ if(!r.name) continue; g.beginPath(); g.moveTo(sx(r.x1), sy(r.y1)); g.lineTo(sx(r.x2), sy(r.y2)); g.stroke(); }
+  g.setLineDash([]);
+  g.font = `700 ${Math.round(11*z + 3)}px Comfortaa, sans-serif`; g.fillStyle = 'rgba(255,255,255,.85)'; g.textAlign = 'center';
+  for(const r of ROADS){ if(!r.name) continue; const mx = (r.x1 + r.x2)/2, my = (r.y1 + r.y2)/2;
+    g.save(); g.translate(sx(mx) + (r.x1 === r.x2 ? 0 : 0), sy(my) - (r.x1 === r.x2 ? 0 : 50*z)); if(r.x1 === r.x2) g.rotate(-Math.PI/2); g.fillText(r.name, 0, r.x1 === r.x2 ? -50*z : 0); g.restore(); }
+  // harbour lot and pier, with the boat waiting
+  g.fillStyle = '#8f969c'; g.fillRect(sx(LOT.x1), sy(LOT.y1), (LOT.x2 - LOT.x1)*z, (LOT.y2 - LOT.y1)*z);
+  g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2*z; for(let k=0; k<6; k++){ g.beginPath(); g.moveTo(sx(LOT.x1 + 30 + k*60), sy(LOT.y1 + 10)); g.lineTo(sx(LOT.x1 + 30 + k*60), sy(LOT.y1 + 70)); g.stroke(); }
+  g.fillStyle = '#9b6a3c'; g.fillRect(sx(2040), sy(1420), 40*z, 200*z);
+  drawBoatTop(g, sx(2120), sy(1580), -Math.PI/2, z*.8, t);
+  g.fillStyle = 'rgba(3,24,43,.6)'; roundRect(g, sx(1790), sy(1270) - 14, 120, 24, 12); g.fill(); g.fillStyle = '#fff'; g.font = `700 13px Comfortaa, sans-serif`; g.fillText('⚓ Harbor', sx(1790) + 60, sy(1270) + 3);
+  // houses, trees
+  for(const h of TOWN_HOUSES){
+    const x = sx(h.x), y = sy(h.y), w = h.w*z, hh = h.h*z;
+    if(x > VW + 50 || x + w < -50 || y > VH + 50 || y + hh < -50) continue;
+    if(h.ours){                                                 // the backyard with the pool, behind the house
+      g.fillStyle = '#69b54c'; g.fillRect(x - 20*z, y - 160*z, w + 40*z, 160*z);
+      g.fillStyle = '#f6f2ea'; roundRect(g, x + 10*z, y - 130*z, 90*z, 60*z, 10*z); g.fill(); g.fillStyle = '#3fb4cf'; roundRect(g, x + 18*z, y - 122*z, 74*z, 44*z, 8*z); g.fill();
+      g.strokeStyle = '#b08a5a'; g.lineWidth = 3*z; g.strokeRect(x - 20*z, y - 160*z, w + 40*z, 160*z);
+    }
+    g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(x + 6*z, y + 6*z, w, hh);
+    g.fillStyle = h.roof; g.fillRect(x, y, w, hh);
+    g.fillStyle = shade(h.roof, 28); g.beginPath(); g.moveTo(x, y); g.lineTo(x + w, y); g.lineTo(x + w - hh*.5, y + hh*.5); g.lineTo(x + hh*.5, y + hh*.5); g.fill();
+    g.fillStyle = shade(h.roof, -20); g.fillRect(x + w*.15, y + hh*.48, w*.7, 3*z);
+    if(h.ours){
+      const gx = sx(GARAGE.x1), gy = sy(GARAGE.y2 - 4);
+      g.fillStyle = '#e8e2d6'; g.fillRect(gx, gy, (GARAGE.x2 - GARAGE.x1)*z, 6*z);
+      g.fillStyle = 'rgba(40,40,50,' + (.9 - D.door*.6) + ')'; g.fillRect(gx + 4*z, gy - 3*z, (GARAGE.x2 - GARAGE.x1 - 8)*z, 4*z);
+      g.font = `700 ${Math.round(13*z + 3)}px Comfortaa, sans-serif`; g.fillStyle = 'rgba(3,24,43,.6)';
+      const lw = g.measureText('🏠 Our house').width + 14; roundRect(g, x + w/2 - lw/2, y + hh/2 - 12, lw, 24, 12); g.fill();
+      g.fillStyle = '#fff'; g.fillText('🏠 Our house', x + w/2, y + hh/2 + 5);
+    }
+  }
+  for(let i=0; i<26; i++){ const tx = 80 + (i*331) % 2250, ty = 140 + (i*197) % 1000; if(nearRoad(tx, ty) < 90 || TOWN_HOUSES.some(h=>tx > h.x - 40 && tx < h.x + h.w + 40 && ty > h.y - 180 && ty < h.y + h.h + 40)) continue;
+    g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(sx(tx) + 6*z, sy(ty) + 6*z, 30*z, 0, 7); g.fill();
+    g.fillStyle = '#3f8f45'; g.beginPath(); g.arc(sx(tx), sy(ty), 30*z, 0, 7); g.fill(); g.fillStyle = '#5fb15a'; g.beginPath(); g.arc(sx(tx) - 8*z, sy(ty) - 8*z, 18*z, 0, 7); g.fill(); }
+  // the car, with you inside
+  carTop(g, VW/2, VH/2, D.a, z, SUITS[save.suit]);
+  g.save(); g.translate(VW/2, VH/2); g.rotate(D.a); g.fillStyle = '#f7dcc6'; g.beginPath(); g.arc(-4*z, -5*z, 5*z, 0, 7); g.fill(); g.fillStyle = HAIRS[save.hair]; g.beginPath(); g.arc(-6*z, -5*z, 5*z, 0, 7); g.fill(); g.restore();
+  if(D.auto){ const p = D.auto[D.auto.length - 1]; const pl = Math.sin(t*6)*.5 + .5; g.strokeStyle = 'rgba(255,212,121,' + (.4 + pl*.5) + ')'; g.lineWidth = 3; g.beginPath(); g.arc(sx(p[0]), sy(p[1]), 18 + pl*6, 0, 7); g.stroke(); }
+  if(D.goal){ g.strokeStyle = 'rgba(255,212,121,.8)'; g.lineWidth = 3; g.beginPath(); g.arc(sx(D.goal.x), sy(D.goal.y), 16, 0, 7); g.stroke(); }
+  // speedometer
+  g.fillStyle = 'rgba(3,24,43,.6)'; roundRect(g, 14, VH - 60, 120, 40, 12); g.fill();
+  g.fillStyle = '#ffd479'; g.font = '700 16px "JetBrains Mono", monospace'; g.textAlign = 'left'; g.fillText(Math.round(Math.abs(D.v)/10) + ' mph', 26, VH - 34);
+  if(D.park === 'garage') shadowText(g, 'Tap 🏠 Park in the garage', VW/2, VH*.2, 22, '#ffffff');
+  if(D.park === 'lot') shadowText(g, 'Tap ⛵ Get on the boat', VW/2, VH*.2, 22, '#ffffff');
+}
+cv.addEventListener('pointerdown', e=>{ if(scene !== 'drive' || !dv2 || overlay) return;
+  const z = clamp(Math.min(VW, VH)/760, .6, 1.25); dv2.goal = {x:dv2.x + (e.clientX - VW/2)/z, y:dv2.y + (e.clientY - VH/2)/z}; dv2.auto = null; });
+function drawFade(dt){
+  if(!fadeT) return;
+  fadeT += dt;
+  const a = fadeT < .45 ? fadeT/.45 : Math.max(0, 1 - (fadeT - .45)/.45);
+  if(fadeT >= .45 && fadeFn){ const f = fadeFn; fadeFn = null; f(); }
+  ctx.fillStyle = 'rgba(0,0,0,' + a + ')'; ctx.fillRect(0, 0, VW, VH);
+  if(fadeT > .9) fadeT = 0;
 }
 
 /* ============================ OCEAN UPDATE ============================ */
@@ -3167,6 +3777,7 @@ function rFall(){
   p.hurt = 0; rHurt(p.x + p.w/2 + 1);
 }
 function rWin(){
+  tally('runs');
   const R = run; R.done = true;
   const bonus = R.easy ? 10 : 15;
   save.pearls += bonus; persist(); updateHud(); Audio_.great();
@@ -3527,7 +4138,9 @@ function yardLayout(){
   const ds = 2.25 * S * (port ? 1.12 : 1);
   const stand = {x:hole.x + 82*S + 12*ds, y:hole.y - 24*ds};
   const pile  = {x:stand.x + 34*ds, y:hole.y + 6*S};
-  return {port, S, H, pool, hole, ds, stand, pile, sun:{x:VW*.80, y:VH*.12}};
+  const house = port ? {x0:VW*.68, x1:VW*1.03, base:VH*.45, h:VH*.10} : {x0:VW*.60, x1:VW*1.02, base:H + VH*.15, h:VH*.19};
+  house.door = {x:house.x0 + (house.x1 - house.x0)*.28, y:house.base};
+  return {port, S, H, pool, hole, ds, stand, pile, house, sun:{x:VW*.80, y:VH*.12}};
 }
 
 const Y = {key:'', L:null, ground:null, clouds:[], birds:[], flies:[]};
@@ -3657,6 +4270,7 @@ function yardPrep(){
   for(let k=1; k<8; k++){ const yy = lerp(P.y0 + 14*S, P.y1, k/8); g.beginPath(); g.moveTo(0, yy); g.lineTo(VW, yy); g.stroke(); }
   g.restore();
 
+  yHouse(g, L);
   // a bucket by the digging spot
   yBucket(g, L.hole.x - 104*S, L.hole.y + 30*S, S);
 
@@ -3687,6 +4301,40 @@ function yardPrep(){
   Y.flies = [0, 1].map(i=>({x:R(VW*.1, VW*.9), y:R(lawnTop + 30*S, VH*.95), ph:R(0, 9),
     c:['#ffd479','#ff8ac0'][i], vx:0, vy:0}));
   Y.birds = [];
+}
+// the back of our house, with a door onto the yard and the garage at the side
+function yHouse(g, L){
+  const Hs = L.house, S = L.S, x0 = Hs.x0, x1 = Hs.x1, w = x1 - x0, b = Hs.base, h = Hs.h;
+  g.fillStyle = 'rgba(20,40,10,.25)'; g.fillRect(x0 - 6*S, b - 4*S, w + 12*S, 14*S);
+  const wg = g.createLinearGradient(x0, 0, x1, 0); wg.addColorStop(0, '#ffc6d4'); wg.addColorStop(1, '#ffe0e8');
+  g.fillStyle = wg; g.fillRect(x0, b - h, w, h);
+  g.strokeStyle = 'rgba(190,90,120,.18)'; g.lineWidth = 1; for(let y=b - h + 6*S; y<b; y+=7*S){ g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); }
+  const rg = g.createLinearGradient(0, b - h*1.75, 0, b - h); rg.addColorStop(0, '#d8506f'); rg.addColorStop(1, '#a8304f');
+  g.fillStyle = rg; g.beginPath(); g.moveTo(x0 - 14*S, b - h); g.lineTo(x0 + w*.45, b - h*1.75); g.lineTo(x1 + 14*S, b - h); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(80,10,30,.25)'; for(let k=1; k<5; k++){ const yy = b - h - k*h*.15; g.beginPath(); g.moveTo(x0 - 14*S + k*w*.09, yy); g.lineTo(x1 + 14*S - k*w*.11, yy); g.stroke(); }
+  g.fillStyle = '#8f8a86'; g.fillRect(x0 + w*.62, b - h*1.7, w*.07, h*.4);                        // chimney
+  // the back door: French doors with a little step
+  const dx = Hs.door.x, dw = w*.16, dh = h*.78;
+  g.fillStyle = '#ffffff'; g.fillRect(dx - dw/2 - 3*S, b - dh - 3*S, dw + 6*S, dh + 3*S);
+  g.fillStyle = '#9fd6ee'; g.fillRect(dx - dw/2, b - dh, dw, dh);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 2*S; g.beginPath(); g.moveTo(dx, b - dh); g.lineTo(dx, b); g.moveTo(dx - dw/2, b - dh*.5); g.lineTo(dx + dw/2, b - dh*.5); g.stroke();
+  g.fillStyle = '#e0b04a'; g.beginPath(); g.arc(dx - 4*S, b - dh*.45, 2*S, 0, 7); g.arc(dx + 4*S, b - dh*.45, 2*S, 0, 7); g.fill();
+  g.fillStyle = '#c9b89a'; g.fillRect(dx - dw*.7, b - 2*S, dw*1.4, 6*S);
+  // windows with flower boxes
+  for(const fx of [.06, .5]){ const wx = x0 + w*fx, ww = w*.16, wh = h*.38, wy = b - h*.78;
+    g.fillStyle = '#ffffff'; g.fillRect(wx - 3*S, wy - 3*S, ww + 6*S, wh + 6*S);
+    g.fillStyle = '#bfe6ff'; g.fillRect(wx, wy, ww, wh);
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(wx + ww*.1, wy + wh*.1, ww*.25, wh*.8);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 1.6*S; g.beginPath(); g.moveTo(wx + ww/2, wy); g.lineTo(wx + ww/2, wy + wh); g.stroke();
+    g.fillStyle = '#8a5a2b'; g.fillRect(wx - 2*S, wy + wh + 3*S, ww + 4*S, 6*S);
+    for(let k=0; k<5; k++){ g.fillStyle = ['#ff6f9c','#ffd479','#ffffff','#c08cff','#ff9a5c'][k]; g.beginPath(); g.arc(wx + (k + .5)*ww/5, wy + wh + 2*S, 3*S, 0, 7); g.fill(); } }
+  // the garage at the side, its door facing the street beyond
+  const gx = x0 + w*.74, gw = w*.24;
+  g.fillStyle = '#f1ede6'; g.fillRect(gx, b - h*.82, gw, h*.82);
+  g.fillStyle = '#d9d3c8'; for(let k=0; k<4; k++) g.fillRect(gx + 4*S, b - h*.76 + k*h*.18, gw - 8*S, h*.14);
+  g.font = `700 ${Math.round(11*S + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.55)';
+  const lw = g.measureText('🏠 Our house').width + 14; roundRect(g, x0 + w*.4 - lw/2, b - h*1.75 - 30*S, lw, 22, 11); g.fill();
+  g.fillStyle = '#ffffff'; g.fillText('🏠 Our house', x0 + w*.4, b - h*1.75 - 30*S + 15);
 }
 function yTree(g, x, y, r, near, R){
   const pal = near ? ['#2b5228','#3d7034','#558c43','#7fb35d'] : ['#6c9482','#7ca48c','#90b79b','#a6c8ac'];
@@ -3762,6 +4410,10 @@ function yardRoam(dt){
   m.moving = d > 3;
   if(!m.moving){
     if(m.after === 'dig'){ m.after = null; m.face = -1; yard.held = true; yard.anim = 0; Audio_.blip(500); }
+    if(m.after === 'house'){ m.after = null; Audio_.tone(660, .12, 'sine', .08); Audio_.tone(523, .2, 'sine', .08, .14);
+      choose('Our house', 'Where to?', 'The car is parked in the garage, ready to drive to the harbor or around town.',
+        {ic:'🚗', label:'Get in the car', desc:'Drive out of the garage', fn:()=>fadeTo(()=>startDrive('garage'))},
+        {ic:'🏡', label:'Go inside', desc:'Coming soon: rooms to decorate', fn:()=>toast('The rooms are getting ready. Soon you can decorate them!')}); }
     return;
   }
   const sp = (m.mode === 'swim' ? 115 : 175) * S * yScale(m.y);
@@ -3799,13 +4451,15 @@ function yardBall(dt, t){
 }
 function yardStart(mode){                 // 'arrive' | 'return' (up from the ocean) | 'back' (from the tunnels)
   yardPrep();
-  scene = 'yard'; openLayer(null); sparks = [];
+  scene = 'yard'; openLayer(null); sparks = []; $('#boatBar').hidden = true;
   Object.assign(yard, {t:0, dig:0, water:0, pile:0, glow:0, anim:-1, queue:0, clods:[], finds:0,
     worm:null, asked:false, splashed:false, held:true, off:0});
   yard.need = save.mode === 'easy' ? 8 : 11;
   yardHome();
   if(mode === 'return'){ yard.phase = 'climb'; yard.dig = 1; yard.water = 1; yard.pile = 1; yard.held = false; }
   else if(mode === 'back'){ yard.phase = 'dig'; }
+  else if(mode === 'home'){ yard.phase = 'dig'; const Hs = Y.L.house; yard.me.x = yard.me.tx = Hs.door.x; yard.me.y = yard.me.ty = Hs.door.y + 10*Y.L.S; yard.held = false;
+    setTimeout(()=>toast('Home! The car is parked in the garage'), 300); }
   else { yard.phase = 'arrive'; yard.off = VH * .85; }
   showHud(true);
   setSkip('Jump in ›', yardJump);
@@ -3816,6 +4470,9 @@ function yardTap(e){
   if(yard.phase === 'arrive'){ yard.phase = 'dig'; yard.t = 0; yard.off = 0; yardHome(); return; }
   if(yard.phase !== 'dig') return;
   const L = Y.L, S = L.S, m = yard.me;
+  const Hs = L.house;
+  if(e && e.clientX > Hs.x0 && e.clientX < Hs.x1 && e.clientY > Hs.base - Hs.h*1.8 && e.clientY < Hs.base + 6){
+    yard.anim = -1; yard.queue = 0; yard.held = false; m.tx = Hs.door.x; m.ty = Hs.door.y + 8*S; m.after = 'house'; return; }
   const digAsk = !e || Math.hypot(e.clientX - L.hole.x, (e.clientY - L.hole.y)*2) < 110*S;
   if(!digAsk){                                           // go wherever she was tapped: lawn, deck or pool
     yard.anim = -1; yard.queue = 0; yard.held = false; m.after = null;
@@ -4054,7 +4711,7 @@ function drawYard(t, dt){
     shadowText(g, 'It all starts in the backyard...', VW/2, VH*.30 + big*.85, big*.34, '#f4fbff');
     g.globalAlpha = 1;
   } else if(yard.phase === 'dig'){
-    const msg = yard.dig === 0 ? 'Tap the X to dig · tap the pool for a swim' : yard.dig < .6 ? 'Keep digging!' : 'Almost... something is down there!';
+    const msg = yard.dig === 0 ? 'Dig at the X · swim in the pool · or tap the house' : yard.dig < .6 ? 'Keep digging!' : 'Almost... something is down there!';
     shadowText(g, msg, VW/2, VH*.085 + 18, Math.min(VW*.055, 32), '#ffffff');
     const bw = Math.min(260, VW*.6), bx = VW/2 - bw/2, by = VH*.085 + 18 + Math.min(VW*.055, 32)*.9;
     g.fillStyle = 'rgba(8,37,58,.32)'; roundRect(g, bx, by, bw, 16, 8); g.fill();
@@ -4705,6 +5362,7 @@ function tArrive(){
     it.got = true;
     const d = TREASURE[it.k];
     save.pearls += d.v; T.got += d.v; persist(); updateHud(); Audio_.sparkle();
+    if(it.k === 'gem') tally('jewels'); else if(it.k === 'bone' || it.k === 'shell') tally(it.k === 'bone' ? 'fossils' : 'shellsEver');
     tParts(p.x, p.y, 14, it.k === 'gem' ? ['#7df0ff','#ffffff','#bdf7ff'] : ['#ffd479','#ffffff','#fff3c4'], 160*T.cs/60, -60);
     if(d.msg && !T.seen[it.k]){ T.seen[it.k] = 1; toast(d.msg + ' +' + d.v); }
   }
@@ -4735,6 +5393,7 @@ function tHurt(rock){
   } else toast(rock ? 'Ouch! Watch out for falling rocks' : 'Ouch! BONK the bugs to bubble them');
 }
 function tWin(){
+  tally('digs');
   const T = tun; T.done = true;
   const bonus = T.easy ? 8 : 12;
   save.pearls += bonus; persist(); updateHud(); Audio_.great(); Audio_.sploosh();
@@ -5157,6 +5816,7 @@ function mazeHurt(){
   } else toast('Ouch! Grab a big pearl, then chase them');
 }
 function mazeWin(){
+  tally('caves');
   const M = mz; M.done = true;
   const bonus = M.easy ? 10 : 15;
   save.pearls += bonus; persist(); updateHud(); Audio_.great();
@@ -5606,23 +6266,25 @@ function openLayer(id){
   if(id){ $('#'+id).classList.add('on'); overlay = id; showPads(false); }
   else { overlay = null; showPads(padScene() && !$('#hud').hidden); }
 }
-const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel' || scene === 'maze' || scene === 'boat';
+const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel' || scene === 'maze' || scene === 'boat' || scene === 'drive';
 function showHud(on){
   $('#hud').hidden = !on;
   if(window.netUi) setTimeout(netUi, 0);
   $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
   $('#chipUp').hidden = scene !== 'ocean';
+  $('#chipChart').hidden = scene === 'blocks' || scene === 'show' || scene === 'run';   // not mid-game
   $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
-    : scene === 'run' || scene === 'blocks' ? '‹ Leave' : scene === 'maze' ? '‹ Tunnels' : scene === 'boat' ? '⤓ Dive' : '🏠 Home';
+    : scene === 'run' || scene === 'blocks' ? '‹ Leave' : scene === 'maze' ? '‹ Tunnels' : scene === 'boat' ? '⤓ Dive' : scene === 'drive' ? '🏠 Go home' : '🏠 Home';
   showPads(on && padScene()); updateHud();
 }
 function showPads(on){
   $('#pads').hidden = !on;
   // in the tunnels you touch where to dig, so the stick zone would only get in the way
   $('#stickz').hidden = scene === 'tunnel';
-  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : scene === 'boat' ? 'PHOTO' : 'SWIM';
+  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : scene === 'boat' ? 'PHOTO' : scene === 'drive' ? 'HONK' : 'SWIM';
   $('#padB').textContent = scene === 'boat' ? 'HORN' : 'BONK';
-  $('#padA').hidden = $('#padB').hidden = scene === 'maze';      // the maze is just steering
+  $('#padB').hidden = scene === 'maze' || scene === 'drive';
+  $('#padA').hidden = scene === 'maze';      // the maze is just steering
 }
 function updateHud(){ if(save) $('#pearlN').textContent = save.pearls; }
 
@@ -5632,6 +6294,7 @@ $('#chipBack').onclick = ()=>{
   else if(scene === 'blocks') leaveBlocks();
   else if(scene === 'maze') mazeExit();
   else if(scene === 'boat') boatDive();
+  else if(scene === 'drive'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>yardStart('home')); }
   else if(scene === 'yard') goTitle();
   else if(scene === 'tunnel') yardStart('back');
   else openHome();
@@ -6526,7 +7189,7 @@ function renderCreatureList(){
 /* ---- HOME DOME ---- */
 function openHome(){
   const grew = harvestAll();
-  $('#homeName').textContent = diverName(DIVERS.find(d=>d.id===P)) + "'s dome";
+  $('#homeName').textContent = diverName(playerDef(P)) + "'s dome";
   const away = Math.floor((Date.now() - save.lastSeen) / 60000);
   $('#homeGrew').textContent = grew
     ? `While you were away, your coral gardens made ${grew} pearl${grew===1?'':'s'}. They are in your pouch.`
@@ -6576,7 +7239,7 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
-  renderAbc(); renderSharkHome(); renderTogether(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
+  renderAbc(); renderSharkHome(); renderTogether(); renderGrownups(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
   openLayer('lHome');
 }
 $('#dockOut').onclick = ()=>{ openLayer(null); showHud(true); };
@@ -6609,15 +7272,16 @@ function tameShark(){
 
 /* ============================ TITLE ============================ */
 function buildTitle(){
-  const box = $('#divers'); box.innerHTML = '';
-  DIVERS.forEach(d=>{
+  $('#divers').innerHTML = ''; $('#guests').innerHTML = '';
+  ALL_PLAYERS.forEach(d=>{
+    const box = d.look ? $('#guests') : $('#divers');
     const s = loadSave(d.id);
     const card = document.createElement('button');
     card.className = 'diver'; card.type = 'button';
     const c = document.createElement('canvas');
     c.width = 160; c.height = 160; c.style.width = '80px'; c.style.height = '80px';
     const g2 = c.getContext('2d'); g2.scale(2, 2);
-    drawDiver(g2, 40, 46, 2.2, SUITS[s.suit], HAIRS[s.hair], 0, 1, 0);
+    drawDiver(g2, 40, 46, 2.2, SUITS[s.suit], HAIRS[s.hair], 0, 1, 0, null, {k:d.look || 'kid', acc:s.acc || ''});
     card.appendChild(c);
     const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = diverName(d);
     const pen = document.createElement('span');
@@ -6643,15 +7307,23 @@ function buildTitle(){
     const mt = document.createElement('div'); mt.className = 'meta';
     mt.innerHTML = `${d.age}<br>${s.introDone ? `🫧 ${s.pearls} pearls · ${s.words.length}/${Object.keys(LOCKED).length} doors` : d.blurb}`;
     card.appendChild(nm); card.appendChild(mt);
-    card.onclick = ()=>startProfile(d.id);
+    card.onclick = ()=>{
+      // a visiting friend needs the family's code to find them; ask once, right here
+      if(d.id === 'friend' && !familyCode()){
+        const c2 = prompt('Playing with friends? Type the family code from their iPad (in their Home dome). Leave it empty to play on your own.');
+        if(c2 && c2.trim()) try{ localStorage.setItem('bubbletown.family', c2.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); }catch(e){}
+      }
+      startProfile(d.id);
+    };
     box.appendChild(card);
   });
 }
 $('#btnWipe').onclick = ()=>{
-  const which = prompt('Erase which diver and start over? Type 1 or 2');
+  const which = prompt('Erase which player and start over? Type 1, 2, papa, mama or friend');
   if(!which) return;
-  const id = which.trim() === '1' ? 'sophia' : which.trim() === '2' ? 'angelina' : null;
-  if(!id){ alert('Type 1 or 2.'); return; }
+  const w = which.trim().toLowerCase();
+  const id = w === '1' ? 'sophia' : w === '2' ? 'angelina' : ['papa', 'mama', 'friend'].indexOf(w) >= 0 ? w : null;
+  if(!id){ alert('Type 1, 2, papa, mama or friend.'); return; }
   try{ localStorage.removeItem('bubbletown.' + id); }catch(e){}
   buildTitle();
 };
@@ -6663,7 +7335,9 @@ function startProfile(id){
   save.creatures.forEach(c=>{ c.x = undefined; c.y = undefined; c.ph = c.ph || 0; });
   yardStart('arrive');                 // every visit starts in the backyard
   netStart();
-  save.seen++; save.lastSeen = Date.now(); persist();
+  const prevSeen = save.lastSeen;
+  save.seen++; save.lastSeen = Date.now(); trackPearls(); checkPrizes(); persist();
+  welcomeBack(prevSeen);
 }
 buildTitle();
 
@@ -6703,6 +7377,9 @@ function step(){
   } else if(scene === 'show'){
     if(!overlay) updateDance(dt, t);
     drawDance(t);
+  } else if(scene === 'drive'){
+    if(!overlay) updateDrive(dt);
+    if(dv2) drawDrive(t);
   } else if(scene === 'boat'){
     if(!overlay) updateBoat(dt);
     if(bt) drawBoat(t);
@@ -6719,7 +7396,7 @@ function step(){
     if(!overlay) updateOcean(dt, t);
     updateSparks(dt); drawOceanScene(t);
   }
-  netTick(dt); drawRadar(t);
+  netTick(dt); drawRadar(t); drawFade(dt);
   tickToast();
 }
 requestAnimationFrame(frame);
