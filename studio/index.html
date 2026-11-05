@@ -46,6 +46,10 @@ button,select,input{font:inherit;color:inherit}
 .prog{height:8px;border-radius:4px;background:var(--paper2);overflow:hidden;margin:10px 0}
 .prog > i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
 .projects{display:grid;gap:8px;margin-top:10px}
+#title{display:block;width:100%;resize:none;overflow:hidden;font-family:var(--display);font-weight:700;font-size:clamp(26px,4.4vw,36px);
+  line-height:1.15;color:var(--ink);background:transparent;border:0;border-bottom:1.5px dashed transparent;padding:0 0 2px;margin:0}
+#title:hover,#title:focus{border-bottom-color:var(--rule);outline:none}
+.songname{font-family:var(--display);font-weight:600;font-size:22px;margin:4px 0 0}
 .proj{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:12px}
 .proj b{font-family:var(--display);font-weight:600}
 /* score screen */
@@ -111,6 +115,7 @@ button,select,input{font:inherit;color:inherit}
   </div>
   <div id="progBox" hidden>
     <div class="prog"><i id="progBar"></i></div>
+    <p class="songname" id="progTitle"></p>
     <p class="note" id="progTxt">Starting…</p>
   </div>
   <h2 style="margin-top:28px">Your songs</h2>
@@ -120,7 +125,10 @@ button,select,input{font:inherit;color:inherit}
 <!-- SCORE -->
 <section id="scrScore" hidden>
   <div class="row" style="justify-content:space-between">
-    <input id="title" class="field" style="font-family:var(--display);font-size:26px;font-weight:700;border:0;background:transparent;color:var(--ink);padding:0;min-width:0;flex:1" aria-label="Song title">
+    <div style="flex:1;min-width:0">
+      <textarea id="title" rows="1" aria-label="Song title (tap to rename)" title="Tap to rename"></textarea>
+      <p class="note" id="titleFrom" style="margin:2px 0 0"></p>
+    </div>
     <button class="btn sm" id="backBtn">‹ All songs</button>
   </div>
   <div class="toolbar">
@@ -168,6 +176,7 @@ button,select,input{font:inherit;color:inherit}
     <button class="btn sm" id="midiBtn">MIDI</button>
     <button class="btn sm" id="xmlBtn">MusicXML</button>
   </div>
+  <div class="row" id="pdfSaved" hidden style="margin-top:10px"></div>
   <p class="note">Automatic transcription is a first draft. Fix chords in the strip above, and open the MusicXML in MuseScore (free) for detailed note edits.</p>
 </section>
 <div id="printArea"></div>
