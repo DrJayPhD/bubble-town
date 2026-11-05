@@ -39,6 +39,19 @@ five islands (Home Dock, Treasure Isle, Fisher's Port with a boat shop, Lighthou
 fish at bubbling spots for a fish book in English and Russian, photograph dolphins, the whale, turtles,
 seals and gulls, race the buoys, and light the lighthouse to sail at sunset.
 
+**At night** the boat shows tonight's real sky; tap 🔭 to drag around the stars and learn ten
+constellations in English and Russian. The boat also has a radio (Bubble FM), a GPS with directions,
+and a fish finder.
+
+**Playing together (two iPads):** in the Home dome, make a family code on one iPad and type it on the
+other, with each iPad playing a different diver. The sisters then see each other in Bubble Town and
+out on the sea, have a radar showing where the other one is (or what she is doing), can send waves and
+hearts, hop aboard each other's boat, and talk through the iPads like walkie-talkies: hold 🎙️, or just
+talk when they are together in the game. The iPads find each other through PeerJS's free public
+broker (a small introduction only); game data and voice then go directly between the iPads with
+WebRTC. Nothing is recorded or stored. `vendor/peerjs.safari12.js` is PeerJS (MIT) rebuilt for
+Safari 12.
+
 **The shark**, once tamed, is a friend to ride, do tricks with, race through hoops (levels, more
 pearls, and new outfits for her), and dress up in the Home dome.
 

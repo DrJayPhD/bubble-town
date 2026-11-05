@@ -227,6 +227,12 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
 #boatBar .steer{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:10px;pointer-events:none}
 #boatBar .steer .chip{font-size:24px;padding:12px 20px;min-width:62px;justify-content:center}
 #dockBody .btn{margin:6px 8px 6px 0}
+#togetherBar{position:fixed;right:max(10px,env(safe-area-inset-right));top:40%;z-index:6;display:flex;flex-direction:column;gap:8px;align-items:center}
+#togetherBar .emo{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--rim);background:var(--glass);font-size:22px;cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+#walkieBtn{width:64px;height:64px;border-radius:50%;border:3px solid #ffd479;background:radial-gradient(circle at 38% 32%,#ffe9b0,#e8a83a);font-size:28px;cursor:pointer;
+  box-shadow:0 6px 18px rgba(2,14,26,.5);touch-action:none}
+#walkieBtn.on{background:radial-gradient(circle at 38% 32%,#ffb0c4,#ff4d6d);transform:scale(1.12);box-shadow:0 0 0 8px rgba(255,77,109,.3)}
 hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
 .note{font-size:12.5px;color:#6fb2c8;line-height:1.6}
 .stat{font-family:var(--disp);font-weight:700;color:var(--pearl);font-variant-numeric:tabular-nums}
@@ -261,12 +267,12 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .abc > *{display:inline-block;width:54px;margin:0 6px 8px 0}
   .mutabs > *{margin:0 6px 6px 0}
   #muCv{height:180px} #kbd{height:150px}
-  #boatBar > *{margin:0 8px 8px 0} #boatBar .steer > *{margin:0 6px}
+  #boatBar > *{margin:0 8px 8px 0} #togetherBar > *{margin:0 0 8px} #boatBar .steer > *{margin:0 6px}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
 /* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
    cannot undo. `manipulation` keeps normal taps and kills the zoom gesture. */
-button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label,.pk,.mutab{
+button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label,.pk,.mutab,.emo{
   touch-action:manipulation}
 canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
@@ -298,6 +304,14 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <button class="bk music" id="bkM" type="button" aria-label="Music">♫</button>
 </div>
 <div id="boatBar" hidden></div>
+<div id="togetherBar" hidden>
+  <button class="emo" type="button" aria-label="Wave">👋</button>
+  <button class="emo" type="button" aria-label="Heart">❤️</button>
+  <button class="emo" type="button" aria-label="Star">⭐</button>
+  <button class="emo" type="button" aria-label="Laugh">😂</button>
+  <button id="walkieBtn" type="button" aria-label="Hold to talk">🎙️</button>
+</div>
+<audio id="walkieAudio" playsinline autoplay></audio>
 <div id="toast"></div>
 <button class="chip" id="introSkip" hidden
   style="position:fixed;right:14px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border:0">Skip ›</button>
@@ -317,6 +331,9 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <h2 id="homeName">Diver</h2>
   <p class="sub" id="homeGrew">Welcome back.</p>
   <div class="grid2" id="gardens"></div>
+  <hr class="rule">
+  <p class="eyebrow">Play together · two iPads</p>
+  <div id="togetherBox"></div>
   <hr class="rule">
   <p class="eyebrow">Your shark friend</p>
   <div id="sharkBox"></div>
@@ -477,6 +494,7 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 })();
 window.LEGACY = !window.PointerEvent;
 </script>
+<script src="vendor/peerjs.safari12.js"></script>
 <script>
 "use strict";
 /* ---- keep the page locked at 1:1 -----------------------------------------
@@ -1679,6 +1697,9 @@ function boatBar(){
   if(B.near && B.near.kind === 'isle') want.push(['dock', '⚓ Visit ' + B.near.o.name]);
   if(B.near && B.near.kind === 'spot' && !B.fish) want.push(['fish', '🎣 Fish here']);
   if(B.near && B.near.kind === 'race' && !B.race) want.push(['race', '🏁 Buoy race']);
+  const fr = Net.st === 'on' && Net.friend && Net.friend.sc === 'boat' && Net.friend.fx !== null ? Net.friend : null;
+  if(B.crew) want.push(['crew', '⛵ Back to my own boat']);
+  else if(fr && !fr.crew && Math.hypot(fr.fx - B.x, fr.fy - B.y) < 260) want.push(['crew', `⛵ Hop aboard ${fr.nm}’s boat`]);
   want.push(['sky', B.sky === 'day' ? '🌅 Sunset' : B.sky === 'sunset' ? '🌙 Night' : '☀️ Day']);
   if(B.night) want.push(['stars', '🔭 Look at the stars']);
   want.push(['radio', radioOn >= 0 ? '📻 Next station' : '📻 Radio']);
@@ -1720,6 +1741,7 @@ function boatAction(id){
   else if(id === 'stars'){ B.gaze = B.gaze ? null : {az:(B.h + Math.PI/2 + Math.PI*2) % (Math.PI*2), alt:.65, sel:null}; showPads(!B.gaze); boatBar(); }
   else if(id === 'radio'){ radioNext(); boatBar(); }
   else if(id === 'gps') gpsMenu();
+  else if(id === 'crew'){ B.crew = !B.crew; B.v = 0; B.throttle = 0; B.goal = null; toast(B.crew ? `You’re aboard! ${friendName()} is steering` : 'Back on your own boat'); boatBar(); }
   else if(id === 'sonar'){ B.sonar = !B.sonar; boatBar(); }
 }
 
@@ -1730,7 +1752,13 @@ function updateBoat(dt){
   B.lst = (B.lst + dt*.5) % 360;
   if(B.gaze){ B.v *= Math.pow(.3, dt); boatBar(); return; }
   const v = stickVec(), maxV = boatMaxV();
-  if(B.fish){ updateFishing(dt); B.v *= Math.pow(.2, dt); }
+  if(B.crew){                                                // she steers; you ride along
+    const f = Net.friend;
+    if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null){ B.crew = false; toast('Back on your own boat'); }
+    else { B.x = f.fx; B.y = f.fy; B.h = f.fh; B.v = 0; }
+    if(B.fish){ updateFishing(dt); }
+  }
+  else if(B.fish){ updateFishing(dt); B.v *= Math.pow(.2, dt); }
   else if(B.view === 'fp'){
     const steer = (Math.abs(v.x) > .15 ? v.x : 0) || B.btnSteer || 0;
     if(Math.abs(v.y) > .3) B.throttle = clamp(B.throttle - v.y*dt*1.2, -.2, 1);
@@ -2055,6 +2083,7 @@ function drawSeaTop(t){
   // wake and the boat
   for(const w of B.wake){ g.strokeStyle = 'rgba(255,255,255,' + (1 - w.t/2)*.5 + ')'; g.lineWidth = 2; g.beginPath(); g.arc(sx(w.x), sy(w.y), (6 + w.t*22)*z, 0, 7); g.stroke(); }
   drawBoatTop(g, VW/2, VH/2, B.h, z, t);
+  drawFriendSeaTop(g, t, sx, sy, z);
   for(const gl of B.gulls){ const x = sx(gl.cx + Math.cos(gl.a)*gl.r), y = sy(gl.cy + Math.sin(gl.a)*gl.r), f = Math.sin(t*8 + gl.a*3)*5*z;
     g.strokeStyle = '#ffffff'; g.lineWidth = 2.4*z; g.beginPath(); g.moveTo(x - 12*z, y - f); g.quadraticCurveTo(x - 4*z, y - 4*z, x, y); g.quadraticCurveTo(x + 4*z, y - 4*z, x + 12*z, y - f); g.stroke(); }
   for(const f of B.fx){ g.globalAlpha = clamp(1 - f.t/f.life, 0, 1); g.fillStyle = f.c; g.beginPath(); g.arc(sx(f.x), sy(f.y) - f.z*z*.3, 3, 0, 7); g.fill(); }
@@ -2139,6 +2168,7 @@ function drawSeaFP(t){
     g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(p.x - 6*s, p.y - 10*s, 14*s, 8*s, -.2, 0, 7); g.fill(); g.beginPath(); g.arc(p.x + 8*s, p.y - 18*s + Math.sin(t*2 + sl.ph)*2*s, 6*s, 0, 7); g.fill();
     g.fillStyle = '#10202c'; g.beginPath(); g.arc(p.x + 10*s, p.y - 19*s, 1.2*s, 0, 7); g.fill(); }}); }
   for(const f of B.fly){ if(f.t <= 0) continue; const p = proj(f.x, f.y); if(p) objs.push({p, draw:()=>{ const s = p.k*3; g.fillStyle = '#cfe9ff'; g.beginPath(); g.ellipse(p.x, p.y - Math.sin(f.t/1.4*Math.PI)*40*s, 8*s, 3*s, 0, 0, 7); g.fill(); }}); }
+  const fo = friendSeaFP(proj, g, t); if(fo) objs.push(fo);
   objs.sort((a, b)=>b.p.f - a.p.f).forEach(o=>o.draw());
   for(const gl of B.gulls){ const p = proj(gl.cx + Math.cos(gl.a)*gl.r, gl.cy + Math.sin(gl.a)*gl.r); if(!p) continue;
     const s = Math.max(.5, p.k*3), y = p.y - 160*p.k*3 - 40, f = Math.sin(t*8 + gl.a*3)*5*s;
@@ -2491,6 +2521,256 @@ function drawInstruments(g, t){
     g.fillStyle = '#ffe9b0'; g.font = '600 11px Nunito, sans-serif'; g.fillText(L.name.slice(0, 26), VW*.66 + 10, VH - 36); }
 }
 
+/* ============================ PLAYING TOGETHER ============================
+   Two iPads, two divers. Both enter the same family code and pick different
+   divers; then they find each other (PeerJS's free public broker only makes
+   the introduction) and talk directly over the home Wi-Fi with WebRTC:
+     · see each other in Bubble Town and out on the sea, with name tags
+     · a radar that shows where your sister is, or what she is doing
+     · waves and hearts, and hop aboard each other's boat as crew
+     · a walkie-talkie: hold 🎙️ to talk; when you are together in the game
+       (side by side, or on the same boat) the line opens by itself
+   Voice uses each iPad's own microphone and speaker. Nothing is recorded.
+   ======================================================================== */
+const Net = {peer:null, conn:null, st:'off', code:'', friend:null, sendT:0, mic:null, out:null, inCall:null,
+             holding:false, open:false, theirTalk:false, crewTalk:true, err:''};
+const SCENE_SAYS = {title:'is choosing a diver', yard:'is in the backyard', tunnel:'is digging tunnels', maze:'is in the glowing cave',
+  dive:'is diving down', ocean:'is swimming in Bubble Town', boat:'is out on her boat', run:'is in Coral Run', blocks:'is in the Snow Palace', show:'is dancing'};
+const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in her Home dome', lWord:'is at a letter door', lDock:'is visiting an island'};
+function familyCode(){ try{ return localStorage.getItem('bubbletown.family') || ''; }catch(e){ return ''; } }
+function newFamilyCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for(let i=0; i<6; i++) c += A[Math.floor(Math.random()*A.length)]; return c; }
+function setFamilyCode(c){ c = (c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); try{ if(c) localStorage.setItem('bubbletown.family', c); else localStorage.removeItem('bubbletown.family'); }catch(e){} Net.code = c; netStart(); }
+function peerOpts(){ try{ const o = JSON.parse(localStorage.getItem('bubbletown.peerServer') || 'null'); if(o) return Object.assign({debug:0}, o); }catch(e){} return {debug:0}; }
+function otherDiver(){ return DIVERS.find(d=>d.id !== P); }
+function friendName(){ const o = otherDiver(); return Net.friend && Net.friend.nm ? Net.friend.nm : o ? diverName(o) : 'Your sister'; }
+function netIds(){ return {me:'bubbletown-' + Net.code + '-' + P, them:'bubbletown-' + Net.code + '-' + otherDiver().id}; }
+function netStop(){
+  clearInterval(Net.dialT);
+  try{ if(Net.conn) Net.conn.close(); }catch(e){} try{ if(Net.peer) Net.peer.destroy(); }catch(e){}
+  Net.peer = Net.conn = Net.friend = Net.out = Net.inCall = null; Net.st = 'off'; netUi();
+}
+function netStart(){
+  Net.code = familyCode();
+  netStop();
+  if(!P || !Net.code) return;
+  if(!window.Peer){ Net.st = 'nolib'; netUi(); return; }
+  const ids = netIds();
+  Net.st = 'connecting'; netUi();
+  let peer;
+  try{ peer = Net.peer = new Peer(ids.me, peerOpts()); }catch(e){ Net.st = 'error'; Net.err = String(e); netUi(); return; }
+  peer.on('open', ()=>{ if(Net.st !== 'on') Net.st = 'waiting'; netUi(); netDial(); });
+  peer.on('connection', c=>netUse(c));
+  peer.on('call', call=>{ try{ call.answer(); }catch(e){} netHear(call); });
+  peer.on('error', e=>{
+    if(e.type === 'peer-unavailable') return;                    // she isn't online yet; keep trying
+    if(e.type === 'unavailable-id'){ Net.st = 'same'; netUi(); return; }
+    if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){ Net.st = 'offline'; netUi(); return; }
+    Net.err = e.type || String(e); netUi();
+  });
+  peer.on('disconnected', ()=>{ setTimeout(()=>{ try{ if(Net.peer === peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 2000); });
+  Net.dialT = setInterval(netDial, 4000);
+}
+// only the diver with the smaller id dials, so the two iPads never race each other
+function netDial(){
+  const ids = netIds();
+  if(!Net.peer || Net.peer.disconnected || Net.peer.destroyed || (Net.conn && Net.conn.open) || ids.me > ids.them) return;
+  try{ netUse(Net.peer.connect(ids.them, {reliable:true})); }catch(e){}
+}
+function netUse(c){
+  c.on('open', ()=>{
+    if(Net.conn && Net.conn !== c && Net.conn.open){ try{ c.close(); }catch(e){} return; }
+    const was = Net.st === 'on'; Net.conn = c; Net.st = 'on';
+    if(!was){ toast(`${friendName()} is here! 👋`); Audio_.great(); }
+    netSend(true); if(Net.mic) netCallOut(); netUi();
+  });
+  c.on('data', netData);
+  c.on('close', ()=>{ if(Net.conn === c){ Net.conn = null; Net.out = null; Net.friend = null; Net.theirTalk = false; Net.st = 'waiting'; toast(`${friendName()} left the game`); netUi(); } });
+  c.on('error', ()=>{});
+}
+function myPlace(){
+  if(scene === 'ocean') return {x:player.x, y:player.y, h:player.face > 0 ? 0 : Math.PI};
+  if(scene === 'boat' && bt) return {x:bt.x, y:bt.y, h:bt.h};
+  return null;
+}
+function netSend(force){
+  if(!Net.conn || !Net.conn.open) return;
+  const now = performance.now(); if(!force && now - Net.sendT < 150) return; Net.sendT = now;
+  const pl = myPlace(), me = DIVERS.find(d=>d.id === P);
+  try{ Net.conn.send({k:'s', sc:scene, ov:overlay || '', x:pl ? Math.round(pl.x) : null, y:pl ? Math.round(pl.y) : null, h:pl ? +pl.h.toFixed(2) : 0,
+    nm:diverName(me), su:save ? save.suit : 0, ha:save ? save.hair : 0, sail:save && save.sea ? save.sea.sail : 'plain',
+    crew:!!(bt && bt.crew), talk:Net.holding || Net.open, face:player.face}); }catch(e){}
+}
+function netData(d){
+  if(!d || typeof d !== 'object') return;
+  if(d.k === 's'){
+    const f = Net.friend || (Net.friend = {fx:d.x, fy:d.y, fh:d.h});
+    const jump = f.sc !== d.sc || f.x === null || d.x === null;
+    Object.assign(f, d, {at:performance.now()});
+    if(jump){ f.fx = d.x; f.fy = d.y; f.fh = d.h; }
+    if(d.talk !== Net.theirTalk){ Net.theirTalk = d.talk; if(d.talk) kshh(); }
+    if(bt && f.crew && f.sc === 'boat' && !f.welcomed){ f.welcomed = 1; toast(`${f.nm} hopped aboard your boat! ⛵`); }
+    if(!f.crew) f.welcomed = 0;
+  } else if(d.k === 'e'){
+    if(Net.friend){ Net.friend.emote = d.e; Net.friend.emoteT = performance.now(); }
+    toast(`${friendName()}: ${d.e}`); Audio_.sweep(600, 1200, .15, 'sine', .08);
+  }
+}
+function netEmote(e){ if(!Net.conn || !Net.conn.open) return; try{ Net.conn.send({k:'e', e}); }catch(x){} Net.myEmote = e; Net.myEmoteT = performance.now(); Audio_.blip(900); }
+function netTick(dt){
+  if(Net.st !== 'on') return;
+  const f = Net.friend;
+  if(f && f.x !== null && f.fx !== null){ const k = Math.min(1, dt*8); f.fx += (f.x - f.fx)*k; f.fy += (f.y - f.fy)*k; f.fh += wrapA(f.h - f.fh)*k; }
+  // the line opens by itself when you are together in the game
+  const near = netNear();
+  const open = !!(Net.mic && Net.crewTalk && near);
+  if(open !== Net.open){ Net.open = open; if(open) toast(`🔊 You can talk to ${friendName()} now`); netMicGate(); }
+  netSend(false);
+}
+function netNear(){
+  const f = Net.friend; if(!f || f.x === null || f.sc !== scene) return false;
+  const pl = myPlace(); if(!pl) return false;
+  if(scene === 'boat' && (bt.crew || f.crew)) return true;
+  return Math.hypot(pl.x - f.x, pl.y - f.y) < (scene === 'boat' ? 350 : 420);
+}
+/* ---- the walkie-talkie ---- */
+function kshh(){ Audio_.noise(.18, 2500, .7, .07, 'bandpass'); }
+async function netMicOn(){
+  if(Net.mic) return true;
+  try{
+    Net.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+    netMicGate(); if(Net.conn && Net.conn.open) netCallOut(); netUi();
+    return true;
+  }catch(e){ toast('The walkie-talkie needs the microphone. Allow it in Safari, then try again.'); return false; }
+}
+function netMicGate(){ if(!Net.mic) return; const on = Net.holding || Net.open; Net.mic.getAudioTracks().forEach(t=>{ t.enabled = on; }); netSend(true); }
+function netCallOut(){ try{ if(Net.out) Net.out.close(); }catch(e){} try{ Net.out = Net.peer.call(netIds().them, Net.mic); }catch(e){} }
+function netHear(call){
+  Net.inCall = call;
+  call.on('stream', st=>{ const a = $('#walkieAudio'); a.srcObject = st; const p = a.play(); if(p && p.catch) p.catch(()=>{}); });
+  call.on('close', ()=>{ if(Net.inCall === call) Net.inCall = null; });
+}
+addEventListener('pointerdown', ()=>{ const a = $('#walkieAudio'); if(a && a.srcObject && a.paused){ const p = a.play(); if(p && p.catch) p.catch(()=>{}); } });
+(function(){
+  const b = $('#walkieBtn');
+  const down = async e=>{ e.preventDefault(); e.stopPropagation(); if(!Net.mic && !(await netMicOn())) return;
+    Net.holding = true; b.classList.add('on'); kshh(); netMicGate(); };
+  const up = ()=>{ if(!Net.holding) return; Net.holding = false; b.classList.remove('on'); kshh(); netMicGate(); };
+  b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  document.querySelectorAll('#togetherBar .emo').forEach(x=>x.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); netEmote(x.textContent); }));
+})();
+/* ---- what's on screen ---- */
+function netUi(){
+  const on = Net.st === 'on' && !!P && scene !== 'title';
+  $('#togetherBar').hidden = !on;
+  if($('#lHome').classList.contains('on')) renderTogether();
+}
+function drawFriendTag(g, x, y, f){
+  g.font = '700 13px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const label = (f.talk ? '🔊 ' : '') + f.nm, w = g.measureText(label).width + 18;
+  g.fillStyle = 'rgba(255,111,156,.85)'; roundRect(g, x - w/2, y - 11, w, 22, 11); g.fill();
+  g.fillStyle = '#ffffff'; g.fillText(label, x, y);
+  if(f.emote && performance.now() - f.emoteT < 3000){ g.font = '34px serif'; g.fillText(f.emote, x, y - 32 - Math.sin(performance.now()/200)*4); }
+}
+function drawFriendOcean(g, t){                          // world coordinates, called inside the ocean camera
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'ocean' || f.fx === null) return;
+  g.save(); g.globalAlpha = .95;
+  drawDiver(g, f.fx, f.fy, 1.5, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, f.face || 1, 1);
+  g.restore();
+  drawFriendTag(g, f.fx, f.fy - 50, f);
+}
+function friendBoatTop(g, sx, sy, h, z, t, f){
+  g.save(); g.translate(sx, sy); g.rotate(h);
+  const hg = g.createLinearGradient(0, -18*z, 0, 18*z); hg.addColorStop(0, '#e0b07a'); hg.addColorStop(1, '#8a5a2b');
+  g.fillStyle = hg; g.beginPath(); g.moveTo(52*z, 0); g.quadraticCurveTo(20*z, -20*z, -40*z, -16*z); g.lineTo(-44*z, 16*z); g.quadraticCurveTo(20*z, 20*z, 52*z, 0); g.fill();
+  g.rotate(.5 + Math.sin(t*1.5)*.05); g.fillStyle = SUITS[f.su] || '#ff6f9c';
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-10*z, 30*z, -36*z, 34*z); g.lineTo(0, 0); g.fill();
+  g.restore();
+  g.save(); g.translate(sx, sy); drawDiver(g, -6*z, -6*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, Math.cos(h) >= 0 ? 1 : -1, 0); g.restore();
+}
+function drawFriendSeaTop(g, t, sx, sy, z){
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null) return;
+  if(f.crew || (bt && bt.crew)){                          // the same boat: she stands on your deck
+    g.save(); g.translate(VW/2, VH/2); drawDiver(g, 14*z, -4*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, 1, 0); g.restore();
+    drawFriendTag(g, VW/2 + 14*z, VH/2 - 50*z, f); return;
+  }
+  friendBoatTop(g, sx(f.fx), sy(f.fy), f.fh, z, t, f);
+  drawFriendTag(g, sx(f.fx), sy(f.fy) - 56*z, f);
+}
+function friendSeaFP(proj, g, t){                        // her boat on the water ahead of you
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null || f.crew || (bt && bt.crew)) return null;
+  const p = proj(f.fx, f.fy); if(!p) return null;
+  return {p, draw:()=>{ const s = Math.min(p.k*1.6, 4);
+    g.fillStyle = '#8a5a2b'; g.beginPath(); g.moveTo(p.x - 50*s, p.y - 10*s); g.lineTo(p.x + 50*s, p.y - 10*s); g.lineTo(p.x + 36*s, p.y + 4*s); g.lineTo(p.x - 36*s, p.y + 4*s); g.fill();
+    g.strokeStyle = '#6b4a2a'; g.lineWidth = Math.max(1, 3*s); g.beginPath(); g.moveTo(p.x, p.y - 10*s); g.lineTo(p.x, p.y - 110*s); g.stroke();
+    g.fillStyle = SUITS[f.su] || '#ff6f9c'; g.beginPath(); g.moveTo(p.x + 3*s, p.y - 106*s); g.quadraticCurveTo(p.x + 50*s, p.y - 60*s, p.x + 44*s, p.y - 16*s); g.lineTo(p.x + 3*s, p.y - 16*s); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(p.x - 3*s, p.y - 100*s); g.quadraticCurveTo(p.x - 34*s, p.y - 60*s, p.x - 36*s, p.y - 18*s); g.lineTo(p.x - 3*s, p.y - 18*s); g.fill();
+    drawFriendTag(g, p.x, p.y - 130*s, f); }};
+}
+// the radar: where she is, or what she's doing
+function drawRadar(t){
+  if(Net.st !== 'on' || !P || scene === 'title') return;
+  const g = ctx, f = Net.friend, R = 46;
+  const cx = VW - R - 14, cy = scene === 'boat' ? 250 : 110;
+  if(scene === 'boat' && bt && bt.gaze) return;
+  g.save();
+  g.fillStyle = 'rgba(2,20,16,.82)'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(110,255,170,.35)'; g.lineWidth = 1;
+  [R*.33, R*.66, R - 2].forEach(r=>{ g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); });
+  g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
+  const a = (t*1.6) % (Math.PI*2);
+  const sw = g.createLinearGradient(cx, cy, cx + Math.cos(a)*R, cy + Math.sin(a)*R);
+  g.fillStyle = 'rgba(110,255,170,.22)'; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R - 2, a - .5, a); g.closePath(); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
+  let label;
+  const pl = myPlace();
+  if(f && pl && f.sc === scene && f.x !== null){
+    const dx = f.fx - pl.x, dy = f.fy - pl.y, d = Math.hypot(dx, dy), range = scene === 'boat' ? 2400 : 1800;
+    const k = Math.min(1, d/range) * (R - 8), ang = Math.atan2(dy, dx);
+    let bx = cx + Math.cos(ang)*k, by = cy + Math.sin(ang)*k;
+    const pulse = .6 + .4*Math.sin(t*6);
+    g.fillStyle = 'rgba(255,111,156,' + pulse + ')'; g.beginPath(); g.arc(bx, by, 6, 0, 7); g.fill();
+    label = `${f.nm} · ${Math.round(d/10)} m ${compass(ang)}`;
+  } else if(f){ label = `${f.nm} ${LAYER_SAYS[f.ov] || SCENE_SAYS[f.sc] || 'is playing'}`; }
+  else label = 'Looking for your sister…';
+  g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'top';
+  const lines = []; let line = '';
+  for(const w of label.split(' ')){ const t2 = line ? line + ' ' + w : w; if(g.measureText(t2).width > 170 && line){ lines.push(line); line = w; } else line = t2; }
+  lines.push(line);
+  const ly = cy - lines.length*9;                       // the words sit to the left of the radar
+  lines.forEach((l, i)=>{ g.fillStyle = 'rgba(2,20,16,.7)'; const w = g.measureText(l).width + 12; roundRect(g, cx - R - 8 - w, ly + i*18, w, 17, 8); g.fill();
+    g.fillStyle = '#b8ffd6'; g.fillText(l, cx - R - 14, ly + 2 + i*18); });
+  if(Net.theirTalk){ g.fillStyle = '#ffd479'; g.textAlign = 'right'; g.font = '700 13px Comfortaa, sans-serif'; g.fillText(`📻 ${f ? f.nm : ''} is talking…`, cx - R - 14, ly + lines.length*18 + 6); }
+  g.restore();
+}
+/* ---- pairing, in the Home dome ---- */
+function renderTogether(){
+  const box = $('#togetherBox'); if(!box) return;
+  box.innerHTML = '';
+  const p = (html, cls)=>{ const e = document.createElement('p'); e.className = cls || 'note'; e.innerHTML = html; box.appendChild(e); return e; };
+  const b = (label, fn, cls)=>{ const x = document.createElement('button'); x.type = 'button'; x.className = 'btn ' + (cls || 'ghost') + ' sm'; x.textContent = label; x.onclick = fn; box.appendChild(x); return x; };
+  const other = otherDiver();
+  if(!Net.code){
+    p(`Play with ${diverName(other)} on another iPad. Make a family code here, then type the same code on the other iPad. Each iPad picks a different diver.`);
+    b('✨ Make a family code', ()=>{ setFamilyCode(newFamilyCode()); renderTogether(); }, 'gold');
+    const inp = document.createElement('input'); inp.className = 'namein'; inp.placeholder = 'or type a code'; inp.maxLength = 8; inp.style.cssText = 'width:150px;margin:8px 8px 0 0;font-size:17px';
+    box.appendChild(inp);
+    b('Join', ()=>{ if(inp.value.trim().length >= 4){ setFamilyCode(inp.value); renderTogether(); } else toast('Type the code from the other iPad'); });
+    return;
+  }
+  p(`Family code <b class="stat" style="font-size:22px;letter-spacing:.12em">${Net.code}</b>`, 'sub');
+  const say = {connecting:'Connecting…', waiting:`Waiting for ${diverName(other)} on the other iPad…`, on:`✅ Playing with ${friendName()}!`,
+    same:`Both iPads picked ${diverName(DIVERS.find(d=>d.id === P))}. On the other iPad, pick ${diverName(other)}.`,
+    offline:'Can’t reach the internet to find the other iPad. Check the Wi-Fi.', nolib:'Playing together could not load. Check the internet, then reopen the game.',
+    error:'Something went wrong connecting (' + Net.err + ').', off:'Off'}[Net.st] || Net.st;
+  p(say);
+  b(Net.mic ? '🎙️ Walkie-talkie is on' : '🎙️ Turn on the walkie-talkie', async ()=>{ await netMicOn(); renderTogether(); }, Net.mic ? 'ghost' : 'gold');
+  const lab = document.createElement('label'); lab.className = 'chk'; lab.style.margin = '8px 10px';
+  const c = document.createElement('input'); c.type = 'checkbox'; c.checked = Net.crewTalk; c.onchange = ()=>{ Net.crewTalk = c.checked; };
+  lab.appendChild(c); lab.appendChild(document.createTextNode(' talk freely when we’re together in the game')); box.appendChild(lab);
+  b('Change code', ()=>{ setFamilyCode(''); renderTogether(); });
+  p('Hold 🎙️ to talk like a walkie-talkie. Both iPads need the internet to find each other the first time; after that they talk straight to each other over your Wi-Fi.');
+}
+
 /* ============================ OCEAN UPDATE ============================ */
 function updateOcean(dt, t){
   let v = stickVec();
@@ -2607,6 +2887,7 @@ function drawOceanScene(t){
     drawDiver(g, player.x, player.y - 4, 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, 0);
     g.restore();
   } else drawDiver(g, player.x, player.y - (player.ride ? 4 : 0), 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, player.ride ? 0 : player.kick);
+  drawFriendOcean(g, t);
 
   if(player.bonk > 0){                                    // bonk shockwave
     const r = (1 - player.bonk) * 300;
@@ -5328,6 +5609,7 @@ function openLayer(id){
 const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel' || scene === 'maze' || scene === 'boat';
 function showHud(on){
   $('#hud').hidden = !on;
+  if(window.netUi) setTimeout(netUi, 0);
   $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
   $('#chipUp').hidden = scene !== 'ocean';
   $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
@@ -5357,7 +5639,7 @@ $('#chipBack').onclick = ()=>{
 $('#chipUp').onclick = ()=>{ if(scene === 'ocean' && !overlay) goUp(); };
 function goTitle(){
   if(save){ save.lastSeen = Date.now(); persist(); }
-  scene = 'title'; setSkip(null); showHud(false); buildTitle(); openLayer('lTitle');
+  scene = 'title'; setSkip(null); showHud(false); netStop(); buildTitle(); openLayer('lTitle');
 }
 
 /* ---- dome entry: word door first, then the activity ---- */
@@ -6294,7 +6576,7 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
-  renderAbc(); renderSharkHome(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
+  renderAbc(); renderSharkHome(); renderTogether(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
   openLayer('lHome');
 }
 $('#dockOut').onclick = ()=>{ openLayer(null); showHud(true); };
@@ -6380,6 +6662,7 @@ function startProfile(id){
   player.ride = false; race = null;
   save.creatures.forEach(c=>{ c.x = undefined; c.y = undefined; c.ph = c.ph || 0; });
   yardStart('arrive');                 // every visit starts in the backyard
+  netStart();
   save.seen++; save.lastSeen = Date.now(); persist();
 }
 buildTitle();
@@ -6436,6 +6719,7 @@ function step(){
     if(!overlay) updateOcean(dt, t);
     updateSparks(dt); drawOceanScene(t);
   }
+  netTick(dt); drawRadar(t);
   tickToast();
 }
 requestAnimationFrame(frame);
