@@ -221,6 +221,12 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
   box-shadow:0 6px 16px rgba(2,14,26,.5);cursor:pointer;touch-action:manipulation}
 .bk.down,.bk:active{transform:scale(.9);filter:brightness(1.25)}
 .bk.music{background:radial-gradient(circle at 38% 32%,#ffe7a8,#e8a83a);color:#3a2a10}
+#boatBar{position:fixed;left:max(12px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 50px);z-index:5;
+  display:flex;flex-wrap:wrap;gap:8px;max-width:min(62vw,560px);pointer-events:none}
+#boatBar .chip{pointer-events:auto;font-size:14px;padding:8px 12px;border:0}
+#boatBar .steer{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:10px;pointer-events:none}
+#boatBar .steer .chip{font-size:24px;padding:12px 20px;min-width:62px;justify-content:center}
+#dockBody .btn{margin:6px 8px 6px 0}
 hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
 .note{font-size:12.5px;color:#6fb2c8;line-height:1.6}
 .stat{font-family:var(--disp);font-weight:700;color:var(--pearl);font-variant-numeric:tabular-nums}
@@ -255,6 +261,7 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .abc > *{display:inline-block;width:54px;margin:0 6px 8px 0}
   .mutabs > *{margin:0 6px 6px 0}
   #muCv{height:180px} #kbd{height:150px}
+  #boatBar > *{margin:0 8px 8px 0} #boatBar .steer > *{margin:0 6px}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
 /* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
@@ -290,6 +297,7 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <button class="bk" id="bkR" type="button" aria-label="Right">▶</button>
   <button class="bk music" id="bkM" type="button" aria-label="Music">♫</button>
 </div>
+<div id="boatBar" hidden></div>
 <div id="toast"></div>
 <button class="chip" id="introSkip" hidden
   style="position:fixed;right:14px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border:0">Skip ›</button>
@@ -312,6 +320,7 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <hr class="rule">
   <p class="eyebrow">Your shark friend</p>
   <div id="sharkBox"></div>
+  <div id="seaBox"></div>
   <hr class="rule">
   <p class="eyebrow">Russian alphabet · Азбука</p>
   <div class="abc" id="abc"></div>
@@ -390,6 +399,14 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
     <button class="tile" type="button" id="choA"></button>
     <button class="tile" type="button" id="choB"></button>
   </div>
+</div></div>
+
+<!-- ISLAND VISIT -->
+<div class="layer" id="lDock"><div class="scrim"></div><div class="port">
+  <p class="eyebrow">Island</p>
+  <h2 id="dockTitle"></h2>
+  <div id="dockBody"></div>
+  <div class="row end" style="margin-top:16px"><button class="btn ghost" id="dockOut" type="button">Back to the boat</button></div>
 </div></div>
 
 <!-- RESULT -->
@@ -1559,75 +1576,188 @@ function renderSharkHome(){
   box.appendChild(row);
 }
 
-/* ============================ THE BOAT ============================
-   A hull floats at the top of the sea. Swim up under it and climb the
-   ladder to sail along the surface: collect floating pearls, catch message
-   bottles (each holds a Cyrillic letter card), dock at treasure islands,
-   hop the waves and toot the horn for the dolphins. Diving drops you back
-   into Bubble Town right below where the boat is.
-   ================================================================== */
+/* ============================ THE OPEN SEA ============================
+   A hull floats at the top of Bubble Town's sea. Climb the ladder and you
+   are out on an open sea you can sail anywhere, seen two ways:
+     🧭 from above (tap where to go)        👁 first person, at the wheel
+   Things to do out here:
+     · five islands to dock at: Home Dock (dive back down), Treasure Isle
+       (dig up the chest), Fisher's Port (boat shop), Lighthouse Rock (bring
+       5 glowing shells to light it; then sail at sunset), Turtle Beach
+       (help the hatchlings to the sea)
+     · fishing at bubbling spots, with a fish book in English and Russian
+     · a photo safari: dolphins, the whale, turtles, seals, gulls, flying fish
+     · a buoy race against your best time
+     · pearls, glowing shells and message bottles (Cyrillic letters) afloat
+   ===================================================================== */
 const BOAT = {id:'boat', x:2380, label:'Boat'};
-const SEA_W = 7200, ISLES = [1000, 2600, 4300, 6100];
+const SEA = {w:3400, h:3400};
+const ISLES = [
+  {id:'dock',     name:'Home Dock',       x:1700, y:1900, r:110},
+  {id:'treasure', name:'Treasure Isle',   x:720,  y:900,  r:170},
+  {id:'port',     name:"Fisher's Port",   x:2650, y:1050, r:185},
+  {id:'light',    name:'Lighthouse Rock', x:2750, y:2650, r:120},
+  {id:'turtle',   name:'Turtle Beach',    x:700,  y:2600, r:190},
+];
+const FISH_SPOTS = [
+  {x:1250, y:1450, kinds:['sardine','mackerel','sardine','cod']},
+  {x:2150, y:700,  kinds:['mackerel','cod','squid','salmon']},
+  {x:3000, y:1800, kinds:['puffer','squid','crab','salmon']},
+  {x:1900, y:2900, kinds:['cod','crab','salmon','sardine']},
+  {x:400,  y:1700, kinds:['puffer','mackerel','squid','crab']},
+  {x:1500, y:450,  kinds:['sardine','salmon','cod','squid']},
+];
+const FISHES = {
+  sardine: {en:'Sardine',      ru:'сардина',        tr:'sardina',        c:'#9fb8c8', belly:'#eef4f8'},
+  mackerel:{en:'Mackerel',     ru:'скумбрия',       tr:'skumbriya',      c:'#4f8fa8', belly:'#e8f2f4', stripe:'#20485a'},
+  cod:     {en:'Cod',          ru:'треска',         tr:'treska',         c:'#b39b6f', belly:'#f1e8d6'},
+  puffer:  {en:'Pufferfish',   ru:'рыба-шар',       tr:'ryba-shar',      c:'#e8c35a', belly:'#fff4cf'},
+  squid:   {en:'Squid',        ru:'кальмар',        tr:'kal’mar',        c:'#ff9aa8', belly:'#ffe1e6'},
+  crab:    {en:'Crab',         ru:'краб',           tr:'krab',           c:'#ff6b5b', belly:'#ffd0c8'},
+  salmon:  {en:'Salmon',       ru:'лосось',         tr:'losos’',         c:'#ff9a6b', belly:'#ffe2d2'},
+  golden:  {en:'Golden fish',  ru:'золотая рыбка',  tr:'zolotaya rybka', c:'#ffd23f', belly:'#fff6c8', rare:1},
+};
+const PHOTO_KINDS = {dolphin:'Dolphin', whale:'Whale', turtle:'Sea turtle', seal:'Seal', gull:'Seagull', flyfish:'Flying fish'};
+const RACE_BUOYS = [[1700,1500],[2150,1350],[2400,1750],[2250,2250],[1750,2400],[1250,2200],[1100,1700],[1350,1350]];
+const SHOP = [
+  {id:'speed1',  name:'Bigger sail',       ic:'⛵', cost:40,  kind:'speed', v:1, desc:'Sail faster'},
+  {id:'speed2',  name:'Racing sail',       ic:'💨', cost:90,  kind:'speed', v:2, desc:'Sail even faster', need:'speed1'},
+  {id:'stripes', name:'Striped sail',      ic:'🎏', cost:25,  kind:'sail',  v:'stripes'},
+  {id:'stars',   name:'Starry sail',       ic:'✨', cost:35,  kind:'sail',  v:'stars'},
+  {id:'rainbow', name:'Rainbow sail',      ic:'🌈', cost:50,  kind:'sail',  v:'rainbow'},
+  {id:'heart',   name:'Heart flag',        ic:'💖', cost:15,  kind:'flag',  v:'heart'},
+  {id:'starflag',name:'Star flag',         ic:'⭐', cost:15,  kind:'flag',  v:'star'},
+];
 let bt = null;
-function seaWave(x, t){ return Math.sin(x*.011 + t*1.6)*9 + Math.sin(x*.027 - t*1.15)*5; }
+const sv = ()=>{ save.sea = save.sea || {owned:{}, sail:'plain', flag:'plain', fish:{}, photos:{}, shells:0, lit:false, raceBest:0}; return save.sea; };
+
 function startBoat(){
   scene = 'boat'; openLayer(null); sparks = [];
-  const x0 = BOAT.x / WORLD.w * SEA_W;
-  bt = {x:x0, vx:0, jy:0, jv:0, t:0, goal:null, items:[], isles:ISLES.map(x=>({x, open:false})), dol:[], gulls:[], wake:[], fx:[], horn:-9, got:0};
-  for(let x=300; x<SEA_W - 300; x+=rnd(170, 300)){
-    const r = Math.random();
-    if(ISLES.some(i=>Math.abs(i - x) < 260)) continue;
-    bt.items.push({x, k:r < .72 ? 'pearl' : r < .86 ? 'bottle' : 'rock', got:false, ph:rnd(0, 9)});
+  const S = sv(), d = ISLES[0], r0 = seeded((Math.random()*1e9)|0), R = (a, b)=>a + r0()*(b - a);
+  bt = {x:d.x, y:d.y + d.r + 60, h:-Math.PI/2, v:0, steer:0, throttle:0, t:0, odo:0, goal:null,
+        view:save.mode === 'easy' ? 'top' : 'fp', items:[], dol:[], turtles:[], seals:[], gulls:[], fly:[], whale:{x:0, y:0, up:-1, next:12},
+        fx:[], wake:[], fish:null, race:null, visited:{}, shot:0, flash:0, sunset:false, horn:-9, near:null};
+  // things afloat, kept clear of the islands
+  const clear = (x, y, m)=>ISLES.every(i=>Math.hypot(x - i.x, y - i.y) > i.r + m);
+  for(let k=0, n=0; k<400 && n<70; k++){
+    const x = R(150, SEA.w - 150), y = R(150, SEA.h - 150); if(!clear(x, y, 90)) continue;
+    const r = r0(); bt.items.push({x, y, k:r < .55 ? 'pearl' : r < .7 ? 'bottle' : r < .85 ? 'shell' : 'rock', got:false, ph:R(0, 9)}); n++;
   }
-  for(let i=0; i<3; i++) bt.dol.push({off:rnd(-260, 260), ph:rnd(0, 9), jump:-1, flip:0});
-  for(let i=0; i<5; i++) bt.gulls.push({x:rnd(0, SEA_W), y:rnd(.06, .22), ph:rnd(0, 9), sp:rnd(30, 60), scared:0});
+  for(let i=0; i<4; i++) bt.dol.push({x:R(800, 2600), y:R(800, 2600), a:R(0, 6.3), jump:-1, ph:R(0, 9)});
+  for(let i=0; i<5; i++) bt.turtles.push({x:ISLES[4].x + R(-350, 350), y:ISLES[4].y - ISLES[4].r - R(80, 300), a:R(0, 6.3), ph:R(0, 9)});
+  for(let i=0; i<3; i++) bt.seals.push({x:ISLES[3].x - 200 + i*55, y:ISLES[3].y + 170 + (i % 2)*30, ph:R(0, 9)});
+  for(let i=0; i<6; i++) bt.gulls.push({cx:ISLES[2].x + R(-200, 200), cy:ISLES[2].y + R(-200, 200), r:R(90, 220), a:R(0, 6.3), sp:R(.4, .8)});
   showHud(true); setSkip('Dive in ⤓', boatDive);
-  toast(save.boatTrips ? 'Ahoy! ◀ ▶ to sail' : 'Ahoy! ◀ ▶ to sail · JUMP the waves · HORN for dolphins');
+  boatBar();
+  toast(save.boatTrips ? 'Ahoy!' : bt.view === 'fp' ? 'Ahoy! Steer with ◀ ▶, speed with ▲ ▼' : 'Ahoy! Tap the sea to sail there');
   save.boatTrips = (save.boatTrips || 0) + 1; persist();
   Audio_.sweep(220, 330, .6, 'triangle', .1);
 }
 function boatDive(){
   if(scene !== 'boat') return;
-  setSkip(null);
+  setSkip(null); $('#boatBar').hidden = true; openLayer(null);
   scene = 'ocean'; sparks = [];
-  player.x = clamp(bt.x / SEA_W * WORLD.w, 120, WORLD.w - 120); player.y = 150; player.vx = 0; player.vy = 140;
+  player.x = clamp(bt.x / SEA.w * WORLD.w, 120, WORLD.w - 120); player.y = 150; player.vx = 0; player.vy = 140;
   cam.x = clamp(player.x - VW/2, 0, Math.max(0, WORLD.w - VW)); cam.y = 0;
   rearm = BOAT; bt = null;
   burst(player.x, player.y, 34, '#bdf7ff'); Audio_.sploosh();
   showHud(true); toast('Splash! Back in Bubble Town');
 }
-function boatJump(){ if(bt && bt.jy === 0){ bt.jv = -430; Audio_.sweep(300, 600, .2, 'triangle', .08); } }
-function boatHorn(){
-  if(!bt || bt.t - bt.horn < 1.2) return;
-  bt.horn = bt.t;
-  Audio_.tone(196, .5, 'sawtooth', .08); Audio_.tone(247, .5, 'sawtooth', .06, .02);
-  bt.dol.forEach((d, i)=>{ if(d.jump < 0) setTimeout(()=>{ if(bt){ d.jump = 0; d.flip = 1; } }, 200 + i*260); });
-  bt.gulls.forEach(g=>{ if(Math.abs(g.x - bt.x) < VW) g.scared = 1.5; });
-  if(!save.hornDol){ save.hornDol = 1; save.pearls += 3; updateHud(); persist(); toast('The dolphins love the horn! +3 🫧'); }
+function boatMaxV(){ const S = sv(); return (save.mode === 'easy' ? 230 : 270) * (1 + .2*((S.owned.speed1 ? 1 : 0) + (S.owned.speed2 ? 1 : 0))); }
+
+/* ---- the action bar: what you can do right here ---- */
+function boatBar(){
+  const bar = $('#boatBar'); if(!bar || !bt) return;
+  bar.hidden = false;
+  const B = bt, want = [];
+  want.push(['view', B.view === 'fp' ? '🧭 From above' : '👁 First person']);
+  want.push(['photo', '📷 Photo']);
+  if(B.near && B.near.kind === 'isle') want.push(['dock', '⚓ Visit ' + B.near.o.name]);
+  if(B.near && B.near.kind === 'spot' && !B.fish) want.push(['fish', '🎣 Fish here']);
+  if(B.near && B.near.kind === 'race' && !B.race) want.push(['race', '🏁 Buoy race']);
+  if(sv().lit) want.push(['sunset', B.sunset ? '☀️ Daytime' : '🌅 Sunset']);
+  const key = want.map(w=>w[0]).join() + (B.view);
+  if(bar.dataset.key === key) return;
+  bar.dataset.key = key; bar.innerHTML = '';
+  for(const [id, label] of want){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.onclick = e=>{ e.stopPropagation(); boatAction(id); };
+    bar.appendChild(b);
+  }
+  if(B.view === 'fp'){
+    const steer = document.createElement('div'); steer.className = 'steer';
+    [['◀', 'L'], ['▲', 'U'], ['▼', 'D'], ['▶', 'R']].forEach(([t, k])=>{
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t;
+      const on = v=>{ if(!bt) return; if(k === 'L') bt.btnSteer = v ? -1 : 0; if(k === 'R') bt.btnSteer = v ? 1 : 0;
+        if(v && k === 'U') bt.throttle = Math.min(1, bt.throttle + .34); if(v && k === 'D') bt.throttle = Math.max(-.2, bt.throttle - .34); };
+      b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); on(true); });
+      b.addEventListener('pointerup', ()=>on(false)); b.addEventListener('pointercancel', ()=>on(false)); b.addEventListener('pointerleave', ()=>on(false));
+      steer.appendChild(b);
+    });
+    bar.appendChild(steer);
+  }
 }
+function boatAction(id){
+  const B = bt; if(!B) return;
+  Audio_.blip(700);
+  if(id === 'view'){ B.view = B.view === 'fp' ? 'top' : 'fp'; B.goal = null; if(B.view === 'fp' && B.throttle <= 0) B.throttle = 0; boatBar(); }
+  else if(id === 'photo') takePhoto();
+  else if(id === 'dock') openIsle(B.near.o);
+  else if(id === 'fish') startFishing();
+  else if(id === 'race') startBuoyRace();
+  else if(id === 'sunset'){ B.sunset = !B.sunset; boatBar(); }
+}
+
+/* ---- sailing ---- */
 function updateBoat(dt){
   const B = bt; if(!B) return;
   B.t += dt;
-  const v = stickVec(), easy = save.mode === 'easy';
-  let steer = v.x;
-  if(Math.abs(steer) < .1 && B.goal !== null){ const d = B.goal - B.x; steer = Math.abs(d) < 30 ? 0 : Math.sign(d); if(!steer) B.goal = null; }
-  const top = easy ? 300 : 380;
-  B.vx += steer * 520 * dt; B.vx *= Math.pow(.55, dt);
-  B.vx = clamp(B.vx, -top, top);
-  B.x = clamp(B.x + B.vx*dt, 150, SEA_W - 150);
-  if(B.jy < 0 || B.jv < 0){ B.jv += 1100*dt; B.jy = Math.min(0, B.jy + B.jv*dt); if(B.jy === 0 && B.jv > 0){ B.jv = 0; Audio_.noise(.25, 900, 1, .1); } }
-  if(Math.abs(B.vx) > 60 && Math.random() < dt*30) B.wake.push({x:B.x - Math.sign(B.vx)*52, t:0, s:rnd(.6, 1.4)});
-  for(let i=B.wake.length-1; i>=0; i--){ B.wake[i].t += dt; if(B.wake[i].t > 1.4) B.wake.splice(i, 1); }
-  for(let i=B.fx.length-1; i>=0; i--){ const f = B.fx[i]; f.t += dt; f.x += f.vx*dt; f.y += f.vy*dt; f.vy += 500*dt; if(f.t > f.life) B.fx.splice(i, 1); }
-  // things on the water
+  const v = stickVec(), maxV = boatMaxV();
+  if(B.fish){ updateFishing(dt); B.v *= Math.pow(.2, dt); }
+  else if(B.view === 'fp'){
+    const steer = (Math.abs(v.x) > .15 ? v.x : 0) || B.btnSteer || 0;
+    if(Math.abs(v.y) > .3) B.throttle = clamp(B.throttle - v.y*dt*1.2, -.2, 1);
+    B.h += steer * 1.3 * dt * (0.4 + Math.min(1, Math.abs(B.v)/120));
+    B.v = lerp(B.v, B.throttle * maxV, Math.min(1, dt*.8));
+  } else {
+    let want = null;
+    if(Math.hypot(v.x, v.y) > .2){ want = Math.atan2(v.y, v.x); B.goal = null; B.v = lerp(B.v, maxV*Math.min(1, Math.hypot(v.x, v.y)), Math.min(1, dt*.9)); }
+    else if(B.goal){
+      const dx = B.goal.x - B.x, dy = B.goal.y - B.y, d = Math.hypot(dx, dy);
+      if(d < 40){ B.goal = null; } else { want = Math.atan2(dy, dx); B.v = lerp(B.v, Math.min(maxV, d*1.2), Math.min(1, dt*.9)); }
+    } else B.v = lerp(B.v, 0, Math.min(1, dt*.7));
+    if(want !== null){ let da = want - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2; B.h += clamp(da, -2.2*dt, 2.2*dt); }
+  }
+  const ox = B.x, oy = B.y;
+  B.x = clamp(B.x + Math.cos(B.h)*B.v*dt, 60, SEA.w - 60);
+  B.y = clamp(B.y + Math.sin(B.h)*B.v*dt, 60, SEA.h - 60);
+  B.odo += Math.hypot(B.x - ox, B.y - oy);
+  if((B.x === 60 || B.x === SEA.w - 60 || B.y === 60 || B.y === SEA.h - 60) && Math.random() < dt*2) toast('The edge of the map! Turn around');
+  for(const is of ISLES){                                     // you can't sail through land
+    const dx = B.x - is.x, dy = B.y - is.y, d = Math.hypot(dx, dy), lim = is.r + 26;
+    if(d < lim){ B.x = is.x + dx/d*lim; B.y = is.y + dy/d*lim; B.v *= .5; }
+  }
+  if(Math.abs(B.v) > 70 && Math.random() < dt*25) B.wake.push({x:B.x - Math.cos(B.h)*40, y:B.y - Math.sin(B.h)*40, t:0});
+  for(let i=B.wake.length-1; i>=0; i--){ B.wake[i].t += dt; if(B.wake[i].t > 2) B.wake.splice(i, 1); }
+  for(let i=B.fx.length-1; i>=0; i--){ const f = B.fx[i]; f.t += dt; f.z += f.vz*dt; f.vz -= 600*dt; f.x += f.vx*dt; f.y += f.vy*dt; if(f.t > f.life) B.fx.splice(i, 1); }
+  if(B.flash > 0) B.flash -= dt;
+  // what is close by
+  B.near = null;
+  for(const is of ISLES) if(Math.hypot(B.x - is.x, B.y - is.y) < is.r + 120) B.near = {kind:'isle', o:is};
+  if(!B.near) for(const s of FISH_SPOTS) if(Math.hypot(B.x - s.x, B.y - s.y) < 110) B.near = {kind:'spot', o:s};
+  if(!B.near && Math.hypot(B.x - RACE_BUOYS[0][0], B.y - RACE_BUOYS[0][1] + 120) < 110) B.near = {kind:'race'};
+  boatBar();
+  // things afloat
   for(const it of B.items){
-    if(it.got || Math.abs(it.x - B.x) > 46) continue;
+    if(it.got || Math.hypot(it.x - B.x, it.y - B.y) > 44) continue;
     if(it.k === 'rock'){
-      if(B.jy > -20 && B.t - (B.bump || -9) > .8){ B.bump = B.t; B.vx = -Math.sign(B.vx || 1) * 160; it.got = false; Audio_.thud(); boatSplash(it.x, 10); toast(pick(['Bump! Jump over the rocks', 'Watch out for rocks!'])); B.x += Math.sign(B.x - it.x) * 6; }
+      if(B.t - (B.bump || -9) > .8){ B.bump = B.t; B.v = -Math.abs(B.v)*.4 - 40; Audio_.thud(); splashAt(it.x, it.y, 10); toast('Bump! Steer around the rocks'); }
       continue;
     }
-    it.got = true; B.got++;
-    if(it.k === 'pearl'){ save.pearls++; Audio_.blip(980); boatSplash(it.x, 8, '#ffd479'); }
+    it.got = true;
+    if(it.k === 'pearl'){ save.pearls++; Audio_.blip(980); splashAt(it.x, it.y, 8, '#ffd479'); }
+    else if(it.k === 'shell'){ sv().shells++; Audio_.sparkle(); splashAt(it.x, it.y, 10, '#b8fff0');
+      toast(sv().lit ? 'A glowing shell! +2 🫧' : `A glowing shell! ${Math.min(5, sv().shells)}/5 for the lighthouse keeper`); if(sv().lit) save.pearls += 2; }
     else {
       const known = abcKnown(), a = pick(known.length ? known.concat([abcNext() || ABC[0]]) : [abcNext() || ABC[0]]);
       save.pearls += 2; Audio_.sparkle();
@@ -1636,131 +1766,447 @@ function updateBoat(dt){
     }
     persist(); updateHud();
   }
-  for(const is of B.isles){
-    if(!is.open && Math.abs(is.x - B.x) < 120 && Math.abs(B.vx) < 140){
-      is.open = true; save.pearls += 12; persist(); updateHud(); Audio_.great();
-      boatSplash(is.x + 60, 30, '#ffd479'); toast('Treasure island! +12 🫧');
+  // sea life
+  for(const d of B.dol){
+    const db = Math.hypot(d.x - B.x, d.y - B.y);
+    if(db < 600 && Math.abs(B.v) > 80){ const tx = B.x + Math.cos(B.h + 1.3)*120, ty = B.y + Math.sin(B.h + 1.3)*120; d.a = Math.atan2(ty - d.y, tx - d.x); d.sp = Math.abs(B.v)*1.1; }
+    else { d.a += Math.sin(B.t*.3 + d.ph)*dt*.6; d.sp = 70; }
+    d.x = clamp(d.x + Math.cos(d.a)*d.sp*dt, 100, SEA.w - 100); d.y = clamp(d.y + Math.sin(d.a)*d.sp*dt, 100, SEA.h - 100);
+    if(d.jump >= 0){ d.jump += dt/1.1; if(d.jump >= 1){ d.jump = -1; splashAt(d.x, d.y, 6); } }
+    else if(Math.random() < dt*(db < 600 ? .5 : .15)) d.jump = 0;
+  }
+  const W = B.whale;
+  if(W.up >= 0){ W.up += dt; if(W.up > 7){ W.up = -1; W.next = rnd(18, 30); } }
+  else { W.next -= dt; if(W.next <= 0){ const a = B.h + rnd(-.5, .5), d = rnd(500, 900);
+    W.x = clamp(B.x + Math.cos(a)*d, 200, SEA.w - 200); W.y = clamp(B.y + Math.sin(a)*d, 200, SEA.h - 200);
+    if(ISLES.every(i=>Math.hypot(W.x - i.x, W.y - i.y) > i.r + 200)){ W.up = 0; Audio_.noise(1.2, 400, .7, .12); if(!sv().photos.whale) toast('A whale! Quick, take a photo 📷'); } else W.next = 3; } }
+  for(const tu of B.turtles){ tu.a += Math.sin(B.t*.2 + tu.ph)*dt*.3; tu.x += Math.cos(tu.a)*22*dt; tu.y += Math.sin(tu.a)*22*dt;
+    const ti = ISLES[4]; if(Math.hypot(tu.x - ti.x, tu.y - ti.y) < ti.r + 40 || Math.hypot(tu.x - ti.x, tu.y - ti.y) > 700) tu.a += Math.PI*dt; }
+  for(const gl of B.gulls) gl.a += gl.sp*dt;
+  if(Math.abs(B.v) > 180 && Math.random() < dt*.2 && !B.fly.length){        // flying fish skip past a fast boat
+    for(let i=0; i<6; i++) B.fly.push({x:B.x + Math.cos(B.h + .5)*200 + rnd(-40, 40), y:B.y + Math.sin(B.h + .5)*200 + rnd(-40, 40), a:B.h + rnd(-.2, .2), t:-i*.12}); }
+  for(let i=B.fly.length-1; i>=0; i--){ const f = B.fly[i]; f.t += dt; if(f.t > 0){ f.x += Math.cos(f.a)*260*dt; f.y += Math.sin(f.a)*260*dt; } if(f.t > 1.4) B.fly.splice(i, 1); }
+  if(B.race) updateBuoyRace(dt);
+}
+function splashAt(x, y, n, col){ for(let i=0; i<n; i++) bt.fx.push({x, y, z:0, vx:rnd(-60, 60), vy:rnd(-60, 60), vz:rnd(120, 280), t:0, life:rnd(.4, .8), c:col || pick(['#ffffff','#bdf7ff'])}); }
+function boatHorn(){
+  const B = bt; if(!B || B.t - B.horn < 1.2) return;
+  B.horn = B.t;
+  Audio_.tone(196, .5, 'sawtooth', .08); Audio_.tone(247, .5, 'sawtooth', .06, .02);
+  B.dol.forEach((d, i)=>{ if(Math.hypot(d.x - B.x, d.y - B.y) < 800) setTimeout(()=>{ if(bt) d.jump = 0; }, 200 + i*200); });
+  if(B.seals.some(s=>Math.hypot(s.x - B.x, s.y - B.y) < 600)) setTimeout(()=>{ Audio_.sweep(500, 300, .2, 'square', .05); Audio_.sweep(520, 320, .2, 'square', .05, .3); }, 400);
+}
+const boatJump = ()=>{ if(!fishTap()) takePhoto(); };     // the A pad reels in a fish, or is the camera
+
+/* ---- photos ---- */
+function photoTargets(){
+  const B = bt, out = [];
+  B.dol.forEach(d=>out.push({k:'dolphin', x:d.x, y:d.y}));
+  if(B.whale.up >= 0) out.push({k:'whale', x:B.whale.x, y:B.whale.y});
+  B.turtles.forEach(t=>out.push({k:'turtle', x:t.x, y:t.y}));
+  B.seals.forEach(s=>out.push({k:'seal', x:s.x, y:s.y}));
+  B.gulls.forEach(g=>out.push({k:'gull', x:g.cx + Math.cos(g.a)*g.r, y:g.cy + Math.sin(g.a)*g.r}));
+  B.fly.forEach(f=>{ if(f.t > 0) out.push({k:'flyfish', x:f.x, y:f.y}); });
+  return out;
+}
+function takePhoto(){
+  const B = bt; if(!B || B.t - B.shot < .6) return;
+  B.shot = B.t; B.flash = .25; Audio_.noise(.08, 3000, 1, .15, 'highpass');
+  let best = null, bs = 1e9;
+  for(const o of photoTargets()){
+    const dx = o.x - B.x, dy = o.y - B.y, d = Math.hypot(dx, dy);
+    if(B.view === 'fp'){ let da = Math.atan2(dy, dx) - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2; if(Math.abs(da) > .45 || d > 1100) continue; }
+    else if(d > 520) continue;
+    if(d < bs){ bs = d; best = o; }
+  }
+  if(!best){ toast('Nothing in the picture. Point at a creature and try again!'); return; }
+  const S = sv(), first = !S.photos[best.k];
+  S.photos[best.k] = (S.photos[best.k] || 0) + 1;
+  if(first){ save.pearls += 5; updateHud(); toast(`New photo: ${PHOTO_KINDS[best.k]}! +5 🫧 (${Object.keys(S.photos).length}/${Object.keys(PHOTO_KINDS).length} in your journal)`); Audio_.great(); }
+  else toast(`Snap! Another ${PHOTO_KINDS[best.k].toLowerCase()}`);
+  persist();
+}
+
+/* ---- fishing ---- */
+function startFishing(){
+  const B = bt; if(!B || B.fish || !B.near || B.near.kind !== 'spot') return;
+  B.fish = {phase:'wait', t:0, wait:rnd(1.6, 4.2), spot:B.near.o};
+  Audio_.sweep(900, 300, .3, 'sine', .08);
+  toast('Wait for the bobber to dip…');
+}
+function updateFishing(dt){
+  const F = bt.fish; F.t += dt;
+  if(F.phase === 'wait' && F.t > F.wait){ F.phase = 'bite'; F.t = 0; Audio_.tone(880, .12, 'square', .08); Audio_.tone(880, .12, 'square', .08, .15); }
+  else if(F.phase === 'bite' && F.t > (save.mode === 'easy' ? 1.5 : 1.0)){ F.phase = 'miss'; F.t = 0; toast('It got away! Try again'); }
+  else if((F.phase === 'miss' || F.phase === 'caught') && F.t > 2.4) bt.fish = null;
+}
+function fishTap(){
+  const F = bt && bt.fish; if(!F) return false;
+  if(F.phase === 'wait'){ F.phase = 'miss'; F.t = 0; toast('Too soon! The fish swam off'); return true; }
+  if(F.phase !== 'bite') return true;
+  const k = Math.random() < .06 ? 'golden' : pick(F.spot.kinds), info = FISHES[k], S = sv();
+  const first = !S.fish[k]; S.fish[k] = (S.fish[k] || 0) + 1;
+  F.phase = 'caught'; F.t = 0; F.kind = k;
+  save.pearls += info.rare ? 25 : first ? 6 : 2; persist(); updateHud();
+  Audio_.great();
+  toast(`${info.rare ? 'WOW! ' : ''}You caught a ${info.en.toLowerCase()}! In Russian: ${info.ru} (${info.tr})` + (first ? ' · new in your fish book' : ''));
+  setTimeout(()=>Audio_.say(info.ru), 500);
+  return true;
+}
+
+/* ---- buoy race ---- */
+function startBuoyRace(){ const B = bt; B.race = {i:1, t:0}; B.throttle = Math.max(B.throttle, .6); Audio_.great(); toast('Go! Sail through the buoys in order'); }
+function updateBuoyRace(dt){
+  const R = bt.race; R.t += dt;
+  const [x, y] = RACE_BUOYS[R.i % RACE_BUOYS.length];
+  if(Math.hypot(bt.x - x, bt.y - y) < 85){
+    Audio_.tone(660 + R.i*50, .2, 'triangle', .12); splashAt(x, y, 14, '#ffd479');
+    R.i++;
+    if(R.i > RACE_BUOYS.length){
+      const S = sv(), best = S.raceBest, tm = Math.round(R.t*10)/10, better = !best || tm < best;
+      if(better) S.raceBest = tm;
+      const pearls = 10 + (better && best ? 10 : 0);
+      save.pearls += pearls; persist(); updateHud(); bt.race = null;
+      result('🏁', better ? 'New best time!' : 'Race finished!', `${tm} seconds${best ? ' (best ' + Math.min(best, tm) + 's)' : ''}. +${pearls} 🫧`, ()=>{ openLayer(null); showHud(true); });
     }
   }
-  for(const d of B.dol){
-    if(d.jump >= 0){ d.jump += dt / 1.1; if(d.jump >= 1){ d.jump = -1; d.flip = 0; boatSplash(B.x + d.off + 40, 6); } }
-    else if(Math.random() < dt*.25) d.jump = 0;
-  }
-  for(const g of B.gulls){ g.x += (g.sp + (g.scared > 0 ? 160 : 0)) * dt; if(g.scared > 0) g.scared -= dt; if(g.x > B.x + VW*2) g.x = B.x - VW*1.5; }
+  if(R && R.t > 240) bt.race = null;
 }
-function boatSplash(x, n, col){ for(let i=0; i<n; i++) bt.fx.push({x, y:0, vx:rnd(-120, 120), vy:rnd(-260, -80), t:0, life:rnd(.4, .8), c:col || pick(['#ffffff','#bdf7ff','#7df0ff']), r:rnd(2, 4.5)}); }
-function drawBoat(t){
-  const B = bt, g = ctx, S = clamp(Math.min(VW, VH*1.3)/820, .55, 1.6);
-  const hor = VH*.42, sea = VH*.62;                 // horizon, and where the boat floats
-  const camX = B.x - VW*.45;
-  // sky, sun, clouds
-  const sk = g.createLinearGradient(0, 0, 0, hor);
-  sk.addColorStop(0, '#3a86d6'); sk.addColorStop(1, '#cdeafb');
-  g.fillStyle = sk; g.fillRect(0, 0, VW, hor + 2);
-  g.globalCompositeOperation = 'lighter';
-  const sg = g.createRadialGradient(VW*.78, VH*.14, 0, VW*.78, VH*.14, 260*S);
-  sg.addColorStop(0, 'rgba(255,250,225,.9)'); sg.addColorStop(.12, 'rgba(255,245,210,.45)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
-  g.fillStyle = sg; g.fillRect(0, 0, VW, hor);
-  g.globalCompositeOperation = 'source-over';
-  for(let i=0; i<6; i++){
-    const cx = ((i*620 - camX*.15) % (VW + 600) + VW + 600) % (VW + 600) - 300, cy = VH*(.08 + (i % 3)*.07);
-    g.fillStyle = 'rgba(255,255,255,.88)';
-    for(let k=0; k<5; k++){ g.beginPath(); g.arc(cx + k*28*S - 56*S, cy - Math.sin(k/4*Math.PI)*16*S, (22 + (k % 2)*10)*S, 0, 7); g.fill(); }
+
+/* ---- island visits ---- */
+function openIsle(is){
+  const B = bt, S = sv();
+  B.v = 0; B.throttle = 0; B.goal = null;
+  $('#dockTitle').textContent = is.name;
+  const body = $('#dockBody'); body.innerHTML = '';
+  const p = t=>{ const e = document.createElement('p'); e.className = 'sub'; e.textContent = t; body.appendChild(e); return e; };
+  const btn = (label, cls, fn)=>{ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = label; b.onclick = fn; body.appendChild(b); return b; };
+  if(is.id === 'dock'){
+    p('Your boat is tied up safe. Dive down to swim back into Bubble Town, or sail off again.');
+    btn('Dive down ⤓', 'gold', ()=>{ openLayer(null); boatDive(); });
+    seaJournal(body);
+  } else if(is.id === 'treasure'){
+    if(B.visited.treasure){ p('You already dug up the treasure here this trip. Come back next time!'); }
+    else {
+      p('An X is scratched into the sand under the palm tree. Tap DIG three times!');
+      let n = 0; const b = btn('⛏️ Dig!', 'gold', ()=>{
+        n++; Audio_.crunch(); b.textContent = n < 3 ? '⛏️ Dig! (' + n + '/3)' : '…';
+        if(n === 3){ B.visited.treasure = 1; const bonus = Math.random() < .2 ? 30 : 15; save.pearls += bonus; persist(); updateHud(); Audio_.great();
+          b.remove(); p(`🪙 A treasure chest! +${bonus} 🫧` + (bonus > 15 ? ' A big one!' : '')); }
+      });
+    }
+  } else if(is.id === 'port'){
+    p('The harbour master sells boat gear for pearls. You have ' + save.pearls + ' 🫧.');
+    const grid = document.createElement('div'); grid.className = 'grid2'; body.appendChild(grid);
+    for(const it of SHOP){
+      const own = S.owned[it.id], inUse = (it.kind === 'sail' && S.sail === it.v) || (it.kind === 'flag' && S.flag === it.v);
+      const t = document.createElement('div'); t.className = 'tile' + (inUse ? ' sel' : '') + (!own && (save.pearls < it.cost || (it.need && !S.owned[it.need])) ? ' locked' : '');
+      t.innerHTML = `<span class="big">${it.ic}</span>${it.name}<span class="cost">${own ? (it.kind === 'speed' ? 'Yours' : inUse ? 'In use' : 'Tap to use') : it.cost + ' 🫧'}</span>`;
+      t.onclick = ()=>{
+        if(own){ if(it.kind === 'sail') S.sail = inUse ? 'plain' : it.v; if(it.kind === 'flag') S.flag = inUse ? 'plain' : it.v; persist(); openIsle(is); return; }
+        if(it.need && !S.owned[it.need]){ toast('Buy the bigger sail first'); Audio_.nope(); return; }
+        if(save.pearls < it.cost){ toast('Not enough pearls yet'); Audio_.nope(); return; }
+        save.pearls -= it.cost; S.owned[it.id] = 1; if(it.kind === 'sail') S.sail = it.v; if(it.kind === 'flag') S.flag = it.v;
+        persist(); updateHud(); Audio_.great(); openIsle(is);
+      };
+      grid.appendChild(t);
+    }
+  } else if(is.id === 'light'){
+    if(S.lit){ p('The lighthouse shines every night now. The keeper waves. Try sailing at sunset!');
+      btn(B.sunset ? '☀️ Back to daytime' : '🌅 Sail at sunset', 'gold', ()=>{ B.sunset = !B.sunset; openLayer(null); showHud(true); boatBar(); }); }
+    else if(S.shells >= 5){
+      p('“You found five glowing shells! Let us light the lamp together.”');
+      btn('💡 Light the lighthouse', 'gold', ()=>{ S.lit = true; S.shells -= 5; save.pearls += 20; persist(); updateHud(); Audio_.great(); B.sunset = true; openLayer(null); showHud(true); boatBar(); toast('The lighthouse is lit! +20 🫧 Sunset sailing unlocked'); });
+    } else p(`“My lamp has gone dark. Glowing shells float out on the sea. Bring me five and we can light it again.” You have ${S.shells}/5.`);
+  } else if(is.id === 'turtle'){
+    if(B.visited.turtle){ p('The baby turtles are all safe in the sea. Look for them swimming near the beach!'); }
+    else {
+      p('Baby turtles are hatching! Tap each one to help it reach the water.');
+      const row = document.createElement('div'); row.className = 'row'; body.appendChild(row);
+      let left = 6;
+      for(let i=0; i<6; i++){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = '🐢'; b.style.fontSize = '30px';
+        b.onclick = ()=>{ b.style.transition = 'transform .5s, opacity .5s'; b.style.transform = 'translateY(40px)'; b.style.opacity = '0'; b.disabled = true; Audio_.pop(.1);
+          if(--left === 0){ B.visited.turtle = 1; save.pearls += 10; persist(); updateHud(); Audio_.great(); setTimeout(()=>p('All safe! The turtles say thank you. +10 🫧'), 400); } };
+        row.appendChild(b); }
+    }
   }
-  // gulls
-  g.strokeStyle = 'rgba(40,50,60,.75)'; g.lineCap = 'round'; g.lineWidth = 2*S;
-  for(const gl of B.gulls){ const x = gl.x - camX*.8, y = VH*gl.y + Math.sin(B.t + gl.ph)*8; if(x < -30 || x > VW + 30) continue;
-    const f = Math.sin(B.t*8 + gl.ph)*6*S; g.beginPath(); g.moveTo(x - 12*S, y - f); g.quadraticCurveTo(x - 5*S, y - 4*S, x, y); g.quadraticCurveTo(x + 5*S, y - 4*S, x + 12*S, y - f); g.stroke(); }
-  // distant islands
-  g.fillStyle = '#7fa9a6';
-  for(let i=0; i<8; i++){ const x = ((i*900 - camX*.3) % (VW + 900) + VW + 900) % (VW + 900) - 450;
-    g.beginPath(); g.ellipse(x, hor + 2, (90 + (i % 3)*50)*S, (18 + (i % 2)*12)*S, 0, Math.PI, 0); g.fill(); }
-  // the sea
-  const sw = g.createLinearGradient(0, hor, 0, VH);
-  sw.addColorStop(0, '#5fb8cf'); sw.addColorStop(.35, '#2a8fb0'); sw.addColorStop(1, '#0b4d6e');
-  g.fillStyle = sw; g.fillRect(0, hor, VW, VH - hor);
-  g.globalCompositeOperation = 'lighter';
-  for(let k=0; k<7; k++){ const y = hor + (k + 1)*(sea - hor)/8; g.strokeStyle = 'rgba(255,255,255,' + (.05 + k*.012) + ')'; g.lineWidth = 1 + k*.3;
-    g.beginPath(); for(let x=0; x<=VW; x+=20){ const yy = y + Math.sin((x + camX*(.3 + k*.1))*.02 + B.t*(1 + k*.2) + k)*(1 + k*.6); x ? g.lineTo(x, yy) : g.moveTo(x, yy); } g.stroke(); }
-  g.globalCompositeOperation = 'source-over';
-  // islands with treasure
-  for(const is of B.isles){
-    const x = is.x - camX; if(x < -400 || x > VW + 400) continue;
-    g.fillStyle = '#e8cf95'; g.beginPath(); g.ellipse(x, sea + 6, 170*S, 46*S, 0, Math.PI, 0); g.fill();
-    g.fillStyle = '#d9b877'; g.beginPath(); g.ellipse(x, sea + 6, 170*S, 12*S, 0, 0, Math.PI); g.fill();
-    g.strokeStyle = '#7a5530'; g.lineWidth = 7*S; g.beginPath(); g.moveTo(x - 40*S, sea - 30*S); g.quadraticCurveTo(x - 50*S, sea - 90*S, x - 30*S, sea - 150*S); g.stroke();
-    g.fillStyle = '#3f9f4a';
-    for(let k=0; k<5; k++){ const a = -Math.PI*.95 + k*Math.PI*.22 + Math.sin(B.t + k)*.05; g.save(); g.translate(x - 30*S, sea - 150*S); g.rotate(a);
-      g.beginPath(); g.ellipse(40*S, 0, 44*S, 9*S, 0, 0, 7); g.fill(); g.restore(); }
-    // the chest
-    const cx = x + 50*S, cy = sea - 26*S;
-    g.fillStyle = '#8a5a2b'; roundRect(g, cx - 24*S, cy - 18*S, 48*S, 26*S, 4*S); g.fill();
-    g.fillStyle = '#e0b04a'; g.fillRect(cx - 24*S, cy - 8*S, 48*S, 4*S);
-    if(is.open){ g.fillStyle = '#6e4520'; g.save(); g.translate(cx - 24*S, cy - 18*S); g.rotate(-.9); roundRect(g, 0, -14*S, 48*S, 14*S, 4*S); g.fill(); g.restore();
-      g.globalCompositeOperation = 'lighter'; const gg = g.createRadialGradient(cx, cy - 20*S, 2, cx, cy - 20*S, 50*S);
-      gg.addColorStop(0, 'rgba(255,220,120,.7)'); gg.addColorStop(1, 'rgba(255,220,120,0)'); g.fillStyle = gg; g.fillRect(cx - 50*S, cy - 70*S, 100*S, 100*S); g.globalCompositeOperation = 'source-over'; }
-    else { g.fillStyle = '#a06a32'; roundRect(g, cx - 24*S, cy - 30*S, 48*S, 14*S, 6*S); g.fill(); }
+  openLayer('lDock');
+}
+function seaJournal(box){
+  const S = sv();
+  const h = document.createElement('p'); h.className = 'eyebrow'; h.style.marginTop = '18px'; h.textContent = 'Sea journal'; box.appendChild(h);
+  const fl = document.createElement('p'); fl.className = 'note';
+  const caught = Object.keys(FISHES).filter(k=>S.fish[k]);
+  fl.innerHTML = `<b>Fish book ${caught.length}/${Object.keys(FISHES).length}:</b> ` + (caught.length ? caught.map(k=>`${FISHES[k].en} <span class="cyr">${FISHES[k].ru}</span> ×${S.fish[k]}`).join(' · ') : 'nothing yet. Stop at a bubbling spot and fish!');
+  box.appendChild(fl);
+  const ph = document.createElement('p'); ph.className = 'note';
+  const shots = Object.keys(PHOTO_KINDS).filter(k=>S.photos[k]);
+  ph.innerHTML = `<b>Photos ${shots.length}/${Object.keys(PHOTO_KINDS).length}:</b> ` + (shots.length ? shots.map(k=>PHOTO_KINDS[k]).join(' · ') : 'none yet. Point the camera at sea creatures!');
+  box.appendChild(ph);
+  if(S.raceBest){ const r = document.createElement('p'); r.className = 'note'; r.innerHTML = `<b>Buoy race best:</b> ${S.raceBest} seconds`; box.appendChild(r); }
+}
+
+/* ---- drawing: shared bits ---- */
+function seaSky(){
+  if(bt.sunset) return {top:'#2b2459', mid:'#c4577a', hor:'#ffb36b', sea0:'#d98a6f', sea1:'#3a3f78', sea2:'#16183a'};
+  return {top:'#3a86d6', mid:'#86c3ee', hor:'#d7eefb', sea0:'#6cc3d6', sea1:'#2a8fb0', sea2:'#0b4d6e'};
+}
+function sailPaint(g, x0, y0, x1, y1, base){
+  const S = sv();
+  if(S.sail === 'rainbow'){ const gr = g.createLinearGradient(x0, y0, x1, y1); ['#ff5f5f','#ffb347','#ffe066','#6ee69a','#5fb8ff','#b98cff'].forEach((c, i)=>gr.addColorStop(i/5, c)); return gr; }
+  const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, base); return gr;
+}
+function sailDecor(g, cx, cy, s){
+  const S = sv();
+  if(S.sail === 'stripes'){ g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 4*s; for(let k=-2; k<=2; k++){ g.beginPath(); g.moveTo(cx - 30*s, cy + k*12*s); g.lineTo(cx + 30*s, cy + k*12*s); g.stroke(); } }
+  if(S.sail === 'stars'){ g.fillStyle = '#ffe066'; for(let k=0; k<4; k++){ const x = cx + Math.cos(k*1.7)*14*s, y = cy + Math.sin(k*2.3)*18*s; star(g, x, y, 5*s); } }
+}
+function star(g, x, y, r){ g.beginPath(); for(let k=0; k<10; k++){ const rr = k % 2 ? r*.45 : r, a = -Math.PI/2 + k*Math.PI/5; k ? g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr) : g.moveTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); g.fill(); }
+function flagPaint(g, x, y, s, t){
+  const S = sv(), w = Math.sin(t*6)*3*s;
+  g.fillStyle = S.flag === 'heart' ? '#ff6f9c' : S.flag === 'star' ? '#5f8dff' : '#ff6f9c';
+  g.beginPath(); g.moveTo(x, y); g.lineTo(x + 26*s, y + 6*s + w); g.lineTo(x, y + 14*s); g.closePath(); g.fill();
+  if(S.flag === 'heart'){ g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 8*s, y + 6*s, 2.4*s, 0, 7); g.arc(x + 12*s, y + 6*s, 2.4*s, 0, 7); g.fill(); }
+  if(S.flag === 'star'){ g.fillStyle = '#ffe066'; star(g, x + 9*s, y + 7*s, 4*s); }
+}
+
+/* ---- drawing: from above ---- */
+function drawSeaTop(t){
+  const B = bt, g = ctx, z = clamp(Math.min(VW, VH)/820, .55, 1.15), C = seaSky();
+  const sx = x=>(x - B.x)*z + VW/2, sy = y=>(y - B.y)*z + VH/2;
+  g.fillStyle = C.sea1; g.fillRect(0, 0, VW, VH);
+  // moving wave marks
+  g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1.6; g.lineCap = 'round';
+  const step = 90; const x0 = Math.floor((B.x - VW/z/2)/step)*step, y0 = Math.floor((B.y - VH/z/2)/step)*step;
+  for(let wx=x0; wx<B.x + VW/z/2 + step; wx+=step) for(let wy=y0; wy<B.y + VH/z/2 + step; wy+=step){
+    const h = Math.sin(wx*12.9898 + wy*78.233)*43758.5453, o = (h - Math.floor(h))*step, ph = t*1.2 + o*.1;
+    const x = sx(wx + o + Math.sin(ph)*8), y = sy(wy + (o*1.7) % step);
+    g.beginPath(); g.arc(x, y, 9*z, Math.PI*1.1, Math.PI*1.9); g.stroke();
   }
-  // the shark friend, a fin cutting the water alongside
-  if(shark.tame){ const fx = VW*.45 - 140*S + Math.sin(B.t*.8)*40*S, fy = sea + 26*S + seaWave(B.x - 140, B.t);
-    g.fillStyle = '#5d86a3'; g.beginPath(); g.moveTo(fx, fy); g.quadraticCurveTo(fx + 10*S, fy - 34*S, fx + 26*S, fy - 40*S); g.quadraticCurveTo(fx + 22*S, fy - 16*S, fx + 34*S, fy); g.fill(); }
-  // dolphins
-  for(const d of B.dol){
-    if(d.jump < 0) continue;
-    const x = VW*.45 + d.off*S, u = d.jump, y = sea + 30*S - Math.sin(u*Math.PI)*150*S;
-    g.save(); g.translate(x + u*80*S, y); g.rotate(-Math.PI/2 + u*Math.PI + (d.flip ? u*Math.PI*2 : 0));
-    const dg = g.createLinearGradient(0, -12*S, 0, 12*S); dg.addColorStop(0, '#5e7f9a'); dg.addColorStop(1, '#c9dbe6');
-    g.fillStyle = dg; g.beginPath(); g.ellipse(0, 0, 34*S, 11*S, 0, 0, 7); g.fill();
-    g.beginPath(); g.moveTo(-30*S, 0); g.lineTo(-46*S, -10*S); g.lineTo(-42*S, 0); g.lineTo(-46*S, 10*S); g.fill();
-    g.beginPath(); g.moveTo(0, -10*S); g.lineTo(-8*S, -22*S); g.lineTo(8*S, -10*S); g.fill();
-    g.fillStyle = '#10202c'; g.beginPath(); g.arc(22*S, -3*S, 2*S, 0, 7); g.fill();
-    g.restore();
-  }
+  // fishing spots, buoys
+  for(const s of FISH_SPOTS){ const x = sx(s.x), y = sy(s.y); if(x < -80 || x > VW + 80 || y < -80 || y > VH + 80) continue;
+    for(let k=0; k<5; k++){ const ph = (t*.8 + k*.2) % 1; g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.5 + ')'; g.lineWidth = 2;
+      g.beginPath(); g.arc(x + Math.sin(k*2.1)*30*z, y + Math.cos(k*1.7)*30*z, (4 + ph*16)*z, 0, 7); g.stroke(); }
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.font = `600 ${Math.round(13*z + 2)}px Nunito, sans-serif`; g.textAlign = 'center'; g.fillText('🎣', x, y - 48*z); }
+  RACE_BUOYS.forEach(([bx, by], i)=>{ const x = sx(bx), y = sy(by); if(x < -40 || x > VW + 40 || y < -40 || y > VH + 40) return;
+    const next = B.race && (B.race.i % RACE_BUOYS.length) === i;
+    g.fillStyle = next ? '#ffd479' : i === 0 ? '#ff6f9c' : '#ff9a5c'; g.beginPath(); g.arc(x, y, (next ? 14 : 10)*z, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.fillRect(x - 10*z, y - 2*z, 20*z, 4*z);
+    if(i === 0 && !B.race){ g.fillStyle = 'rgba(255,255,255,.9)'; g.font = `700 ${Math.round(12*z + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillText('🏁 Race start', x, y - 22*z); } });
+  // islands
+  for(const is of ISLES){ const x = sx(is.x), y = sy(is.y), r = is.r*z; if(x < -r*2 || x > VW + r*2 || y < -r*2 || y > VH + r*2) continue;
+    const sh = g.createRadialGradient(x, y, r*.9, x, y, r*1.6); sh.addColorStop(0, 'rgba(160,240,230,.6)'); sh.addColorStop(1, 'rgba(160,240,230,0)');
+    g.fillStyle = sh; g.beginPath(); g.arc(x, y, r*1.6, 0, 7); g.fill();
+    g.fillStyle = '#ecd497'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    if(is.id !== 'light' && is.id !== 'dock'){ g.fillStyle = '#5fb15a'; g.beginPath(); g.arc(x - r*.1, y - r*.1, r*.62, 0, 7); g.fill();
+      g.fillStyle = '#3f8f45'; for(let k=0; k<5; k++){ g.beginPath(); g.arc(x + Math.cos(k*1.3)*r*.35, y + Math.sin(k*1.9)*r*.3, r*.16, 0, 7); g.fill(); } }
+    if(is.id === 'light'){ g.fillStyle = '#8b8f96'; g.beginPath(); g.arc(x, y, r*.8, 0, 7); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x, y, r*.3, 0, 7); g.fill();
+      g.fillStyle = '#e04a4a'; g.beginPath(); g.arc(x, y, r*.16, 0, 7); g.fill();
+      if(sv().lit){ g.globalCompositeOperation = 'lighter'; const a = t*1.2; g.fillStyle = 'rgba(255,240,170,.18)';
+        g.beginPath(); g.moveTo(x, y); g.arc(x, y, 700*z, a - .18, a + .18); g.fill(); g.globalCompositeOperation = 'source-over'; } }
+    if(is.id === 'dock'){ g.fillStyle = '#9b6a3c'; g.fillRect(x - 10*z, y + r*.6, 20*z, 90*z); g.fillStyle = '#c99a62'; g.beginPath(); g.arc(x, y, r*.55, 0, 7); g.fill(); }
+    if(is.id === 'port'){ ['#ff6f6f','#6fb8ff','#ffd479'].forEach((c, k)=>{ g.fillStyle = c; g.fillRect(x - r*.5 + k*r*.35, y - r*.1, r*.28, r*.28); }); g.fillStyle = '#9b6a3c'; g.fillRect(x + r*.7, y - 8*z, 110*z, 16*z); }
+    if(is.id === 'treasure'){ g.strokeStyle = '#c0392b'; g.lineWidth = 5*z; g.beginPath(); g.moveTo(x + r*.3, y + r*.4); g.lineTo(x + r*.55, y + r*.65); g.moveTo(x + r*.55, y + r*.4); g.lineTo(x + r*.3, y + r*.65); g.stroke(); }
+    if(is.id === 'turtle'){ g.fillStyle = '#f4e4bc'; for(let k=0; k<6; k++){ g.beginPath(); g.ellipse(x + Math.cos(k)*r*.5, y + r*.55 + Math.sin(k*2)*8*z, 6*z, 4*z, 0, 0, 7); g.fill(); } }
+    g.font = `700 ${Math.round(14*z + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.55)';
+    const lw = g.measureText(is.name).width + 16; roundRect(g, x - lw/2, y - r - 34*z, lw, 24, 12); g.fill();
+    g.fillStyle = '#ffffff'; g.fillText(is.name, x, y - r - 22*z + 4); }
   // floating things
-  for(const it of B.items){
-    if(it.got) continue;
-    const x = it.x - camX; if(x < -40 || x > VW + 40) continue;
-    const y = sea + 8*S + seaWave(it.x, B.t)*S;
-    if(it.k === 'pearl'){ const pg = g.createRadialGradient(x - 3*S, y - 12*S, 1, x, y - 9*S, 13*S);
-      pg.addColorStop(0, '#ffffff'); pg.addColorStop(.55, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)');
-      g.fillStyle = pg; g.beginPath(); g.arc(x, y - 9*S, 13*S, 0, 7); g.fill(); }
-    else if(it.k === 'bottle'){ g.save(); g.translate(x, y - 6*S); g.rotate(Math.sin(B.t*2 + it.ph)*.3 + .9);
-      g.fillStyle = 'rgba(120,200,160,.75)'; roundRect(g, -16*S, -7*S, 26*S, 14*S, 6*S); g.fill(); g.fillRect(8*S, -3.5*S, 10*S, 7*S);
-      g.fillStyle = '#f3e6c4'; g.fillRect(-10*S, -3*S, 14*S, 6*S); g.fillStyle = '#8a5a2b'; g.fillRect(17*S, -3*S, 4*S, 6*S); g.restore(); }
-    else { g.fillStyle = '#6f7b84'; g.beginPath(); g.moveTo(x - 30*S, y + 6*S); g.lineTo(x - 18*S, y - 26*S); g.lineTo(x + 4*S, y - 34*S); g.lineTo(x + 26*S, y - 14*S); g.lineTo(x + 32*S, y + 6*S); g.fill();
-      g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.moveTo(x - 18*S, y - 26*S); g.lineTo(x + 4*S, y - 34*S); g.lineTo(x - 4*S, y - 18*S); g.fill(); }
-  }
-  // wake
-  for(const w of B.wake){ const x = w.x - camX, a = 1 - w.t/1.4; g.strokeStyle = 'rgba(255,255,255,' + a*.6 + ')'; g.lineWidth = 2*S;
-    g.beginPath(); g.ellipse(x, sea + 18*S, (10 + w.t*40)*S*w.s, (3 + w.t*6)*S, 0, 0, 7); g.stroke(); }
-  // the boat, rocking on the waves, with her at the helm
-  const bx = VW*.45, wy = seaWave(B.x, B.t), slope = (seaWave(B.x + 20, B.t) - seaWave(B.x - 20, B.t)) / 40;
-  const by = sea + wy*S + B.jy*S;
-  g.save(); g.translate(bx, by); g.rotate(Math.atan(slope)*.8 + (B.jy < 0 ? -.08*Math.sign(B.vx || 1) : 0));
-  if(B.vx < -5) g.scale(-1, 1);
-  g.strokeStyle = '#6b4a2a'; g.lineWidth = 5*S; g.beginPath(); g.moveTo(-6*S, -6*S); g.lineTo(-6*S, -150*S); g.stroke();
-  const sail = SUITS[save.suit];
-  const sgr = g.createLinearGradient(-6*S, -150*S, 70*S, -20*S); sgr.addColorStop(0, '#ffffff'); sgr.addColorStop(1, sail);
-  g.fillStyle = sgr; g.beginPath(); g.moveTo(0, -146*S); g.quadraticCurveTo(70*S + Math.sin(B.t*2)*6*S, -86*S, 64*S, -26*S); g.lineTo(0, -26*S); g.closePath(); g.fill();
-  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(-12*S, -140*S); g.quadraticCurveTo(-50*S, -90*S, -54*S, -30*S); g.lineTo(-12*S, -30*S); g.closePath(); g.fill();
-  g.fillStyle = '#ff6f9c'; g.beginPath(); g.moveTo(-6*S, -150*S); g.lineTo(18*S + Math.sin(B.t*6)*3*S, -144*S); g.lineTo(-6*S, -138*S); g.fill();
-  drawDiver(g, 18*S, -48*S, 1.25*S, SUITS[save.suit], HAIRS[save.hair], B.t, 1, 0);
-  const hg = g.createLinearGradient(0, -26*S, 0, 16*S); hg.addColorStop(0, '#c98d55'); hg.addColorStop(1, '#7a4f2b');
-  g.fillStyle = hg; g.beginPath(); g.moveTo(-82*S, -26*S); g.lineTo(84*S, -26*S); g.quadraticCurveTo(70*S, 12*S, 40*S, 16*S); g.lineTo(-58*S, 16*S); g.quadraticCurveTo(-76*S, 8*S, -82*S, -26*S); g.fill();
-  g.fillStyle = '#ffffff'; g.fillRect(-80*S, -26*S, 162*S, 4*S);
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `700 ${Math.round(12*S)}px Comfortaa, sans-serif`; g.textAlign = 'center';
-  g.fillText('Bubble', 0, -4*S);
-  g.restore();
-  // the water in front of the hull
-  g.fillStyle = 'rgba(30,130,165,.55)';
-  g.beginPath(); g.moveTo(0, VH); for(let x=0; x<=VW; x+=16) g.lineTo(x, sea + 16*S + seaWave(x + camX, B.t)*S); g.lineTo(VW, VH); g.fill();
-  for(const f of B.fx){ g.globalAlpha = clamp(1 - f.t/f.life, 0, 1); g.fillStyle = f.c; g.beginPath(); g.arc(f.x - camX, sea + f.y, f.r*S, 0, 7); g.fill(); }
+  for(const it of B.items){ if(it.got) continue; const x = sx(it.x), y = sy(it.y); if(x < -30 || x > VW + 30 || y < -30 || y > VH + 30) continue;
+    if(it.k === 'pearl'){ const pg = g.createRadialGradient(x - 3, y - 3, 1, x, y, 11*z + 3); pg.addColorStop(0, '#fff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)'); g.fillStyle = pg; g.beginPath(); g.arc(x, y, 11*z + 3, 0, 7); g.fill(); }
+    else if(it.k === 'shell'){ g.fillStyle = 'rgba(180,255,240,' + (.6 + Math.sin(t*4 + it.ph)*.3) + ')'; g.beginPath(); g.arc(x, y, 10*z + 2, Math.PI, 0); g.fill(); g.strokeStyle = '#6fd8c0'; g.stroke(); }
+    else if(it.k === 'bottle'){ g.save(); g.translate(x, y); g.rotate(it.ph); g.fillStyle = 'rgba(120,200,160,.85)'; roundRect(g, -12*z, -5*z, 20*z, 10*z, 4*z); g.fill(); g.fillStyle = '#f3e6c4'; g.fillRect(-7*z, -2*z, 10*z, 4*z); g.restore(); }
+    else { g.fillStyle = '#6f7b84'; g.beginPath(); g.arc(x, y, 22*z, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(x - 6*z, y - 6*z, 9*z, 0, 7); g.fill(); } }
+  // sea life
+  for(const tu of B.turtles){ const x = sx(tu.x), y = sy(tu.y); g.save(); g.translate(x, y); g.rotate(tu.a); g.fillStyle = '#5c8f4a'; g.beginPath(); g.ellipse(0, 0, 14*z, 11*z, 0, 0, 7); g.fill();
+    g.fillStyle = '#8fbf6a'; g.beginPath(); g.arc(16*z, 0, 5*z, 0, 7); g.fill(); g.restore(); }
+  for(const s of B.seals){ const x = sx(s.x), y = sy(s.y); g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(x, y, 18*z, 9*z, Math.sin(t + s.ph)*.2, 0, 7); g.fill(); }
+  for(const d of B.dol){ const x = sx(d.x), y = sy(d.y); const up = d.jump >= 0 ? Math.sin(d.jump*Math.PI) : 0;
+    g.save(); g.translate(x, y - up*20*z); g.rotate(d.a); g.scale(1 + up*.3, 1 + up*.3); g.fillStyle = up ? '#8fb1c8' : 'rgba(80,120,150,.75)';
+    g.beginPath(); g.ellipse(0, 0, 24*z, 7*z, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-20*z, 0); g.lineTo(-30*z, -8*z); g.lineTo(-30*z, 8*z); g.fill(); g.restore(); }
+  if(B.whale.up >= 0){ const W = B.whale, x = sx(W.x), y = sy(W.y), a = Math.min(1, W.up, 7 - W.up);
+    g.globalAlpha = a; g.fillStyle = '#3d5a73'; g.beginPath(); g.ellipse(x, y, 90*z, 32*z, .3, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(x - 80*z, y - 20*z); g.lineTo(x - 120*z, y - 50*z); g.lineTo(x - 112*z, y); g.fill();
+    if(W.up % 2.5 < 1){ g.fillStyle = 'rgba(255,255,255,.8)'; for(let k=0; k<8; k++){ g.beginPath(); g.arc(x + 40*z + Math.cos(k)*12*z, y - 10*z - (W.up % 2.5)*40*z - Math.sin(k)*8*z, 5*z, 0, 7); g.fill(); } }
+    g.globalAlpha = 1; }
+  for(const f of B.fly){ if(f.t <= 0) continue; const x = sx(f.x), y = sy(f.y); g.fillStyle = '#bfe3ff'; g.beginPath(); g.ellipse(x, y, 8*z, 3*z, f.a, 0, 7); g.fill(); }
+  // wake and the boat
+  for(const w of B.wake){ g.strokeStyle = 'rgba(255,255,255,' + (1 - w.t/2)*.5 + ')'; g.lineWidth = 2; g.beginPath(); g.arc(sx(w.x), sy(w.y), (6 + w.t*22)*z, 0, 7); g.stroke(); }
+  drawBoatTop(g, VW/2, VH/2, B.h, z, t);
+  for(const gl of B.gulls){ const x = sx(gl.cx + Math.cos(gl.a)*gl.r), y = sy(gl.cy + Math.sin(gl.a)*gl.r), f = Math.sin(t*8 + gl.a*3)*5*z;
+    g.strokeStyle = '#ffffff'; g.lineWidth = 2.4*z; g.beginPath(); g.moveTo(x - 12*z, y - f); g.quadraticCurveTo(x - 4*z, y - 4*z, x, y); g.quadraticCurveTo(x + 4*z, y - 4*z, x + 12*z, y - f); g.stroke(); }
+  for(const f of B.fx){ g.globalAlpha = clamp(1 - f.t/f.life, 0, 1); g.fillStyle = f.c; g.beginPath(); g.arc(sx(f.x), sy(f.y) - f.z*z*.3, 3, 0, 7); g.fill(); }
   g.globalAlpha = 1;
-  // how far along the sea, and the islands on the way
-  const bw = Math.min(300, VW*.5), bx0 = VW/2 - bw/2, by0 = 64;
-  g.fillStyle = 'rgba(3,24,43,.45)'; roundRect(g, bx0, by0, bw, 8, 4); g.fill();
-  for(const is of B.isles){ g.fillStyle = is.open ? '#ffd479' : '#ffffff'; g.beginPath(); g.arc(bx0 + bw*is.x/SEA_W, by0 + 4, 5, 0, 7); g.fill(); }
-  g.fillStyle = '#ff6f9c'; g.beginPath(); g.arc(bx0 + bw*B.x/SEA_W, by0 + 4, 7, 0, 7); g.fill();
+  if(B.goal){ const pl = Math.sin(t*6)*.5 + .5; g.strokeStyle = 'rgba(255,212,121,' + (.4 + pl*.5) + ')'; g.lineWidth = 3; g.beginPath(); g.arc(sx(B.goal.x), sy(B.goal.y), 14 + pl*6, 0, 7); g.stroke(); }
+  if(B.sunset){ g.fillStyle = 'rgba(40,20,80,.28)'; g.fillRect(0, 0, VW, VH); }
+}
+function drawBoatTop(g, x, y, h, z, t){
+  g.save(); g.translate(x, y); g.rotate(h);
+  g.fillStyle = 'rgba(0,30,50,.25)'; g.beginPath(); g.ellipse(4, 6, 50*z, 18*z, 0, 0, 7); g.fill();
+  const hg = g.createLinearGradient(0, -18*z, 0, 18*z); hg.addColorStop(0, '#d9a066'); hg.addColorStop(1, '#8a5a2b');
+  g.fillStyle = hg; g.beginPath(); g.moveTo(52*z, 0); g.quadraticCurveTo(20*z, -20*z, -40*z, -16*z); g.lineTo(-44*z, 16*z); g.quadraticCurveTo(20*z, 20*z, 52*z, 0); g.fill();
+  g.fillStyle = '#c99a62'; g.beginPath(); g.moveTo(40*z, 0); g.quadraticCurveTo(16*z, -12*z, -34*z, -10*z); g.lineTo(-36*z, 10*z); g.quadraticCurveTo(16*z, 12*z, 40*z, 0); g.fill();
+  g.rotate(-h);                                                    // the sail, swung out by the wind
+  g.rotate(h + .5 + Math.sin(t*1.5)*.05);
+  g.fillStyle = sailPaint(g, 0, -30*z, 0, 30*z, SUITS[save.suit]);
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-10*z, 30*z, -36*z, 34*z); g.lineTo(0, 0); g.fill();
+  g.restore();
+  g.save(); g.translate(x, y);
+  drawDiver(g, -6*z, -6*z, .9*z, SUITS[save.suit], HAIRS[save.hair], t, Math.cos(h) >= 0 ? 1 : -1, 0);
+  g.fillStyle = '#6b4a2a'; g.beginPath(); g.arc(0, 0, 4*z, 0, 7); g.fill();
+  g.restore();
+}
+
+/* ---- drawing: first person, at the wheel ---- */
+function drawSeaFP(t){
+  const B = bt, g = ctx, C = seaSky(), FOC = VW*.9, EYE = 22;
+  const roll = Math.sin(t*1.3)*.018 + (B.btnSteer || 0)*-.02, bob = Math.sin(t*1.7)*4;
+  const HOR = VH*.44 + bob;
+  g.save(); g.translate(VW/2, VH/2); g.rotate(roll); g.translate(-VW/2, -VH/2);
+  // sky
+  const sk = g.createLinearGradient(0, -40, 0, HOR); sk.addColorStop(0, C.top); sk.addColorStop(.7, C.mid); sk.addColorStop(1, C.hor);
+  g.fillStyle = sk; g.fillRect(-60, -60, VW + 120, HOR + 61);
+  if(B.sunset){ g.fillStyle = 'rgba(255,255,255,.8)'; for(let i=0; i<40; i++){ const a = i*2.39, x = ((Math.tan(((a - B.h)%6.283 + 6.283)%6.283 - 3.1416) * 0 + (i*137 - B.h*400) % (VW + 200)) + VW + 200) % (VW + 200) - 100; g.fillRect(x, (i*53) % (HOR*.7), 2, 2); } }
+  // the sun sits at a fixed compass bearing
+  const sunA = B.sunset ? Math.PI*.9 : -Math.PI*.35;
+  let da = sunA - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2;
+  if(Math.abs(da) < 1.2){ const x = VW/2 + Math.tan(da)*FOC, y = B.sunset ? HOR - 30 : HOR*.3;
+    g.globalCompositeOperation = 'lighter'; const sg = g.createRadialGradient(x, y, 0, x, y, 220); sg.addColorStop(0, B.sunset ? 'rgba(255,180,100,.9)' : 'rgba(255,250,225,.9)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
+    g.fillStyle = sg; g.fillRect(x - 220, y - 220, 440, 440); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = B.sunset ? '#ffb070' : '#fffdf2'; g.beginPath(); g.arc(x, y, B.sunset ? 34 : 22, 0, 7); g.fill(); }
+  for(let i=0; i<10; i++){ const ca = i*.63 + .2; let d = ca - B.h; while(d > Math.PI) d -= Math.PI*2; while(d < -Math.PI) d += Math.PI*2;
+    if(Math.abs(d) > 1.1) continue; const x = VW/2 + Math.tan(d)*FOC, y = HOR*(.15 + (i % 3)*.15), s = 1 + (i % 2)*.5;
+    g.fillStyle = B.sunset ? 'rgba(255,190,200,.7)' : 'rgba(255,255,255,.9)';
+    for(let k=0; k<5; k++){ g.beginPath(); g.arc(x + (k - 2)*22*s, y - Math.sin(k/4*Math.PI)*12*s, (16 + (k % 2)*8)*s, 0, 7); g.fill(); } }
+  // the sea, in rows that rush towards you as you sail
+  const sea = g.createLinearGradient(0, HOR, 0, VH); sea.addColorStop(0, C.sea0); sea.addColorStop(.25, C.sea1); sea.addColorStop(1, C.sea2);
+  g.fillStyle = sea; g.fillRect(-60, HOR, VW + 120, VH - HOR + 60);
+  g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1.5;
+  for(let z = 30; z < 4000; z *= 1.09){
+    const zz = z - (B.odo % (z*.09)), y = HOR + EYE*FOC/zz; if(y > VH + 20) continue;
+    const k = FOC/zz; g.beginPath();
+    for(let x=-40; x<=VW + 40; x+=24){ const wx = (x - VW/2)/k; const yy = y + Math.sin(wx*.02 + zz*.01 + t*1.3 + B.h*3)*Math.min(6, 2.4*k*4); x === -40 ? g.moveTo(x, yy) : g.lineTo(x, yy); }
+    g.stroke(); }
+  if(!B.sunset){ g.globalCompositeOperation = 'lighter'; for(let i=0; i<26; i++){ const x = (i*97 + t*30) % VW, y = HOR + 6 + ((i*61) % 80)*1.2, a = Math.max(0, Math.sin(t*3 + i)); g.fillStyle = 'rgba(255,255,255,' + a*.6 + ')'; g.fillRect(x, y, 3, 1.5); } g.globalCompositeOperation = 'source-over'; }
+  // everything in the world, far to near
+  const proj = (wx, wy)=>{ const dx = wx - B.x, dy = wy - B.y, c = Math.cos(B.h), s = Math.sin(B.h), f = dx*c + dy*s, side = -dx*s + dy*c;
+    if(f < 18) return null; const k = FOC/f; return {x:VW/2 + side*k, y:HOR + EYE*k, k, f}; };
+  const objs = [];
+  for(const is of ISLES){ const p = proj(is.x, is.y); if(p) objs.push({p, draw:()=>fpIsland(g, is, p, t)}); }
+  for(const it of B.items){ if(it.got) continue; const p = proj(it.x, it.y); if(p && p.f < 1400) objs.push({p, draw:()=>fpItem(g, it, p, t)}); }
+  for(const s of FISH_SPOTS){ const p = proj(s.x, s.y); if(p && p.f < 1600) objs.push({p, draw:()=>{ for(let k=0; k<4; k++){ const ph = (t*.8 + k*.25) % 1;
+    g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.6 + ')'; g.lineWidth = 1.5; g.beginPath(); g.ellipse(p.x + Math.sin(k*2)*40*p.k, p.y, (6 + ph*22)*p.k*3, (2 + ph*6)*p.k*3, 0, 0, 7); g.stroke(); }
+    if(p.f < 700){ g.font = `${Math.round(clamp(30*p.k*3, 14, 40))}px serif`; g.textAlign = 'center'; g.fillText('🎣', p.x, p.y - 40*p.k*3); } }}); }
+  RACE_BUOYS.forEach(([bx, by], i)=>{ const p = proj(bx, by); if(!p) return; objs.push({p, draw:()=>{ const s = Math.min(p.k*1.3, 2.4), next = B.race && (B.race.i % RACE_BUOYS.length) === i;
+    g.fillStyle = next ? '#ffd479' : i === 0 ? '#ff6f9c' : '#ff9a5c'; g.beginPath(); g.ellipse(p.x, p.y - 8*s, 9*s, 12*s, 0, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.fillRect(p.x - 9*s, p.y - 10*s, 18*s, 3*s); if(next){ g.strokeStyle = '#ffd479'; g.lineWidth = 2; g.beginPath(); g.moveTo(p.x, p.y - 22*s); g.lineTo(p.x, p.y - 60*s); g.stroke(); } }}); });
+  for(const d of B.dol){ const p = proj(d.x, d.y); if(!p || p.f > 1500) continue; objs.push({p, draw:()=>{ const s = Math.min(p.k*2, 3), up = d.jump >= 0 ? Math.sin(d.jump*Math.PI) : 0;
+    if(!up){ g.fillStyle = '#4f6f88'; g.beginPath(); g.moveTo(p.x - 6*s, p.y); g.lineTo(p.x, p.y - 12*s); g.lineTo(p.x + 7*s, p.y); g.fill(); return; }
+    g.save(); g.translate(p.x, p.y - up*60*s); g.rotate(-1.2 + d.jump*2.4); const dg = g.createLinearGradient(0, -8*s, 0, 8*s); dg.addColorStop(0, '#5e7f9a'); dg.addColorStop(1, '#d4e4ee');
+    g.fillStyle = dg; g.beginPath(); g.ellipse(0, 0, 26*s, 8*s, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-22*s, 0); g.lineTo(-34*s, -8*s); g.lineTo(-30*s, 0); g.lineTo(-34*s, 8*s); g.fill(); g.restore(); }}); }
+  if(B.whale.up >= 0){ const W = B.whale, p = proj(W.x, W.y); if(p) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.1, 2.2), a = Math.min(1, W.up, 7 - W.up);
+    g.globalAlpha = a; g.fillStyle = '#3d5a73'; g.beginPath(); g.ellipse(p.x, p.y, 90*s, 20*s, 0, Math.PI, 0); g.fill();
+    if(W.up % 2.5 < 1.2){ g.fillStyle = 'rgba(255,255,255,.85)'; for(let k=0; k<10; k++){ g.beginPath(); g.arc(p.x + 30*s + Math.cos(k)*14*s, p.y - 30*s - (W.up % 2.5)*60*s - Math.abs(Math.sin(k))*14*s, 6*s, 0, 7); g.fill(); } }
+    if(W.up > 5){ g.fillStyle = '#3d5a73'; g.beginPath(); g.moveTo(p.x - 60*s, p.y); g.lineTo(p.x - 100*s, p.y - 40*s); g.lineTo(p.x - 60*s, p.y - 20*s); g.lineTo(p.x - 20*s, p.y - 40*s); g.fill(); }
+    g.globalAlpha = 1; }}); }
+  for(const tu of B.turtles){ const p = proj(tu.x, tu.y); if(p && p.f < 900) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.8, 3); g.fillStyle = '#5c8f4a'; g.beginPath(); g.ellipse(p.x, p.y, 12*s, 4*s, 0, Math.PI, 0); g.fill(); g.beginPath(); g.arc(p.x + 12*s, p.y - 2*s, 3*s, 0, 7); g.fill(); }}); }
+  for(const sl of B.seals){ const p = proj(sl.x, sl.y); if(p && p.f < 1400) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.5, 3); g.fillStyle = '#6f7b84'; g.beginPath(); g.ellipse(p.x, p.y, 26*s, 10*s, 0, Math.PI, 0); g.fill();
+    g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(p.x - 6*s, p.y - 10*s, 14*s, 8*s, -.2, 0, 7); g.fill(); g.beginPath(); g.arc(p.x + 8*s, p.y - 18*s + Math.sin(t*2 + sl.ph)*2*s, 6*s, 0, 7); g.fill();
+    g.fillStyle = '#10202c'; g.beginPath(); g.arc(p.x + 10*s, p.y - 19*s, 1.2*s, 0, 7); g.fill(); }}); }
+  for(const f of B.fly){ if(f.t <= 0) continue; const p = proj(f.x, f.y); if(p) objs.push({p, draw:()=>{ const s = p.k*3; g.fillStyle = '#cfe9ff'; g.beginPath(); g.ellipse(p.x, p.y - Math.sin(f.t/1.4*Math.PI)*40*s, 8*s, 3*s, 0, 0, 7); g.fill(); }}); }
+  objs.sort((a, b)=>b.p.f - a.p.f).forEach(o=>o.draw());
+  for(const gl of B.gulls){ const p = proj(gl.cx + Math.cos(gl.a)*gl.r, gl.cy + Math.sin(gl.a)*gl.r); if(!p) continue;
+    const s = Math.max(.5, p.k*3), y = p.y - 160*p.k*3 - 40, f = Math.sin(t*8 + gl.a*3)*5*s;
+    g.strokeStyle = B.sunset ? '#2b2440' : '#38424e'; g.lineWidth = 2*s; g.beginPath(); g.moveTo(p.x - 12*s, y - f); g.quadraticCurveTo(p.x - 4*s, y - 4*s, p.x, y); g.quadraticCurveTo(p.x + 4*s, y - 4*s, p.x + 12*s, y - f); g.stroke(); }
+  // spray off the bow at speed
+  if(Math.abs(B.v) > 120){ g.fillStyle = 'rgba(255,255,255,.7)'; for(let i=0; i<8; i++){ const a = Math.random(); g.beginPath(); g.arc(VW/2 + (Math.random() - .5)*VW*.3, VH*.74 - a*60, 2 + Math.random()*3, 0, 7); g.fill(); } }
+  // the bow, the rails, the wheel and her hands
+  const bowY = VH*.72;
+  const dg = g.createLinearGradient(0, bowY, 0, VH); dg.addColorStop(0, '#c08a55'); dg.addColorStop(1, '#7a4f2b');
+  g.fillStyle = dg; g.beginPath(); g.moveTo(-60, VH + 60); g.lineTo(VW*.1, VH*.9); g.lineTo(VW/2, bowY); g.lineTo(VW*.9, VH*.9); g.lineTo(VW + 60, VH + 60); g.fill();
+  g.strokeStyle = 'rgba(80,50,25,.45)'; g.lineWidth = 2; for(let k=1; k<6; k++){ g.beginPath(); g.moveTo(VW/2, bowY); g.lineTo(VW*k/6, VH + 10); g.stroke(); }
+  g.strokeStyle = '#e8eef2'; g.lineWidth = 5; g.beginPath(); g.moveTo(VW*.04, VH*.84); g.lineTo(VW/2, bowY - 26); g.lineTo(VW*.96, VH*.84); g.stroke();
+  g.lineWidth = 3; for(let k=0; k<=8; k++){ const u = k/8, x = lerp(VW*.04, VW/2, u), y = lerp(VH*.84, bowY - 26, u); g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 26); g.stroke();
+    const x2 = lerp(VW*.96, VW/2, u), y2 = lerp(VH*.84, bowY - 26, u); g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2, y2 + 26); g.stroke(); }
+  flagPaint(g, VW/2, bowY - 70, 1.6, t);
+  g.strokeStyle = '#e8eef2'; g.lineWidth = 3; g.beginPath(); g.moveTo(VW/2, bowY - 26); g.lineTo(VW/2, bowY - 72); g.stroke();
+  const wr = Math.min(VW, VH)*.16, wx = VW/2, wy = VH + wr*.35, rot = B.h*2;
+  g.save(); g.translate(wx, wy); g.rotate(rot);
+  g.strokeStyle = '#6b4424'; g.lineWidth = wr*.12; g.beginPath(); g.arc(0, 0, wr*.82, 0, 7); g.stroke();
+  g.lineWidth = wr*.07; for(let k=0; k<8; k++){ const a = k*Math.PI/4; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a)*wr*1.12, Math.sin(a)*wr*1.12); g.stroke();
+    g.fillStyle = '#8a5a2b'; g.beginPath(); g.arc(Math.cos(a)*wr*1.12, Math.sin(a)*wr*1.12, wr*.07, 0, 7); g.fill(); }
+  g.fillStyle = '#d9a441'; g.beginPath(); g.arc(0, 0, wr*.16, 0, 7); g.fill();
+  g.restore();
+  g.fillStyle = '#f7dcc6'; [-1, 1].forEach(s=>{ const a = -Math.PI/2 + s*.75 + (B.btnSteer || 0)*.25; g.beginPath(); g.arc(wx + Math.cos(a)*wr*.82, wy + Math.sin(a)*wr*.82, wr*.11, 0, 7); g.fill(); });
+  g.fillStyle = SUITS[save.suit]; [-1, 1].forEach(s=>{ const a = -Math.PI/2 + s*.75 + (B.btnSteer || 0)*.25, hx = wx + Math.cos(a)*wr*.82, hy = wy + Math.sin(a)*wr*.82;
+    g.beginPath(); g.moveTo(hx - wr*.08, hy + wr*.06); g.lineTo(hx + s*wr*.6, VH + 20); g.lineTo(hx + s*wr*.9, VH + 20); g.lineTo(hx + wr*.08, hy + wr*.06); g.fill(); });
+  g.restore();
+  // a compass and the speed
+  const cx = VW - 64, cy = VH - 150;
+  g.fillStyle = 'rgba(3,24,43,.55)'; g.beginPath(); g.arc(cx, cy, 34, 0, 7); g.fill();
+  g.save(); g.translate(cx, cy); g.rotate(-B.h - Math.PI/2);
+  g.fillStyle = '#ff6f6f'; g.beginPath(); g.moveTo(0, -26); g.lineTo(6, 0); g.lineTo(-6, 0); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(0, 26); g.lineTo(6, 0); g.lineTo(-6, 0); g.fill();
+  g.fillStyle = '#ffffff'; g.font = '700 11px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillText('N', 0, -30);
+  g.restore();
+  g.fillStyle = 'rgba(3,24,43,.55)'; roundRect(g, cx - 34, cy + 42, 68, 12, 6); g.fill();
+  g.fillStyle = B.throttle < 0 ? '#ff8aa0' : '#ffd479'; roundRect(g, cx - 32, cy + 44, 64*Math.abs(B.throttle), 8, 4); g.fill();
+  if(B.sunset){ g.fillStyle = 'rgba(60,20,90,.12)'; g.fillRect(0, 0, VW, VH); }
+}
+function fpIsland(g, is, p, t){
+  const s = p.k*3, w = is.r*p.k*1.1, far = clamp((p.f - 1200)/2200, 0, .7);
+  g.fillStyle = mixHaze('#ecd497', far); g.beginPath(); g.ellipse(p.x, p.y, w, w*.12 + 2, 0, Math.PI, 0); g.fill();
+  if(is.id === 'light'){
+    g.fillStyle = mixHaze('#7d838a', far); g.beginPath(); g.ellipse(p.x, p.y, w*.9, w*.35, 0, Math.PI, 0); g.fill();
+    const tw = w*.18, th = w*1.3;
+    g.fillStyle = mixHaze('#f4f4f4', far); g.beginPath(); g.moveTo(p.x - tw, p.y - w*.3); g.lineTo(p.x - tw*.7, p.y - w*.3 - th); g.lineTo(p.x + tw*.7, p.y - w*.3 - th); g.lineTo(p.x + tw, p.y - w*.3); g.fill();
+    g.fillStyle = mixHaze('#e04a4a', far); for(let k=0; k<3; k++) g.fillRect(p.x - tw*.85 + k*0, p.y - w*.3 - th*(.25 + k*.3), tw*1.7*(1 - (.25 + k*.3)*.3), th*.1);
+    g.fillStyle = sv().lit ? '#fff2a8' : '#555b60'; g.fillRect(p.x - tw*.5, p.y - w*.3 - th - tw*.8, tw, tw*.8);
+    if(sv().lit){ g.globalCompositeOperation = 'lighter'; const a = Math.sin(t*1.2); const gl = g.createRadialGradient(p.x, p.y - w*.3 - th - tw*.4, 1, p.x, p.y - w*.3 - th - tw*.4, w*1.5);
+      gl.addColorStop(0, 'rgba(255,240,170,' + (.5 + a*.3) + ')'); gl.addColorStop(1, 'rgba(255,240,170,0)'); g.fillStyle = gl; g.fillRect(p.x - w*1.5, p.y - w*.3 - th - w*1.5, w*3, w*3); g.globalCompositeOperation = 'source-over'; }
+    return;
+  }
+  g.fillStyle = mixHaze('#5fb15a', far); g.beginPath(); g.ellipse(p.x - w*.1, p.y - w*.06, w*.7, w*.32, 0, Math.PI, 0); g.fill();
+  const palm = (x, h)=>{ g.strokeStyle = mixHaze('#7a5530', far); g.lineWidth = Math.max(1, h*.06); g.beginPath(); g.moveTo(x, p.y - w*.1); g.quadraticCurveTo(x - h*.2, p.y - h*.5, x + h*.1, p.y - h); g.stroke();
+    g.fillStyle = mixHaze('#3f9f4a', far); for(let k=0; k<5; k++){ g.save(); g.translate(x + h*.1, p.y - h); g.rotate(-Math.PI*.95 + k*.45 + Math.sin(t + k)*.05); g.beginPath(); g.ellipse(h*.25, 0, h*.28, h*.06, 0, 0, 7); g.fill(); g.restore(); } };
+  palm(p.x - w*.35, w*.7); palm(p.x + w*.15, w*.85);
+  if(is.id === 'port'){ ['#ff6f6f','#6fb8ff','#ffd479'].forEach((c, k)=>{ const x = p.x + w*(.3 + k*.18), y = p.y - w*.1; g.fillStyle = mixHaze(c, far); g.fillRect(x, y - w*.22, w*.15, w*.22);
+    g.fillStyle = mixHaze('#8a4a3a', far); g.beginPath(); g.moveTo(x - w*.02, y - w*.22); g.lineTo(x + w*.075, y - w*.32); g.lineTo(x + w*.17, y - w*.22); g.fill(); }); }
+  if(is.id === 'dock'){ g.fillStyle = mixHaze('#9b6a3c', far); g.fillRect(p.x - w*.6, p.y - w*.08, w*1.2, w*.06); for(let k=0; k<5; k++) g.fillRect(p.x - w*.55 + k*w*.27, p.y - w*.08, w*.03, w*.12); }
+  if(is.id === 'treasure'){ g.strokeStyle = mixHaze('#c0392b', far); g.lineWidth = Math.max(1, w*.03); g.beginPath(); g.moveTo(p.x + w*.4, p.y - w*.12); g.lineTo(p.x + w*.5, p.y - w*.04); g.moveTo(p.x + w*.5, p.y - w*.12); g.lineTo(p.x + w*.4, p.y - w*.04); g.stroke(); }
+  if(p.f < 1500){ g.font = `700 ${Math.round(clamp(w*.18, 12, 22))}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText(is.name, p.x, p.y - w*.95); }
+}
+function mixHaze(hex, k){ const n = parseInt(hex.slice(1), 16), h = [170, 205, 220]; const r = (n >> 16) + (h[0] - (n >> 16))*k, gg = (n >> 8 & 255) + (h[1] - (n >> 8 & 255))*k, b = (n & 255) + (h[2] - (n & 255))*k; return 'rgb(' + (r|0) + ',' + (gg|0) + ',' + (b|0) + ')'; }
+function fpItem(g, it, p, t){
+  const s = p.k*3, y = p.y - Math.sin(t*2 + it.ph)*2*s;
+  if(it.k === 'pearl'){ const r = clamp(10*s, 2, 30), pg = g.createRadialGradient(p.x - r*.3, y - r, 1, p.x, y - r*.7, r); pg.addColorStop(0, '#fff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)'); g.fillStyle = pg; g.beginPath(); g.arc(p.x, y - r*.7, r, 0, 7); g.fill(); }
+  else if(it.k === 'shell'){ g.fillStyle = 'rgba(180,255,240,' + (.6 + Math.sin(t*4 + it.ph)*.3) + ')'; g.beginPath(); g.arc(p.x, y, clamp(9*s, 2, 28), Math.PI, 0); g.fill(); }
+  else if(it.k === 'bottle'){ g.fillStyle = 'rgba(120,200,160,.85)'; roundRect(g, p.x - 10*s, y - 8*s, 20*s, 8*s, 3*s); g.fill(); }
+  else { g.fillStyle = '#6f7b84'; g.beginPath(); g.moveTo(p.x - 26*s, y); g.lineTo(p.x - 14*s, y - 26*s); g.lineTo(p.x + 6*s, y - 32*s); g.lineTo(p.x + 24*s, y); g.fill(); }
+}
+function drawBoat(t){
+  if(bt.view === 'fp') drawSeaFP(t); else drawSeaTop(t);
+  const B = bt, g = ctx;
+  // minimap
+  const m = Math.min(130, VW*.22), mx = VW - m - 12, my = 58;
+  g.fillStyle = 'rgba(3,24,43,.55)'; roundRect(g, mx, my, m, m, 12); g.fill();
+  for(const is of ISLES){ g.fillStyle = is.id === 'light' ? '#c9ccd2' : '#ecd497'; g.beginPath(); g.arc(mx + is.x/SEA.w*m, my + is.y/SEA.h*m, Math.max(3, is.r/SEA.w*m), 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.7)'; for(const s of FISH_SPOTS){ g.fillRect(mx + s.x/SEA.w*m - 1, my + s.y/SEA.h*m - 1, 2, 2); }
+  if(B.race){ const [bx, by] = RACE_BUOYS[B.race.i % RACE_BUOYS.length]; g.fillStyle = '#ffd479'; g.beginPath(); g.arc(mx + bx/SEA.w*m, my + by/SEA.h*m, 3, 0, 7); g.fill(); }
+  g.save(); g.translate(mx + B.x/SEA.w*m, my + B.y/SEA.h*m); g.rotate(B.h);
+  g.fillStyle = '#ff6f9c'; g.beginPath(); g.moveTo(7, 0); g.lineTo(-5, -4); g.lineTo(-5, 4); g.fill(); g.restore();
+  // the fishing line and bobber
+  if(B.fish){ const F = B.fish, cx = VW/2, cy = VH*.55, dip = F.phase === 'bite' ? Math.abs(Math.sin(F.t*18))*14 : Math.sin(F.t*2)*2;
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(VW*.75, VH*.15); g.quadraticCurveTo(VW*.6, VH*.3, cx, cy + dip - 18); g.stroke();
+    g.fillStyle = '#ff4d4d'; g.beginPath(); g.arc(cx, cy + dip - 10, 10, Math.PI, 0); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy + dip - 10, 10, 0, Math.PI); g.fill();
+    for(let k=0; k<2; k++){ const ph = (F.t*.8 + k*.5) % 1; g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.6 + ')'; g.beginPath(); g.ellipse(cx, cy, 12 + ph*40, 4 + ph*12, 0, 0, 7); g.stroke(); }
+    const msg = F.phase === 'wait' ? 'Wait for it…' : F.phase === 'bite' ? 'NOW! Tap!' : F.phase === 'miss' ? 'It got away' : '';
+    if(msg) shadowText(g, msg, cx, cy - 70, F.phase === 'bite' ? 34 : 22, F.phase === 'bite' ? '#ffd479' : '#ffffff');
+    if(F.phase === 'caught'){ const info = FISHES[F.kind]; const fy = cy - 60 - Math.min(1, F.t*2)*40;
+      drawFish(g, {x:cx, y:fy, s:30, vx:1, vy:0, ph:0, c:info.c, belly:info.belly, stripe:info.stripe}, t);
+      shadowText(g, info.en + ' · ' + info.ru, cx, fy + 60, 24, '#ffffff'); } }
+  if(B.race){ shadowText(g, `Buoy ${Math.min(B.race.i, RACE_BUOYS.length)} of ${RACE_BUOYS.length} · ${B.race.t.toFixed(1)}s`, VW/2, 80, 20, '#ffd479'); }
+  if(B.flash > 0){ g.fillStyle = 'rgba(255,255,255,' + B.flash*3 + ')'; g.fillRect(0, 0, VW, VH); }
 }
 // the hull, seen from under the water
 function drawBoatHull(g, t){
@@ -1774,7 +2220,11 @@ function drawBoatHull(g, t){
   g.font = '700 16px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = 'rgba(234,249,255,' + (.6 + pl*.4) + ')'; g.fillText('⬆ Climb aboard the boat', x, 176 + pl*4);
 }
-cv.addEventListener('pointerdown', e=>{ if(scene === 'boat' && bt && !overlay) bt.goal = bt.x + (e.clientX - VW*.45); });
+cv.addEventListener('pointerdown', e=>{
+  if(scene !== 'boat' || !bt || overlay) return;
+  if(fishTap()) return;
+  if(bt.view === 'top'){ const z = clamp(Math.min(VW, VH)/820, .55, 1.15); bt.goal = {x:bt.x + (e.clientX - VW/2)/z, y:bt.y + (e.clientY - VH/2)/z}; }
+});
 
 /* ============================ OCEAN UPDATE ============================ */
 function updateOcean(dt, t){
@@ -4623,7 +5073,7 @@ function showPads(on){
   $('#pads').hidden = !on;
   // in the tunnels you touch where to dig, so the stick zone would only get in the way
   $('#stickz').hidden = scene === 'tunnel';
-  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' || scene === 'boat' ? 'JUMP' : 'SWIM';
+  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : scene === 'boat' ? 'PHOTO' : 'SWIM';
   $('#padB').textContent = scene === 'boat' ? 'HORN' : 'BONK';
   $('#padA').hidden = $('#padB').hidden = scene === 'maze';      // the maze is just steering
 }
@@ -5579,9 +6029,10 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
-  renderAbc(); renderSharkHome();
+  renderAbc(); renderSharkHome(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
   openLayer('lHome');
 }
+$('#dockOut').onclick = ()=>{ openLayer(null); showHud(true); };
 $('#homeClose').onclick = ()=>{
   save.lastSeen = Date.now(); persist();
   if(scene === 'ocean'){

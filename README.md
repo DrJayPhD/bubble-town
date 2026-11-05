@@ -33,9 +33,11 @@ domes, played to Russian music (the Sugar Plum Fairy from *The Nutcracker*, and 
 Korobeiniki). Each cleared row is counted in Russian. On Easy, a full well gets half washed away
 instead of ending the game.
 
-**The boat** floats at the top of the sea: swim up under its hull and climb the ladder. Sail the
-surface, hop the waves, collect pearls, catch message bottles (each holds a Cyrillic letter),
-dock at treasure islands, and toot the horn for the dolphins. Dive in to drop back into town.
+**The boat** floats at the top of the sea: swim up under its hull and climb the ladder onto an open
+sea you can sail anywhere, seen from above (tap where to go) or in first person at the wheel. Dock at
+five islands (Home Dock, Treasure Isle, Fisher's Port with a boat shop, Lighthouse Rock, Turtle Beach),
+fish at bubbling spots for a fish book in English and Russian, photograph dolphins, the whale, turtles,
+seals and gulls, race the buoys, and light the lighthouse to sail at sunset.
 
 **The shark**, once tamed, is a friend to ride, do tricks with, race through hoops (levels, more
 pearls, and new outfits for her), and dress up in the Home dome.
