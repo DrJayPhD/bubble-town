@@ -221,6 +221,18 @@ body{margin:0;background:var(--abyss);color:var(--mist);font-family:var(--body);
   box-shadow:0 6px 16px rgba(2,14,26,.5);cursor:pointer;touch-action:manipulation}
 .bk.down,.bk:active{transform:scale(.9);filter:brightness(1.25)}
 .bk.music{background:radial-gradient(circle at 38% 32%,#ffe7a8,#e8a83a);color:#3a2a10}
+#boatBar{position:fixed;left:max(12px,env(safe-area-inset-left));top:calc(max(10px,env(safe-area-inset-top)) + 50px);z-index:5;
+  display:flex;flex-wrap:wrap;gap:8px;max-width:min(62vw,560px);pointer-events:none}
+#boatBar .chip{pointer-events:auto;font-size:14px;padding:8px 12px;border:0}
+#boatBar .steer{position:fixed;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));display:flex;gap:10px;pointer-events:none}
+#boatBar .steer .chip{font-size:24px;padding:12px 20px;min-width:62px;justify-content:center}
+#dockBody .btn{margin:6px 8px 6px 0}
+#togetherBar{position:fixed;right:max(10px,env(safe-area-inset-right));top:40%;z-index:6;display:flex;flex-direction:column;gap:8px;align-items:center}
+#togetherBar .emo{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--rim);background:var(--glass);font-size:22px;cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+#walkieBtn{width:64px;height:64px;border-radius:50%;border:3px solid #ffd479;background:radial-gradient(circle at 38% 32%,#ffe9b0,#e8a83a);font-size:28px;cursor:pointer;
+  box-shadow:0 6px 18px rgba(2,14,26,.5);touch-action:none}
+#walkieBtn.on{background:radial-gradient(circle at 38% 32%,#ffb0c4,#ff4d6d);transform:scale(1.12);box-shadow:0 0 0 8px rgba(255,77,109,.3)}
 hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
 .note{font-size:12.5px;color:#6fb2c8;line-height:1.6}
 .stat{font-family:var(--disp);font-weight:700;color:var(--pearl);font-variant-numeric:tabular-nums}
@@ -255,11 +267,12 @@ hr.rule{border:0;border-top:1px solid rgba(125,240,255,.18);margin:18px 0}
   .abc > *{display:inline-block;width:54px;margin:0 6px 8px 0}
   .mutabs > *{margin:0 6px 6px 0}
   #muCv{height:180px} #kbd{height:150px}
+  #boatBar > *{margin:0 8px 8px 0} #togetherBar > *{margin:0 0 8px} #boatBar .steer > *{margin:0 6px}
   .divers > *, .grid2 > *, .choices > *{margin:0 0 12px}
 }
 /* Rapid taps on a control were triggering iOS double-tap-to-zoom, which a kid
    cannot undo. `manipulation` keeps normal taps and kills the zoom gesture. */
-button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label,.pk,.mutab{
+button,.btn,.pad,.chip,.key,.choice,.tile,.diver,.sw,.start,#act,.quests label,.pk,.mutab,.emo{
   touch-action:manipulation}
 canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
@@ -290,6 +303,15 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <button class="bk" id="bkR" type="button" aria-label="Right">▶</button>
   <button class="bk music" id="bkM" type="button" aria-label="Music">♫</button>
 </div>
+<div id="boatBar" hidden></div>
+<div id="togetherBar" hidden>
+  <button class="emo" type="button" aria-label="Wave">👋</button>
+  <button class="emo" type="button" aria-label="Heart">❤️</button>
+  <button class="emo" type="button" aria-label="Star">⭐</button>
+  <button class="emo" type="button" aria-label="Laugh">😂</button>
+  <button id="walkieBtn" type="button" aria-label="Hold to talk">🎙️</button>
+</div>
+<audio id="walkieAudio" playsinline autoplay></audio>
 <div id="toast"></div>
 <button class="chip" id="introSkip" hidden
   style="position:fixed;right:14px;bottom:max(16px,env(safe-area-inset-bottom));z-index:6;border:0">Skip ›</button>
@@ -310,8 +332,12 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   <p class="sub" id="homeGrew">Welcome back.</p>
   <div class="grid2" id="gardens"></div>
   <hr class="rule">
+  <p class="eyebrow">Play together · two iPads</p>
+  <div id="togetherBox"></div>
+  <hr class="rule">
   <p class="eyebrow">Your shark friend</p>
   <div id="sharkBox"></div>
+  <div id="seaBox"></div>
   <hr class="rule">
   <p class="eyebrow">Russian alphabet · Азбука</p>
   <div class="abc" id="abc"></div>
@@ -392,6 +418,14 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
   </div>
 </div></div>
 
+<!-- ISLAND VISIT -->
+<div class="layer" id="lDock"><div class="scrim"></div><div class="port">
+  <p class="eyebrow">Island</p>
+  <h2 id="dockTitle"></h2>
+  <div id="dockBody"></div>
+  <div class="row end" style="margin-top:16px"><button class="btn ghost" id="dockOut" type="button">Back to the boat</button></div>
+</div></div>
+
 <!-- RESULT -->
 <div class="layer" id="lResult"><div class="scrim"></div><div class="port" style="text-align:center">
   <div class="wordpic" id="resIcon">⭐</div>
@@ -460,6 +494,7 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 })();
 window.LEGACY = !window.PointerEvent;
 </script>
+<script src="vendor/peerjs.safari12.js"></script>
 <script>
 "use strict";
 /* ---- keep the page locked at 1:1 -----------------------------------------
@@ -1559,75 +1594,215 @@ function renderSharkHome(){
   box.appendChild(row);
 }
 
-/* ============================ THE BOAT ============================
-   A hull floats at the top of the sea. Swim up under it and climb the
-   ladder to sail along the surface: collect floating pearls, catch message
-   bottles (each holds a Cyrillic letter card), dock at treasure islands,
-   hop the waves and toot the horn for the dolphins. Diving drops you back
-   into Bubble Town right below where the boat is.
-   ================================================================== */
+/* ============================ THE OPEN SEA ============================
+   A hull floats at the top of Bubble Town's sea. Climb the ladder and you
+   are out on an open sea you can sail anywhere, seen two ways:
+     🧭 from above (tap where to go)        👁 first person, at the wheel
+   Things to do out here:
+     · five islands to dock at: Home Dock (dive back down), Treasure Isle
+       (dig up the chest), Fisher's Port (boat shop), Lighthouse Rock (bring
+       5 glowing shells to light it; then sail at sunset), Turtle Beach
+       (help the hatchlings to the sea)
+     · fishing at bubbling spots, with a fish book in English and Russian
+     · a photo safari: dolphins, the whale, turtles, seals, gulls, flying fish
+     · a buoy race against your best time
+     · pearls, glowing shells and message bottles (Cyrillic letters) afloat
+   ===================================================================== */
 const BOAT = {id:'boat', x:2380, label:'Boat'};
-const SEA_W = 7200, ISLES = [1000, 2600, 4300, 6100];
+const SEA = {w:3400, h:3400};
+const ISLES = [
+  {id:'dock',     name:'Home Dock',       x:1700, y:1900, r:110},
+  {id:'treasure', name:'Treasure Isle',   x:720,  y:900,  r:170},
+  {id:'port',     name:"Fisher's Port",   x:2650, y:1050, r:185},
+  {id:'light',    name:'Lighthouse Rock', x:2750, y:2650, r:120},
+  {id:'turtle',   name:'Turtle Beach',    x:700,  y:2600, r:190},
+];
+const FISH_SPOTS = [
+  {x:1250, y:1450, kinds:['sardine','mackerel','sardine','cod']},
+  {x:2150, y:700,  kinds:['mackerel','cod','squid','salmon']},
+  {x:3000, y:1800, kinds:['puffer','squid','crab','salmon']},
+  {x:1900, y:2900, kinds:['cod','crab','salmon','sardine']},
+  {x:400,  y:1700, kinds:['puffer','mackerel','squid','crab']},
+  {x:1500, y:450,  kinds:['sardine','salmon','cod','squid']},
+];
+const FISHES = {
+  sardine: {en:'Sardine',      ru:'сардина',        tr:'sardina',        c:'#9fb8c8', belly:'#eef4f8'},
+  mackerel:{en:'Mackerel',     ru:'скумбрия',       tr:'skumbriya',      c:'#4f8fa8', belly:'#e8f2f4', stripe:'#20485a'},
+  cod:     {en:'Cod',          ru:'треска',         tr:'treska',         c:'#b39b6f', belly:'#f1e8d6'},
+  puffer:  {en:'Pufferfish',   ru:'рыба-шар',       tr:'ryba-shar',      c:'#e8c35a', belly:'#fff4cf'},
+  squid:   {en:'Squid',        ru:'кальмар',        tr:'kal’mar',        c:'#ff9aa8', belly:'#ffe1e6'},
+  crab:    {en:'Crab',         ru:'краб',           tr:'krab',           c:'#ff6b5b', belly:'#ffd0c8'},
+  salmon:  {en:'Salmon',       ru:'лосось',         tr:'losos’',         c:'#ff9a6b', belly:'#ffe2d2'},
+  golden:  {en:'Golden fish',  ru:'золотая рыбка',  tr:'zolotaya rybka', c:'#ffd23f', belly:'#fff6c8', rare:1},
+};
+const PHOTO_KINDS = {dolphin:'Dolphin', whale:'Whale', turtle:'Sea turtle', seal:'Seal', gull:'Seagull', flyfish:'Flying fish'};
+const RACE_BUOYS = [[1700,1500],[2150,1350],[2400,1750],[2250,2250],[1750,2400],[1250,2200],[1100,1700],[1350,1350]];
+const SHOP = [
+  {id:'speed1',  name:'Bigger sail',       ic:'⛵', cost:40,  kind:'speed', v:1, desc:'Sail faster'},
+  {id:'speed2',  name:'Racing sail',       ic:'💨', cost:90,  kind:'speed', v:2, desc:'Sail even faster', need:'speed1'},
+  {id:'stripes', name:'Striped sail',      ic:'🎏', cost:25,  kind:'sail',  v:'stripes'},
+  {id:'stars',   name:'Starry sail',       ic:'✨', cost:35,  kind:'sail',  v:'stars'},
+  {id:'rainbow', name:'Rainbow sail',      ic:'🌈', cost:50,  kind:'sail',  v:'rainbow'},
+  {id:'heart',   name:'Heart flag',        ic:'💖', cost:15,  kind:'flag',  v:'heart'},
+  {id:'starflag',name:'Star flag',         ic:'⭐', cost:15,  kind:'flag',  v:'star'},
+];
 let bt = null;
-function seaWave(x, t){ return Math.sin(x*.011 + t*1.6)*9 + Math.sin(x*.027 - t*1.15)*5; }
+const sv = ()=>{ save.sea = save.sea || {owned:{}, sail:'plain', flag:'plain', fish:{}, photos:{}, shells:0, lit:false, raceBest:0}; return save.sea; };
+
 function startBoat(){
   scene = 'boat'; openLayer(null); sparks = [];
-  const x0 = BOAT.x / WORLD.w * SEA_W;
-  bt = {x:x0, vx:0, jy:0, jv:0, t:0, goal:null, items:[], isles:ISLES.map(x=>({x, open:false})), dol:[], gulls:[], wake:[], fx:[], horn:-9, got:0};
-  for(let x=300; x<SEA_W - 300; x+=rnd(170, 300)){
-    const r = Math.random();
-    if(ISLES.some(i=>Math.abs(i - x) < 260)) continue;
-    bt.items.push({x, k:r < .72 ? 'pearl' : r < .86 ? 'bottle' : 'rock', got:false, ph:rnd(0, 9)});
+  const S = sv(), d = ISLES[0], r0 = seeded((Math.random()*1e9)|0), R = (a, b)=>a + r0()*(b - a);
+  bt = {x:d.x, y:d.y + d.r + 60, h:Math.PI/2, v:0, steer:0, throttle:0, t:0, odo:0, goal:null,
+        view:save.mode === 'easy' ? 'top' : 'fp', items:[], dol:[], turtles:[], seals:[], gulls:[], fly:[], whale:{x:0, y:0, up:-1, next:12},
+        fx:[], wake:[], fish:null, race:null, visited:{}, shot:0, flash:0, sunset:false, night:false, sky:'day', horn:-9, near:null,
+        lst:skyLST(), gaze:null, sonar:save.mode !== 'easy', gps:null};
+  // things afloat, kept clear of the islands
+  const clear = (x, y, m)=>ISLES.every(i=>Math.hypot(x - i.x, y - i.y) > i.r + m);
+  for(let k=0, n=0; k<400 && n<70; k++){
+    const x = R(150, SEA.w - 150), y = R(150, SEA.h - 150); if(!clear(x, y, 90)) continue;
+    const r = r0(); bt.items.push({x, y, k:r < .55 ? 'pearl' : r < .7 ? 'bottle' : r < .85 ? 'shell' : 'rock', got:false, ph:R(0, 9)}); n++;
   }
-  for(let i=0; i<3; i++) bt.dol.push({off:rnd(-260, 260), ph:rnd(0, 9), jump:-1, flip:0});
-  for(let i=0; i<5; i++) bt.gulls.push({x:rnd(0, SEA_W), y:rnd(.06, .22), ph:rnd(0, 9), sp:rnd(30, 60), scared:0});
+  for(let i=0; i<4; i++) bt.dol.push({x:R(800, 2600), y:R(800, 2600), a:R(0, 6.3), jump:-1, ph:R(0, 9)});
+  for(let i=0; i<5; i++) bt.turtles.push({x:ISLES[4].x + R(-350, 350), y:ISLES[4].y - ISLES[4].r - R(80, 300), a:R(0, 6.3), ph:R(0, 9)});
+  for(let i=0; i<3; i++) bt.seals.push({x:ISLES[3].x - 200 + i*55, y:ISLES[3].y + 170 + (i % 2)*30, ph:R(0, 9)});
+  for(let i=0; i<6; i++) bt.gulls.push({cx:ISLES[2].x + R(-200, 200), cy:ISLES[2].y + R(-200, 200), r:R(90, 220), a:R(0, 6.3), sp:R(.4, .8)});
   showHud(true); setSkip('Dive in ⤓', boatDive);
-  toast(save.boatTrips ? 'Ahoy! ◀ ▶ to sail' : 'Ahoy! ◀ ▶ to sail · JUMP the waves · HORN for dolphins');
+  boatBar();
+  toast(save.boatTrips ? 'Ahoy!' : bt.view === 'fp' ? 'Ahoy! Steer with ◀ ▶, speed with ▲ ▼' : 'Ahoy! Tap the sea to sail there');
   save.boatTrips = (save.boatTrips || 0) + 1; persist();
   Audio_.sweep(220, 330, .6, 'triangle', .1);
 }
 function boatDive(){
   if(scene !== 'boat') return;
-  setSkip(null);
+  setSkip(null); $('#boatBar').hidden = true; openLayer(null);
+  if(radioOn >= 0){ Music.stop(); radioOn = -1; }
   scene = 'ocean'; sparks = [];
-  player.x = clamp(bt.x / SEA_W * WORLD.w, 120, WORLD.w - 120); player.y = 150; player.vx = 0; player.vy = 140;
+  player.x = clamp(bt.x / SEA.w * WORLD.w, 120, WORLD.w - 120); player.y = 150; player.vx = 0; player.vy = 140;
   cam.x = clamp(player.x - VW/2, 0, Math.max(0, WORLD.w - VW)); cam.y = 0;
   rearm = BOAT; bt = null;
   burst(player.x, player.y, 34, '#bdf7ff'); Audio_.sploosh();
   showHud(true); toast('Splash! Back in Bubble Town');
 }
-function boatJump(){ if(bt && bt.jy === 0){ bt.jv = -430; Audio_.sweep(300, 600, .2, 'triangle', .08); } }
-function boatHorn(){
-  if(!bt || bt.t - bt.horn < 1.2) return;
-  bt.horn = bt.t;
-  Audio_.tone(196, .5, 'sawtooth', .08); Audio_.tone(247, .5, 'sawtooth', .06, .02);
-  bt.dol.forEach((d, i)=>{ if(d.jump < 0) setTimeout(()=>{ if(bt){ d.jump = 0; d.flip = 1; } }, 200 + i*260); });
-  bt.gulls.forEach(g=>{ if(Math.abs(g.x - bt.x) < VW) g.scared = 1.5; });
-  if(!save.hornDol){ save.hornDol = 1; save.pearls += 3; updateHud(); persist(); toast('The dolphins love the horn! +3 🫧'); }
+function boatMaxV(){ const S = sv(); return (save.mode === 'easy' ? 230 : 270) * (1 + .2*((S.owned.speed1 ? 1 : 0) + (S.owned.speed2 ? 1 : 0))); }
+
+/* ---- the action bar: what you can do right here ---- */
+function boatBar(){
+  const bar = $('#boatBar'); if(!bar || !bt) return;
+  bar.hidden = false;
+  const B = bt, want = [];
+  if(B.gaze){ want.push(['stars', '⛵ Back to sailing']); }
+  else {
+  want.push(['view', B.view === 'fp' ? '🧭 From above' : '👁 First person']);
+  want.push(['photo', '📷 Photo']);
+  if(B.near && B.near.kind === 'isle') want.push(['dock', '⚓ Visit ' + B.near.o.name]);
+  if(B.near && B.near.kind === 'spot' && !B.fish) want.push(['fish', '🎣 Fish here']);
+  if(B.near && B.near.kind === 'race' && !B.race) want.push(['race', '🏁 Buoy race']);
+  const fr = Net.st === 'on' && Net.friend && Net.friend.sc === 'boat' && Net.friend.fx !== null ? Net.friend : null;
+  if(B.crew) want.push(['crew', '⛵ Back to my own boat']);
+  else if(fr && !fr.crew && Math.hypot(fr.fx - B.x, fr.fy - B.y) < 260) want.push(['crew', `⛵ Hop aboard ${fr.nm}’s boat`]);
+  want.push(['sky', B.sky === 'day' ? '🌅 Sunset' : B.sky === 'sunset' ? '🌙 Night' : '☀️ Day']);
+  if(B.night) want.push(['stars', '🔭 Look at the stars']);
+  want.push(['radio', radioOn >= 0 ? '📻 Next station' : '📻 Radio']);
+  want.push(['gps', '🛰 GPS']);
+  want.push(['sonar', B.sonar ? '📡 Hide fish finder' : '📡 Fish finder']);
+  }
+  const key = want.map(w=>w[1]).join() + (B.view) + !!B.gaze;
+  if(bar.dataset.key === key) return;
+  bar.dataset.key = key; bar.innerHTML = '';
+  for(const [id, label] of want){
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = label;
+    b.onclick = e=>{ e.stopPropagation(); boatAction(id); };
+    bar.appendChild(b);
+  }
+  if(B.view === 'fp' && !B.gaze){
+    const steer = document.createElement('div'); steer.className = 'steer';
+    [['◀', 'L'], ['▲', 'U'], ['▼', 'D'], ['▶', 'R']].forEach(([t, k])=>{
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t;
+      const on = v=>{ if(!bt) return; if(k === 'L') bt.btnSteer = v ? -1 : 0; if(k === 'R') bt.btnSteer = v ? 1 : 0;
+        if(v && k === 'U') bt.throttle = Math.min(1, bt.throttle + .34); if(v && k === 'D') bt.throttle = Math.max(-.2, bt.throttle - .34); };
+      b.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); on(true); });
+      b.addEventListener('pointerup', ()=>on(false)); b.addEventListener('pointercancel', ()=>on(false)); b.addEventListener('pointerleave', ()=>on(false));
+      steer.appendChild(b);
+    });
+    bar.appendChild(steer);
+  }
 }
+function setSky(k){ const B = bt; B.sky = k; B.sunset = k !== 'day'; B.night = k === 'night'; }
+function boatAction(id){
+  const B = bt; if(!B) return;
+  Audio_.blip(700);
+  if(id === 'view'){ B.view = B.view === 'fp' ? 'top' : 'fp'; B.goal = null; if(B.view === 'fp' && B.throttle <= 0) B.throttle = 0; boatBar(); }
+  else if(id === 'photo') takePhoto();
+  else if(id === 'dock') openIsle(B.near.o);
+  else if(id === 'fish') startFishing();
+  else if(id === 'race') startBuoyRace();
+  else if(id === 'sky'){ setSky(B.sky === 'day' ? 'sunset' : B.sky === 'sunset' ? 'night' : 'day');
+    if(B.sky === 'night' && !sv().starHint){ sv().starHint = 1; toast('🌙 Night! Tap 🔭 to learn the real constellations'); } boatBar(); }
+  else if(id === 'stars'){ B.gaze = B.gaze ? null : {az:(B.h + Math.PI/2 + Math.PI*2) % (Math.PI*2), alt:.65, sel:null}; showPads(!B.gaze); boatBar(); }
+  else if(id === 'radio'){ radioNext(); boatBar(); }
+  else if(id === 'gps') gpsMenu();
+  else if(id === 'crew'){ B.crew = !B.crew; B.v = 0; B.throttle = 0; B.goal = null; toast(B.crew ? `You’re aboard! ${friendName()} is steering` : 'Back on your own boat'); boatBar(); }
+  else if(id === 'sonar'){ B.sonar = !B.sonar; boatBar(); }
+}
+
+/* ---- sailing ---- */
 function updateBoat(dt){
   const B = bt; if(!B) return;
   B.t += dt;
-  const v = stickVec(), easy = save.mode === 'easy';
-  let steer = v.x;
-  if(Math.abs(steer) < .1 && B.goal !== null){ const d = B.goal - B.x; steer = Math.abs(d) < 30 ? 0 : Math.sign(d); if(!steer) B.goal = null; }
-  const top = easy ? 300 : 380;
-  B.vx += steer * 520 * dt; B.vx *= Math.pow(.55, dt);
-  B.vx = clamp(B.vx, -top, top);
-  B.x = clamp(B.x + B.vx*dt, 150, SEA_W - 150);
-  if(B.jy < 0 || B.jv < 0){ B.jv += 1100*dt; B.jy = Math.min(0, B.jy + B.jv*dt); if(B.jy === 0 && B.jv > 0){ B.jv = 0; Audio_.noise(.25, 900, 1, .1); } }
-  if(Math.abs(B.vx) > 60 && Math.random() < dt*30) B.wake.push({x:B.x - Math.sign(B.vx)*52, t:0, s:rnd(.6, 1.4)});
-  for(let i=B.wake.length-1; i>=0; i--){ B.wake[i].t += dt; if(B.wake[i].t > 1.4) B.wake.splice(i, 1); }
-  for(let i=B.fx.length-1; i>=0; i--){ const f = B.fx[i]; f.t += dt; f.x += f.vx*dt; f.y += f.vy*dt; f.vy += 500*dt; if(f.t > f.life) B.fx.splice(i, 1); }
-  // things on the water
+  B.lst = (B.lst + dt*.5) % 360;
+  if(B.gaze){ B.v *= Math.pow(.3, dt); boatBar(); return; }
+  const v = stickVec(), maxV = boatMaxV();
+  if(B.crew){                                                // she steers; you ride along
+    const f = Net.friend;
+    if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null){ B.crew = false; toast('Back on your own boat'); }
+    else { B.x = f.fx; B.y = f.fy; B.h = f.fh; B.v = 0; }
+    if(B.fish){ updateFishing(dt); }
+  }
+  else if(B.fish){ updateFishing(dt); B.v *= Math.pow(.2, dt); }
+  else if(B.view === 'fp'){
+    const steer = (Math.abs(v.x) > .15 ? v.x : 0) || B.btnSteer || 0;
+    if(Math.abs(v.y) > .3) B.throttle = clamp(B.throttle - v.y*dt*1.2, -.2, 1);
+    B.h += steer * 1.3 * dt * (0.4 + Math.min(1, Math.abs(B.v)/120));
+    B.v = lerp(B.v, B.throttle * maxV, Math.min(1, dt*.8));
+  } else {
+    let want = null;
+    if(Math.hypot(v.x, v.y) > .2){ want = Math.atan2(v.y, v.x); B.goal = null; B.v = lerp(B.v, maxV*Math.min(1, Math.hypot(v.x, v.y)), Math.min(1, dt*.9)); }
+    else if(B.goal){
+      const dx = B.goal.x - B.x, dy = B.goal.y - B.y, d = Math.hypot(dx, dy);
+      if(d < 40){ B.goal = null; } else { want = Math.atan2(dy, dx); B.v = lerp(B.v, Math.min(maxV, d*1.2), Math.min(1, dt*.9)); }
+    } else B.v = lerp(B.v, 0, Math.min(1, dt*.7));
+    if(want !== null){ let da = want - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2; B.h += clamp(da, -2.2*dt, 2.2*dt); }
+  }
+  const ox = B.x, oy = B.y;
+  B.x = clamp(B.x + Math.cos(B.h)*B.v*dt, 60, SEA.w - 60);
+  B.y = clamp(B.y + Math.sin(B.h)*B.v*dt, 60, SEA.h - 60);
+  B.odo += Math.hypot(B.x - ox, B.y - oy);
+  if((B.x === 60 || B.x === SEA.w - 60 || B.y === 60 || B.y === SEA.h - 60) && Math.random() < dt*2) toast('The edge of the map! Turn around');
+  for(const is of ISLES){                                     // you can't sail through land
+    const dx = B.x - is.x, dy = B.y - is.y, d = Math.hypot(dx, dy), lim = is.r + 26;
+    if(d < lim){ B.x = is.x + dx/d*lim; B.y = is.y + dy/d*lim; B.v *= .5; }
+  }
+  if(Math.abs(B.v) > 70 && Math.random() < dt*25) B.wake.push({x:B.x - Math.cos(B.h)*40, y:B.y - Math.sin(B.h)*40, t:0});
+  for(let i=B.wake.length-1; i>=0; i--){ B.wake[i].t += dt; if(B.wake[i].t > 2) B.wake.splice(i, 1); }
+  for(let i=B.fx.length-1; i>=0; i--){ const f = B.fx[i]; f.t += dt; f.z += f.vz*dt; f.vz -= 600*dt; f.x += f.vx*dt; f.y += f.vy*dt; if(f.t > f.life) B.fx.splice(i, 1); }
+  if(B.flash > 0) B.flash -= dt;
+  // what is close by
+  B.near = null;
+  for(const is of ISLES) if(Math.hypot(B.x - is.x, B.y - is.y) < is.r + 120) B.near = {kind:'isle', o:is};
+  if(!B.near) for(const s of FISH_SPOTS) if(Math.hypot(B.x - s.x, B.y - s.y) < 110) B.near = {kind:'spot', o:s};
+  if(!B.near && Math.hypot(B.x - RACE_BUOYS[0][0], B.y - RACE_BUOYS[0][1] + 120) < 110) B.near = {kind:'race'};
+  boatBar();
+  // things afloat
   for(const it of B.items){
-    if(it.got || Math.abs(it.x - B.x) > 46) continue;
+    if(it.got || Math.hypot(it.x - B.x, it.y - B.y) > 44) continue;
     if(it.k === 'rock'){
-      if(B.jy > -20 && B.t - (B.bump || -9) > .8){ B.bump = B.t; B.vx = -Math.sign(B.vx || 1) * 160; it.got = false; Audio_.thud(); boatSplash(it.x, 10); toast(pick(['Bump! Jump over the rocks', 'Watch out for rocks!'])); B.x += Math.sign(B.x - it.x) * 6; }
+      if(B.t - (B.bump || -9) > .8){ B.bump = B.t; B.v = -Math.abs(B.v)*.4 - 40; Audio_.thud(); splashAt(it.x, it.y, 10); toast('Bump! Steer around the rocks'); }
       continue;
     }
-    it.got = true; B.got++;
-    if(it.k === 'pearl'){ save.pearls++; Audio_.blip(980); boatSplash(it.x, 8, '#ffd479'); }
+    it.got = true;
+    if(it.k === 'pearl'){ save.pearls++; Audio_.blip(980); splashAt(it.x, it.y, 8, '#ffd479'); }
+    else if(it.k === 'shell'){ sv().shells++; Audio_.sparkle(); splashAt(it.x, it.y, 10, '#b8fff0');
+      toast(sv().lit ? 'A glowing shell! +2 🫧' : `A glowing shell! ${Math.min(5, sv().shells)}/5 for the lighthouse keeper`); if(sv().lit) save.pearls += 2; }
     else {
       const known = abcKnown(), a = pick(known.length ? known.concat([abcNext() || ABC[0]]) : [abcNext() || ABC[0]]);
       save.pearls += 2; Audio_.sparkle();
@@ -1636,131 +1811,459 @@ function updateBoat(dt){
     }
     persist(); updateHud();
   }
-  for(const is of B.isles){
-    if(!is.open && Math.abs(is.x - B.x) < 120 && Math.abs(B.vx) < 140){
-      is.open = true; save.pearls += 12; persist(); updateHud(); Audio_.great();
-      boatSplash(is.x + 60, 30, '#ffd479'); toast('Treasure island! +12 🫧');
+  // sea life
+  for(const d of B.dol){
+    const db = Math.hypot(d.x - B.x, d.y - B.y);
+    if(db < 600 && Math.abs(B.v) > 80){ const tx = B.x + Math.cos(B.h + 1.3)*120, ty = B.y + Math.sin(B.h + 1.3)*120; d.a = Math.atan2(ty - d.y, tx - d.x); d.sp = Math.abs(B.v)*1.1; }
+    else { d.a += Math.sin(B.t*.3 + d.ph)*dt*.6; d.sp = 70; }
+    d.x = clamp(d.x + Math.cos(d.a)*d.sp*dt, 100, SEA.w - 100); d.y = clamp(d.y + Math.sin(d.a)*d.sp*dt, 100, SEA.h - 100);
+    if(d.jump >= 0){ d.jump += dt/1.1; if(d.jump >= 1){ d.jump = -1; splashAt(d.x, d.y, 6); } }
+    else if(Math.random() < dt*(db < 600 ? .5 : .15)) d.jump = 0;
+  }
+  const W = B.whale;
+  if(W.up >= 0){ W.up += dt; if(W.up > 7){ W.up = -1; W.next = rnd(18, 30); } }
+  else { W.next -= dt; if(W.next <= 0){ const a = B.h + rnd(-.5, .5), d = rnd(500, 900);
+    W.x = clamp(B.x + Math.cos(a)*d, 200, SEA.w - 200); W.y = clamp(B.y + Math.sin(a)*d, 200, SEA.h - 200);
+    if(ISLES.every(i=>Math.hypot(W.x - i.x, W.y - i.y) > i.r + 200)){ W.up = 0; Audio_.noise(1.2, 400, .7, .12); if(!sv().photos.whale) toast('A whale! Quick, take a photo 📷'); } else W.next = 3; } }
+  for(const tu of B.turtles){ tu.a += Math.sin(B.t*.2 + tu.ph)*dt*.3; tu.x += Math.cos(tu.a)*22*dt; tu.y += Math.sin(tu.a)*22*dt;
+    const ti = ISLES[4]; if(Math.hypot(tu.x - ti.x, tu.y - ti.y) < ti.r + 40 || Math.hypot(tu.x - ti.x, tu.y - ti.y) > 700) tu.a += Math.PI*dt; }
+  for(const gl of B.gulls) gl.a += gl.sp*dt;
+  if(Math.abs(B.v) > 180 && Math.random() < dt*.2 && !B.fly.length){        // flying fish skip past a fast boat
+    for(let i=0; i<6; i++) B.fly.push({x:B.x + Math.cos(B.h + .5)*200 + rnd(-40, 40), y:B.y + Math.sin(B.h + .5)*200 + rnd(-40, 40), a:B.h + rnd(-.2, .2), t:-i*.12}); }
+  for(let i=B.fly.length-1; i>=0; i--){ const f = B.fly[i]; f.t += dt; if(f.t > 0){ f.x += Math.cos(f.a)*260*dt; f.y += Math.sin(f.a)*260*dt; } if(f.t > 1.4) B.fly.splice(i, 1); }
+  if(B.race) updateBuoyRace(dt);
+}
+function splashAt(x, y, n, col){ for(let i=0; i<n; i++) bt.fx.push({x, y, z:0, vx:rnd(-60, 60), vy:rnd(-60, 60), vz:rnd(120, 280), t:0, life:rnd(.4, .8), c:col || pick(['#ffffff','#bdf7ff'])}); }
+function boatHorn(){
+  const B = bt; if(!B || B.t - B.horn < 1.2) return;
+  B.horn = B.t;
+  Audio_.tone(196, .5, 'sawtooth', .08); Audio_.tone(247, .5, 'sawtooth', .06, .02);
+  B.dol.forEach((d, i)=>{ if(Math.hypot(d.x - B.x, d.y - B.y) < 800) setTimeout(()=>{ if(bt) d.jump = 0; }, 200 + i*200); });
+  if(B.seals.some(s=>Math.hypot(s.x - B.x, s.y - B.y) < 600)) setTimeout(()=>{ Audio_.sweep(500, 300, .2, 'square', .05); Audio_.sweep(520, 320, .2, 'square', .05, .3); }, 400);
+}
+const boatJump = ()=>{ if(!fishTap()) takePhoto(); };     // the A pad reels in a fish, or is the camera
+
+/* ---- photos ---- */
+function photoTargets(){
+  const B = bt, out = [];
+  B.dol.forEach(d=>out.push({k:'dolphin', x:d.x, y:d.y}));
+  if(B.whale.up >= 0) out.push({k:'whale', x:B.whale.x, y:B.whale.y});
+  B.turtles.forEach(t=>out.push({k:'turtle', x:t.x, y:t.y}));
+  B.seals.forEach(s=>out.push({k:'seal', x:s.x, y:s.y}));
+  B.gulls.forEach(g=>out.push({k:'gull', x:g.cx + Math.cos(g.a)*g.r, y:g.cy + Math.sin(g.a)*g.r}));
+  B.fly.forEach(f=>{ if(f.t > 0) out.push({k:'flyfish', x:f.x, y:f.y}); });
+  return out;
+}
+function takePhoto(){
+  const B = bt; if(!B || B.t - B.shot < .6) return;
+  B.shot = B.t; B.flash = .25; Audio_.noise(.08, 3000, 1, .15, 'highpass');
+  let best = null, bs = 1e9;
+  for(const o of photoTargets()){
+    const dx = o.x - B.x, dy = o.y - B.y, d = Math.hypot(dx, dy);
+    if(B.view === 'fp'){ let da = Math.atan2(dy, dx) - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2; if(Math.abs(da) > .45 || d > 1100) continue; }
+    else if(d > 520) continue;
+    if(d < bs){ bs = d; best = o; }
+  }
+  if(!best){ toast('Nothing in the picture. Point at a creature and try again!'); return; }
+  const S = sv(), first = !S.photos[best.k];
+  S.photos[best.k] = (S.photos[best.k] || 0) + 1;
+  if(first){ save.pearls += 5; updateHud(); toast(`New photo: ${PHOTO_KINDS[best.k]}! +5 🫧 (${Object.keys(S.photos).length}/${Object.keys(PHOTO_KINDS).length} in your journal)`); Audio_.great(); }
+  else toast(`Snap! Another ${PHOTO_KINDS[best.k].toLowerCase()}`);
+  persist();
+}
+
+/* ---- fishing ---- */
+function startFishing(){
+  const B = bt; if(!B || B.fish || !B.near || B.near.kind !== 'spot') return;
+  B.fish = {phase:'wait', t:0, wait:rnd(1.6, 4.2), spot:B.near.o};
+  Audio_.sweep(900, 300, .3, 'sine', .08);
+  toast('Wait for the bobber to dip…');
+}
+function updateFishing(dt){
+  const F = bt.fish; F.t += dt;
+  if(F.phase === 'wait' && F.t > F.wait){ F.phase = 'bite'; F.t = 0; Audio_.tone(880, .12, 'square', .08); Audio_.tone(880, .12, 'square', .08, .15); }
+  else if(F.phase === 'bite' && F.t > (save.mode === 'easy' ? 1.5 : 1.0)){ F.phase = 'miss'; F.t = 0; toast('It got away! Try again'); }
+  else if((F.phase === 'miss' || F.phase === 'caught') && F.t > 2.4) bt.fish = null;
+}
+function fishTap(){
+  const F = bt && bt.fish; if(!F) return false;
+  if(F.phase === 'wait'){ F.phase = 'miss'; F.t = 0; toast('Too soon! The fish swam off'); return true; }
+  if(F.phase !== 'bite') return true;
+  const k = Math.random() < .06 ? 'golden' : pick(F.spot.kinds), info = FISHES[k], S = sv();
+  const first = !S.fish[k]; S.fish[k] = (S.fish[k] || 0) + 1;
+  F.phase = 'caught'; F.t = 0; F.kind = k;
+  save.pearls += info.rare ? 25 : first ? 6 : 2; persist(); updateHud();
+  Audio_.great();
+  toast(`${info.rare ? 'WOW! ' : ''}You caught a ${info.en.toLowerCase()}! In Russian: ${info.ru} (${info.tr})` + (first ? ' · new in your fish book' : ''));
+  setTimeout(()=>Audio_.say(info.ru), 500);
+  return true;
+}
+
+/* ---- buoy race ---- */
+function startBuoyRace(){ const B = bt; B.race = {i:1, t:0}; B.throttle = Math.max(B.throttle, .6); Audio_.great(); toast('Go! Sail through the buoys in order'); }
+function updateBuoyRace(dt){
+  const R = bt.race; R.t += dt;
+  const [x, y] = RACE_BUOYS[R.i % RACE_BUOYS.length];
+  if(Math.hypot(bt.x - x, bt.y - y) < 85){
+    Audio_.tone(660 + R.i*50, .2, 'triangle', .12); splashAt(x, y, 14, '#ffd479');
+    R.i++;
+    if(R.i > RACE_BUOYS.length){
+      const S = sv(), best = S.raceBest, tm = Math.round(R.t*10)/10, better = !best || tm < best;
+      if(better) S.raceBest = tm;
+      const pearls = 10 + (better && best ? 10 : 0);
+      save.pearls += pearls; persist(); updateHud(); bt.race = null;
+      result('🏁', better ? 'New best time!' : 'Race finished!', `${tm} seconds${best ? ' (best ' + Math.min(best, tm) + 's)' : ''}. +${pearls} 🫧`, ()=>{ openLayer(null); showHud(true); });
     }
   }
-  for(const d of B.dol){
-    if(d.jump >= 0){ d.jump += dt / 1.1; if(d.jump >= 1){ d.jump = -1; d.flip = 0; boatSplash(B.x + d.off + 40, 6); } }
-    else if(Math.random() < dt*.25) d.jump = 0;
-  }
-  for(const g of B.gulls){ g.x += (g.sp + (g.scared > 0 ? 160 : 0)) * dt; if(g.scared > 0) g.scared -= dt; if(g.x > B.x + VW*2) g.x = B.x - VW*1.5; }
+  if(R && R.t > 240) bt.race = null;
 }
-function boatSplash(x, n, col){ for(let i=0; i<n; i++) bt.fx.push({x, y:0, vx:rnd(-120, 120), vy:rnd(-260, -80), t:0, life:rnd(.4, .8), c:col || pick(['#ffffff','#bdf7ff','#7df0ff']), r:rnd(2, 4.5)}); }
-function drawBoat(t){
-  const B = bt, g = ctx, S = clamp(Math.min(VW, VH*1.3)/820, .55, 1.6);
-  const hor = VH*.42, sea = VH*.62;                 // horizon, and where the boat floats
-  const camX = B.x - VW*.45;
-  // sky, sun, clouds
-  const sk = g.createLinearGradient(0, 0, 0, hor);
-  sk.addColorStop(0, '#3a86d6'); sk.addColorStop(1, '#cdeafb');
-  g.fillStyle = sk; g.fillRect(0, 0, VW, hor + 2);
-  g.globalCompositeOperation = 'lighter';
-  const sg = g.createRadialGradient(VW*.78, VH*.14, 0, VW*.78, VH*.14, 260*S);
-  sg.addColorStop(0, 'rgba(255,250,225,.9)'); sg.addColorStop(.12, 'rgba(255,245,210,.45)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
-  g.fillStyle = sg; g.fillRect(0, 0, VW, hor);
-  g.globalCompositeOperation = 'source-over';
-  for(let i=0; i<6; i++){
-    const cx = ((i*620 - camX*.15) % (VW + 600) + VW + 600) % (VW + 600) - 300, cy = VH*(.08 + (i % 3)*.07);
-    g.fillStyle = 'rgba(255,255,255,.88)';
-    for(let k=0; k<5; k++){ g.beginPath(); g.arc(cx + k*28*S - 56*S, cy - Math.sin(k/4*Math.PI)*16*S, (22 + (k % 2)*10)*S, 0, 7); g.fill(); }
+
+/* ---- island visits ---- */
+function openIsle(is){
+  const B = bt, S = sv();
+  B.v = 0; B.throttle = 0; B.goal = null;
+  $('#dockTitle').textContent = is.name;
+  const body = $('#dockBody'); body.innerHTML = '';
+  const p = t=>{ const e = document.createElement('p'); e.className = 'sub'; e.textContent = t; body.appendChild(e); return e; };
+  const btn = (label, cls, fn)=>{ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = label; b.onclick = fn; body.appendChild(b); return b; };
+  if(is.id === 'dock'){
+    p('Your boat is tied up safe. Dive down to swim back into Bubble Town, or sail off again.');
+    btn('Dive down ⤓', 'gold', ()=>{ openLayer(null); boatDive(); });
+    seaJournal(body);
+  } else if(is.id === 'treasure'){
+    if(B.visited.treasure){ p('You already dug up the treasure here this trip. Come back next time!'); }
+    else {
+      p('An X is scratched into the sand under the palm tree. Tap DIG three times!');
+      let n = 0; const b = btn('⛏️ Dig!', 'gold', ()=>{
+        n++; Audio_.crunch(); b.textContent = n < 3 ? '⛏️ Dig! (' + n + '/3)' : '…';
+        if(n === 3){ B.visited.treasure = 1; const bonus = Math.random() < .2 ? 30 : 15; save.pearls += bonus; persist(); updateHud(); Audio_.great();
+          b.remove(); p(`🪙 A treasure chest! +${bonus} 🫧` + (bonus > 15 ? ' A big one!' : '')); }
+      });
+    }
+  } else if(is.id === 'port'){
+    p('The harbour master sells boat gear for pearls. You have ' + save.pearls + ' 🫧.');
+    const grid = document.createElement('div'); grid.className = 'grid2'; body.appendChild(grid);
+    for(const it of SHOP){
+      const own = S.owned[it.id], inUse = (it.kind === 'sail' && S.sail === it.v) || (it.kind === 'flag' && S.flag === it.v);
+      const t = document.createElement('div'); t.className = 'tile' + (inUse ? ' sel' : '') + (!own && (save.pearls < it.cost || (it.need && !S.owned[it.need])) ? ' locked' : '');
+      t.innerHTML = `<span class="big">${it.ic}</span>${it.name}<span class="cost">${own ? (it.kind === 'speed' ? 'Yours' : inUse ? 'In use' : 'Tap to use') : it.cost + ' 🫧'}</span>`;
+      t.onclick = ()=>{
+        if(own){ if(it.kind === 'sail') S.sail = inUse ? 'plain' : it.v; if(it.kind === 'flag') S.flag = inUse ? 'plain' : it.v; persist(); openIsle(is); return; }
+        if(it.need && !S.owned[it.need]){ toast('Buy the bigger sail first'); Audio_.nope(); return; }
+        if(save.pearls < it.cost){ toast('Not enough pearls yet'); Audio_.nope(); return; }
+        save.pearls -= it.cost; S.owned[it.id] = 1; if(it.kind === 'sail') S.sail = it.v; if(it.kind === 'flag') S.flag = it.v;
+        persist(); updateHud(); Audio_.great(); openIsle(is);
+      };
+      grid.appendChild(t);
+    }
+  } else if(is.id === 'light'){
+    if(S.lit){ p('The lighthouse shines every night now and guides boats home. The keeper waves. Try sailing at night and looking at the stars!');
+      btn(B.night ? '☀️ Back to daytime' : '🌙 Sail at night', 'gold', ()=>{ setSky(B.night ? 'day' : 'night'); openLayer(null); showHud(true); boatBar(); }); }
+    else if(S.shells >= 5){
+      p('“You found five glowing shells! Let us light the lamp together.”');
+      btn('💡 Light the lighthouse', 'gold', ()=>{ S.lit = true; S.shells -= 5; save.pearls += 20; persist(); updateHud(); Audio_.great(); setSky('night'); openLayer(null); showHud(true); boatBar(); toast('The lighthouse is lit! +20 🫧 Its beam guides you at night'); });
+    } else p(`“My lamp has gone dark. Glowing shells float out on the sea. Bring me five and we can light it again.” You have ${S.shells}/5.`);
+  } else if(is.id === 'turtle'){
+    if(B.visited.turtle){ p('The baby turtles are all safe in the sea. Look for them swimming near the beach!'); }
+    else {
+      p('Baby turtles are hatching! Tap each one to help it reach the water.');
+      const row = document.createElement('div'); row.className = 'row'; body.appendChild(row);
+      let left = 6;
+      for(let i=0; i<6; i++){ const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = '🐢'; b.style.fontSize = '30px';
+        b.onclick = ()=>{ b.style.transition = 'transform .5s, opacity .5s'; b.style.transform = 'translateY(40px)'; b.style.opacity = '0'; b.disabled = true; Audio_.pop(.1);
+          if(--left === 0){ B.visited.turtle = 1; save.pearls += 10; persist(); updateHud(); Audio_.great(); setTimeout(()=>p('All safe! The turtles say thank you. +10 🫧'), 400); } };
+        row.appendChild(b); }
+    }
   }
-  // gulls
-  g.strokeStyle = 'rgba(40,50,60,.75)'; g.lineCap = 'round'; g.lineWidth = 2*S;
-  for(const gl of B.gulls){ const x = gl.x - camX*.8, y = VH*gl.y + Math.sin(B.t + gl.ph)*8; if(x < -30 || x > VW + 30) continue;
-    const f = Math.sin(B.t*8 + gl.ph)*6*S; g.beginPath(); g.moveTo(x - 12*S, y - f); g.quadraticCurveTo(x - 5*S, y - 4*S, x, y); g.quadraticCurveTo(x + 5*S, y - 4*S, x + 12*S, y - f); g.stroke(); }
-  // distant islands
-  g.fillStyle = '#7fa9a6';
-  for(let i=0; i<8; i++){ const x = ((i*900 - camX*.3) % (VW + 900) + VW + 900) % (VW + 900) - 450;
-    g.beginPath(); g.ellipse(x, hor + 2, (90 + (i % 3)*50)*S, (18 + (i % 2)*12)*S, 0, Math.PI, 0); g.fill(); }
-  // the sea
-  const sw = g.createLinearGradient(0, hor, 0, VH);
-  sw.addColorStop(0, '#5fb8cf'); sw.addColorStop(.35, '#2a8fb0'); sw.addColorStop(1, '#0b4d6e');
-  g.fillStyle = sw; g.fillRect(0, hor, VW, VH - hor);
-  g.globalCompositeOperation = 'lighter';
-  for(let k=0; k<7; k++){ const y = hor + (k + 1)*(sea - hor)/8; g.strokeStyle = 'rgba(255,255,255,' + (.05 + k*.012) + ')'; g.lineWidth = 1 + k*.3;
-    g.beginPath(); for(let x=0; x<=VW; x+=20){ const yy = y + Math.sin((x + camX*(.3 + k*.1))*.02 + B.t*(1 + k*.2) + k)*(1 + k*.6); x ? g.lineTo(x, yy) : g.moveTo(x, yy); } g.stroke(); }
-  g.globalCompositeOperation = 'source-over';
-  // islands with treasure
-  for(const is of B.isles){
-    const x = is.x - camX; if(x < -400 || x > VW + 400) continue;
-    g.fillStyle = '#e8cf95'; g.beginPath(); g.ellipse(x, sea + 6, 170*S, 46*S, 0, Math.PI, 0); g.fill();
-    g.fillStyle = '#d9b877'; g.beginPath(); g.ellipse(x, sea + 6, 170*S, 12*S, 0, 0, Math.PI); g.fill();
-    g.strokeStyle = '#7a5530'; g.lineWidth = 7*S; g.beginPath(); g.moveTo(x - 40*S, sea - 30*S); g.quadraticCurveTo(x - 50*S, sea - 90*S, x - 30*S, sea - 150*S); g.stroke();
-    g.fillStyle = '#3f9f4a';
-    for(let k=0; k<5; k++){ const a = -Math.PI*.95 + k*Math.PI*.22 + Math.sin(B.t + k)*.05; g.save(); g.translate(x - 30*S, sea - 150*S); g.rotate(a);
-      g.beginPath(); g.ellipse(40*S, 0, 44*S, 9*S, 0, 0, 7); g.fill(); g.restore(); }
-    // the chest
-    const cx = x + 50*S, cy = sea - 26*S;
-    g.fillStyle = '#8a5a2b'; roundRect(g, cx - 24*S, cy - 18*S, 48*S, 26*S, 4*S); g.fill();
-    g.fillStyle = '#e0b04a'; g.fillRect(cx - 24*S, cy - 8*S, 48*S, 4*S);
-    if(is.open){ g.fillStyle = '#6e4520'; g.save(); g.translate(cx - 24*S, cy - 18*S); g.rotate(-.9); roundRect(g, 0, -14*S, 48*S, 14*S, 4*S); g.fill(); g.restore();
-      g.globalCompositeOperation = 'lighter'; const gg = g.createRadialGradient(cx, cy - 20*S, 2, cx, cy - 20*S, 50*S);
-      gg.addColorStop(0, 'rgba(255,220,120,.7)'); gg.addColorStop(1, 'rgba(255,220,120,0)'); g.fillStyle = gg; g.fillRect(cx - 50*S, cy - 70*S, 100*S, 100*S); g.globalCompositeOperation = 'source-over'; }
-    else { g.fillStyle = '#a06a32'; roundRect(g, cx - 24*S, cy - 30*S, 48*S, 14*S, 6*S); g.fill(); }
+  openLayer('lDock');
+}
+function seaJournal(box){
+  const S = sv();
+  const h = document.createElement('p'); h.className = 'eyebrow'; h.style.marginTop = '18px'; h.textContent = 'Sea journal'; box.appendChild(h);
+  const fl = document.createElement('p'); fl.className = 'note';
+  const caught = Object.keys(FISHES).filter(k=>S.fish[k]);
+  fl.innerHTML = `<b>Fish book ${caught.length}/${Object.keys(FISHES).length}:</b> ` + (caught.length ? caught.map(k=>`${FISHES[k].en} <span class="cyr">${FISHES[k].ru}</span> ×${S.fish[k]}`).join(' · ') : 'nothing yet. Stop at a bubbling spot and fish!');
+  box.appendChild(fl);
+  const ph = document.createElement('p'); ph.className = 'note';
+  const shots = Object.keys(PHOTO_KINDS).filter(k=>S.photos[k]);
+  ph.innerHTML = `<b>Photos ${shots.length}/${Object.keys(PHOTO_KINDS).length}:</b> ` + (shots.length ? shots.map(k=>PHOTO_KINDS[k]).join(' · ') : 'none yet. Point the camera at sea creatures!');
+  box.appendChild(ph);
+  if(S.raceBest){ const r = document.createElement('p'); r.className = 'note'; r.innerHTML = `<b>Buoy race best:</b> ${S.raceBest} seconds`; box.appendChild(r); }
+  const st = CONSTELLATIONS.filter(c=>S.stars && S.stars[c.id]);
+  const sp = document.createElement('p'); sp.className = 'note';
+  sp.innerHTML = `<b>Constellations ${st.length}/${CONSTELLATIONS.length}:</b> ` + (st.length ? st.map(c=>`${c.en} <span class="cyr">${c.ru}</span>`).join(' · ') : 'sail at night and tap 🔭 to find them.');
+  box.appendChild(sp);
+}
+
+/* ---- drawing: shared bits ---- */
+function seaSky(){
+  if(bt.night) return {top:'#03061a', mid:'#0b1338', hor:'#1d2a5a', sea0:'#1b2a55', sea1:'#0d1838', sea2:'#040817'};
+  if(bt.sunset) return {top:'#2b2459', mid:'#c4577a', hor:'#ffb36b', sea0:'#d98a6f', sea1:'#3a3f78', sea2:'#16183a'};
+  return {top:'#3a86d6', mid:'#86c3ee', hor:'#d7eefb', sea0:'#6cc3d6', sea1:'#2a8fb0', sea2:'#0b4d6e'};
+}
+function sailPaint(g, x0, y0, x1, y1, base){
+  const S = sv();
+  if(S.sail === 'rainbow'){ const gr = g.createLinearGradient(x0, y0, x1, y1); ['#ff5f5f','#ffb347','#ffe066','#6ee69a','#5fb8ff','#b98cff'].forEach((c, i)=>gr.addColorStop(i/5, c)); return gr; }
+  const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, base); return gr;
+}
+function sailDecor(g, cx, cy, s){
+  const S = sv();
+  if(S.sail === 'stripes'){ g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 4*s; for(let k=-2; k<=2; k++){ g.beginPath(); g.moveTo(cx - 30*s, cy + k*12*s); g.lineTo(cx + 30*s, cy + k*12*s); g.stroke(); } }
+  if(S.sail === 'stars'){ g.fillStyle = '#ffe066'; for(let k=0; k<4; k++){ const x = cx + Math.cos(k*1.7)*14*s, y = cy + Math.sin(k*2.3)*18*s; star(g, x, y, 5*s); } }
+}
+function star(g, x, y, r){ g.beginPath(); for(let k=0; k<10; k++){ const rr = k % 2 ? r*.45 : r, a = -Math.PI/2 + k*Math.PI/5; k ? g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr) : g.moveTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); g.fill(); }
+function flagPaint(g, x, y, s, t){
+  const S = sv(), w = Math.sin(t*6)*3*s;
+  g.fillStyle = S.flag === 'heart' ? '#ff6f9c' : S.flag === 'star' ? '#5f8dff' : '#ff6f9c';
+  g.beginPath(); g.moveTo(x, y); g.lineTo(x + 26*s, y + 6*s + w); g.lineTo(x, y + 14*s); g.closePath(); g.fill();
+  if(S.flag === 'heart'){ g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 8*s, y + 6*s, 2.4*s, 0, 7); g.arc(x + 12*s, y + 6*s, 2.4*s, 0, 7); g.fill(); }
+  if(S.flag === 'star'){ g.fillStyle = '#ffe066'; star(g, x + 9*s, y + 7*s, 4*s); }
+}
+
+/* ---- drawing: from above ---- */
+function drawSeaTop(t){
+  const B = bt, g = ctx, z = clamp(Math.min(VW, VH)/820, .55, 1.15), C = seaSky();
+  const sx = x=>(x - B.x)*z + VW/2, sy = y=>(y - B.y)*z + VH/2;
+  g.fillStyle = C.sea1; g.fillRect(0, 0, VW, VH);
+  // moving wave marks
+  g.strokeStyle = 'rgba(255,255,255,.14)'; g.lineWidth = 1.6; g.lineCap = 'round';
+  const step = 90; const x0 = Math.floor((B.x - VW/z/2)/step)*step, y0 = Math.floor((B.y - VH/z/2)/step)*step;
+  for(let wx=x0; wx<B.x + VW/z/2 + step; wx+=step) for(let wy=y0; wy<B.y + VH/z/2 + step; wy+=step){
+    const h = Math.sin(wx*12.9898 + wy*78.233)*43758.5453, o = (h - Math.floor(h))*step, ph = t*1.2 + o*.1;
+    const x = sx(wx + o + Math.sin(ph)*8), y = sy(wy + (o*1.7) % step);
+    g.beginPath(); g.arc(x, y, 9*z, Math.PI*1.1, Math.PI*1.9); g.stroke();
   }
-  // the shark friend, a fin cutting the water alongside
-  if(shark.tame){ const fx = VW*.45 - 140*S + Math.sin(B.t*.8)*40*S, fy = sea + 26*S + seaWave(B.x - 140, B.t);
-    g.fillStyle = '#5d86a3'; g.beginPath(); g.moveTo(fx, fy); g.quadraticCurveTo(fx + 10*S, fy - 34*S, fx + 26*S, fy - 40*S); g.quadraticCurveTo(fx + 22*S, fy - 16*S, fx + 34*S, fy); g.fill(); }
-  // dolphins
-  for(const d of B.dol){
-    if(d.jump < 0) continue;
-    const x = VW*.45 + d.off*S, u = d.jump, y = sea + 30*S - Math.sin(u*Math.PI)*150*S;
-    g.save(); g.translate(x + u*80*S, y); g.rotate(-Math.PI/2 + u*Math.PI + (d.flip ? u*Math.PI*2 : 0));
-    const dg = g.createLinearGradient(0, -12*S, 0, 12*S); dg.addColorStop(0, '#5e7f9a'); dg.addColorStop(1, '#c9dbe6');
-    g.fillStyle = dg; g.beginPath(); g.ellipse(0, 0, 34*S, 11*S, 0, 0, 7); g.fill();
-    g.beginPath(); g.moveTo(-30*S, 0); g.lineTo(-46*S, -10*S); g.lineTo(-42*S, 0); g.lineTo(-46*S, 10*S); g.fill();
-    g.beginPath(); g.moveTo(0, -10*S); g.lineTo(-8*S, -22*S); g.lineTo(8*S, -10*S); g.fill();
-    g.fillStyle = '#10202c'; g.beginPath(); g.arc(22*S, -3*S, 2*S, 0, 7); g.fill();
-    g.restore();
-  }
+  // fishing spots, buoys
+  for(const s of FISH_SPOTS){ const x = sx(s.x), y = sy(s.y); if(x < -80 || x > VW + 80 || y < -80 || y > VH + 80) continue;
+    for(let k=0; k<5; k++){ const ph = (t*.8 + k*.2) % 1; g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.5 + ')'; g.lineWidth = 2;
+      g.beginPath(); g.arc(x + Math.sin(k*2.1)*30*z, y + Math.cos(k*1.7)*30*z, (4 + ph*16)*z, 0, 7); g.stroke(); }
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.font = `600 ${Math.round(13*z + 2)}px Nunito, sans-serif`; g.textAlign = 'center'; g.fillText('🎣', x, y - 48*z); }
+  RACE_BUOYS.forEach(([bx, by], i)=>{ const x = sx(bx), y = sy(by); if(x < -40 || x > VW + 40 || y < -40 || y > VH + 40) return;
+    const next = B.race && (B.race.i % RACE_BUOYS.length) === i;
+    g.fillStyle = next ? '#ffd479' : i === 0 ? '#ff6f9c' : '#ff9a5c'; g.beginPath(); g.arc(x, y, (next ? 14 : 10)*z, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.fillRect(x - 10*z, y - 2*z, 20*z, 4*z);
+    if(i === 0 && !B.race){ g.fillStyle = 'rgba(255,255,255,.9)'; g.font = `700 ${Math.round(12*z + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillText('🏁 Race start', x, y - 22*z); } });
+  // islands
+  for(const is of ISLES){ const x = sx(is.x), y = sy(is.y), r = is.r*z; if(x < -r*2 || x > VW + r*2 || y < -r*2 || y > VH + r*2) continue;
+    const sh = g.createRadialGradient(x, y, r*.9, x, y, r*1.6); sh.addColorStop(0, 'rgba(160,240,230,.6)'); sh.addColorStop(1, 'rgba(160,240,230,0)');
+    g.fillStyle = sh; g.beginPath(); g.arc(x, y, r*1.6, 0, 7); g.fill();
+    g.fillStyle = '#ecd497'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+    if(is.id !== 'light' && is.id !== 'dock'){ g.fillStyle = '#5fb15a'; g.beginPath(); g.arc(x - r*.1, y - r*.1, r*.62, 0, 7); g.fill();
+      g.fillStyle = '#3f8f45'; for(let k=0; k<5; k++){ g.beginPath(); g.arc(x + Math.cos(k*1.3)*r*.35, y + Math.sin(k*1.9)*r*.3, r*.16, 0, 7); g.fill(); } }
+    if(is.id === 'light'){ g.fillStyle = '#8b8f96'; g.beginPath(); g.arc(x, y, r*.8, 0, 7); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x, y, r*.3, 0, 7); g.fill();
+      g.fillStyle = '#e04a4a'; g.beginPath(); g.arc(x, y, r*.16, 0, 7); g.fill();
+      if(sv().lit){ g.globalCompositeOperation = 'lighter'; const a = t*1.2; g.fillStyle = 'rgba(255,240,170,.18)';
+        g.beginPath(); g.moveTo(x, y); g.arc(x, y, 700*z, a - .18, a + .18); g.fill(); g.globalCompositeOperation = 'source-over'; } }
+    if(is.id === 'dock'){ g.fillStyle = '#9b6a3c'; g.fillRect(x - 10*z, y + r*.6, 20*z, 90*z); g.fillStyle = '#c99a62'; g.beginPath(); g.arc(x, y, r*.55, 0, 7); g.fill(); }
+    if(is.id === 'port'){ ['#ff6f6f','#6fb8ff','#ffd479'].forEach((c, k)=>{ g.fillStyle = c; g.fillRect(x - r*.5 + k*r*.35, y - r*.1, r*.28, r*.28); }); g.fillStyle = '#9b6a3c'; g.fillRect(x + r*.7, y - 8*z, 110*z, 16*z); }
+    if(is.id === 'treasure'){ g.strokeStyle = '#c0392b'; g.lineWidth = 5*z; g.beginPath(); g.moveTo(x + r*.3, y + r*.4); g.lineTo(x + r*.55, y + r*.65); g.moveTo(x + r*.55, y + r*.4); g.lineTo(x + r*.3, y + r*.65); g.stroke(); }
+    if(is.id === 'turtle'){ g.fillStyle = '#f4e4bc'; for(let k=0; k<6; k++){ g.beginPath(); g.ellipse(x + Math.cos(k)*r*.5, y + r*.55 + Math.sin(k*2)*8*z, 6*z, 4*z, 0, 0, 7); g.fill(); } }
+    g.font = `700 ${Math.round(14*z + 3)}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(3,24,43,.55)';
+    const lw = g.measureText(is.name).width + 16; roundRect(g, x - lw/2, y - r - 34*z, lw, 24, 12); g.fill();
+    g.fillStyle = '#ffffff'; g.fillText(is.name, x, y - r - 22*z + 4); }
   // floating things
-  for(const it of B.items){
-    if(it.got) continue;
-    const x = it.x - camX; if(x < -40 || x > VW + 40) continue;
-    const y = sea + 8*S + seaWave(it.x, B.t)*S;
-    if(it.k === 'pearl'){ const pg = g.createRadialGradient(x - 3*S, y - 12*S, 1, x, y - 9*S, 13*S);
-      pg.addColorStop(0, '#ffffff'); pg.addColorStop(.55, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)');
-      g.fillStyle = pg; g.beginPath(); g.arc(x, y - 9*S, 13*S, 0, 7); g.fill(); }
-    else if(it.k === 'bottle'){ g.save(); g.translate(x, y - 6*S); g.rotate(Math.sin(B.t*2 + it.ph)*.3 + .9);
-      g.fillStyle = 'rgba(120,200,160,.75)'; roundRect(g, -16*S, -7*S, 26*S, 14*S, 6*S); g.fill(); g.fillRect(8*S, -3.5*S, 10*S, 7*S);
-      g.fillStyle = '#f3e6c4'; g.fillRect(-10*S, -3*S, 14*S, 6*S); g.fillStyle = '#8a5a2b'; g.fillRect(17*S, -3*S, 4*S, 6*S); g.restore(); }
-    else { g.fillStyle = '#6f7b84'; g.beginPath(); g.moveTo(x - 30*S, y + 6*S); g.lineTo(x - 18*S, y - 26*S); g.lineTo(x + 4*S, y - 34*S); g.lineTo(x + 26*S, y - 14*S); g.lineTo(x + 32*S, y + 6*S); g.fill();
-      g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.moveTo(x - 18*S, y - 26*S); g.lineTo(x + 4*S, y - 34*S); g.lineTo(x - 4*S, y - 18*S); g.fill(); }
-  }
-  // wake
-  for(const w of B.wake){ const x = w.x - camX, a = 1 - w.t/1.4; g.strokeStyle = 'rgba(255,255,255,' + a*.6 + ')'; g.lineWidth = 2*S;
-    g.beginPath(); g.ellipse(x, sea + 18*S, (10 + w.t*40)*S*w.s, (3 + w.t*6)*S, 0, 0, 7); g.stroke(); }
-  // the boat, rocking on the waves, with her at the helm
-  const bx = VW*.45, wy = seaWave(B.x, B.t), slope = (seaWave(B.x + 20, B.t) - seaWave(B.x - 20, B.t)) / 40;
-  const by = sea + wy*S + B.jy*S;
-  g.save(); g.translate(bx, by); g.rotate(Math.atan(slope)*.8 + (B.jy < 0 ? -.08*Math.sign(B.vx || 1) : 0));
-  if(B.vx < -5) g.scale(-1, 1);
-  g.strokeStyle = '#6b4a2a'; g.lineWidth = 5*S; g.beginPath(); g.moveTo(-6*S, -6*S); g.lineTo(-6*S, -150*S); g.stroke();
-  const sail = SUITS[save.suit];
-  const sgr = g.createLinearGradient(-6*S, -150*S, 70*S, -20*S); sgr.addColorStop(0, '#ffffff'); sgr.addColorStop(1, sail);
-  g.fillStyle = sgr; g.beginPath(); g.moveTo(0, -146*S); g.quadraticCurveTo(70*S + Math.sin(B.t*2)*6*S, -86*S, 64*S, -26*S); g.lineTo(0, -26*S); g.closePath(); g.fill();
-  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(-12*S, -140*S); g.quadraticCurveTo(-50*S, -90*S, -54*S, -30*S); g.lineTo(-12*S, -30*S); g.closePath(); g.fill();
-  g.fillStyle = '#ff6f9c'; g.beginPath(); g.moveTo(-6*S, -150*S); g.lineTo(18*S + Math.sin(B.t*6)*3*S, -144*S); g.lineTo(-6*S, -138*S); g.fill();
-  drawDiver(g, 18*S, -48*S, 1.25*S, SUITS[save.suit], HAIRS[save.hair], B.t, 1, 0);
-  const hg = g.createLinearGradient(0, -26*S, 0, 16*S); hg.addColorStop(0, '#c98d55'); hg.addColorStop(1, '#7a4f2b');
-  g.fillStyle = hg; g.beginPath(); g.moveTo(-82*S, -26*S); g.lineTo(84*S, -26*S); g.quadraticCurveTo(70*S, 12*S, 40*S, 16*S); g.lineTo(-58*S, 16*S); g.quadraticCurveTo(-76*S, 8*S, -82*S, -26*S); g.fill();
-  g.fillStyle = '#ffffff'; g.fillRect(-80*S, -26*S, 162*S, 4*S);
-  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `700 ${Math.round(12*S)}px Comfortaa, sans-serif`; g.textAlign = 'center';
-  g.fillText('Bubble', 0, -4*S);
-  g.restore();
-  // the water in front of the hull
-  g.fillStyle = 'rgba(30,130,165,.55)';
-  g.beginPath(); g.moveTo(0, VH); for(let x=0; x<=VW; x+=16) g.lineTo(x, sea + 16*S + seaWave(x + camX, B.t)*S); g.lineTo(VW, VH); g.fill();
-  for(const f of B.fx){ g.globalAlpha = clamp(1 - f.t/f.life, 0, 1); g.fillStyle = f.c; g.beginPath(); g.arc(f.x - camX, sea + f.y, f.r*S, 0, 7); g.fill(); }
+  for(const it of B.items){ if(it.got) continue; const x = sx(it.x), y = sy(it.y); if(x < -30 || x > VW + 30 || y < -30 || y > VH + 30) continue;
+    if(it.k === 'pearl'){ const pg = g.createRadialGradient(x - 3, y - 3, 1, x, y, 11*z + 3); pg.addColorStop(0, '#fff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)'); g.fillStyle = pg; g.beginPath(); g.arc(x, y, 11*z + 3, 0, 7); g.fill(); }
+    else if(it.k === 'shell'){ g.fillStyle = 'rgba(180,255,240,' + (.6 + Math.sin(t*4 + it.ph)*.3) + ')'; g.beginPath(); g.arc(x, y, 10*z + 2, Math.PI, 0); g.fill(); g.strokeStyle = '#6fd8c0'; g.stroke(); }
+    else if(it.k === 'bottle'){ g.save(); g.translate(x, y); g.rotate(it.ph); g.fillStyle = 'rgba(120,200,160,.85)'; roundRect(g, -12*z, -5*z, 20*z, 10*z, 4*z); g.fill(); g.fillStyle = '#f3e6c4'; g.fillRect(-7*z, -2*z, 10*z, 4*z); g.restore(); }
+    else { g.fillStyle = '#6f7b84'; g.beginPath(); g.arc(x, y, 22*z, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(x - 6*z, y - 6*z, 9*z, 0, 7); g.fill(); } }
+  // sea life
+  for(const tu of B.turtles){ const x = sx(tu.x), y = sy(tu.y); g.save(); g.translate(x, y); g.rotate(tu.a); g.fillStyle = '#5c8f4a'; g.beginPath(); g.ellipse(0, 0, 14*z, 11*z, 0, 0, 7); g.fill();
+    g.fillStyle = '#8fbf6a'; g.beginPath(); g.arc(16*z, 0, 5*z, 0, 7); g.fill(); g.restore(); }
+  for(const s of B.seals){ const x = sx(s.x), y = sy(s.y); g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(x, y, 18*z, 9*z, Math.sin(t + s.ph)*.2, 0, 7); g.fill(); }
+  for(const d of B.dol){ const x = sx(d.x), y = sy(d.y); const up = d.jump >= 0 ? Math.sin(d.jump*Math.PI) : 0;
+    g.save(); g.translate(x, y - up*20*z); g.rotate(d.a); g.scale(1 + up*.3, 1 + up*.3); g.fillStyle = up ? '#8fb1c8' : 'rgba(80,120,150,.75)';
+    g.beginPath(); g.ellipse(0, 0, 24*z, 7*z, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-20*z, 0); g.lineTo(-30*z, -8*z); g.lineTo(-30*z, 8*z); g.fill(); g.restore(); }
+  if(B.whale.up >= 0){ const W = B.whale, x = sx(W.x), y = sy(W.y), a = Math.min(1, W.up, 7 - W.up);
+    g.globalAlpha = a; g.fillStyle = '#3d5a73'; g.beginPath(); g.ellipse(x, y, 90*z, 32*z, .3, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(x - 80*z, y - 20*z); g.lineTo(x - 120*z, y - 50*z); g.lineTo(x - 112*z, y); g.fill();
+    if(W.up % 2.5 < 1){ g.fillStyle = 'rgba(255,255,255,.8)'; for(let k=0; k<8; k++){ g.beginPath(); g.arc(x + 40*z + Math.cos(k)*12*z, y - 10*z - (W.up % 2.5)*40*z - Math.sin(k)*8*z, 5*z, 0, 7); g.fill(); } }
+    g.globalAlpha = 1; }
+  for(const f of B.fly){ if(f.t <= 0) continue; const x = sx(f.x), y = sy(f.y); g.fillStyle = '#bfe3ff'; g.beginPath(); g.ellipse(x, y, 8*z, 3*z, f.a, 0, 7); g.fill(); }
+  // wake and the boat
+  for(const w of B.wake){ g.strokeStyle = 'rgba(255,255,255,' + (1 - w.t/2)*.5 + ')'; g.lineWidth = 2; g.beginPath(); g.arc(sx(w.x), sy(w.y), (6 + w.t*22)*z, 0, 7); g.stroke(); }
+  drawBoatTop(g, VW/2, VH/2, B.h, z, t);
+  drawFriendSeaTop(g, t, sx, sy, z);
+  for(const gl of B.gulls){ const x = sx(gl.cx + Math.cos(gl.a)*gl.r), y = sy(gl.cy + Math.sin(gl.a)*gl.r), f = Math.sin(t*8 + gl.a*3)*5*z;
+    g.strokeStyle = '#ffffff'; g.lineWidth = 2.4*z; g.beginPath(); g.moveTo(x - 12*z, y - f); g.quadraticCurveTo(x - 4*z, y - 4*z, x, y); g.quadraticCurveTo(x + 4*z, y - 4*z, x + 12*z, y - f); g.stroke(); }
+  for(const f of B.fx){ g.globalAlpha = clamp(1 - f.t/f.life, 0, 1); g.fillStyle = f.c; g.beginPath(); g.arc(sx(f.x), sy(f.y) - f.z*z*.3, 3, 0, 7); g.fill(); }
   g.globalAlpha = 1;
-  // how far along the sea, and the islands on the way
-  const bw = Math.min(300, VW*.5), bx0 = VW/2 - bw/2, by0 = 64;
-  g.fillStyle = 'rgba(3,24,43,.45)'; roundRect(g, bx0, by0, bw, 8, 4); g.fill();
-  for(const is of B.isles){ g.fillStyle = is.open ? '#ffd479' : '#ffffff'; g.beginPath(); g.arc(bx0 + bw*is.x/SEA_W, by0 + 4, 5, 0, 7); g.fill(); }
-  g.fillStyle = '#ff6f9c'; g.beginPath(); g.arc(bx0 + bw*B.x/SEA_W, by0 + 4, 7, 0, 7); g.fill();
+  if(B.goal){ const pl = Math.sin(t*6)*.5 + .5; g.strokeStyle = 'rgba(255,212,121,' + (.4 + pl*.5) + ')'; g.lineWidth = 3; g.beginPath(); g.arc(sx(B.goal.x), sy(B.goal.y), 14 + pl*6, 0, 7); g.stroke(); }
+  if(B.sunset){ g.fillStyle = B.night ? 'rgba(4,8,35,.55)' : 'rgba(40,20,80,.28)'; g.fillRect(0, 0, VW, VH); }
+}
+function drawBoatTop(g, x, y, h, z, t){
+  g.save(); g.translate(x, y); g.rotate(h);
+  g.fillStyle = 'rgba(0,30,50,.25)'; g.beginPath(); g.ellipse(4, 6, 50*z, 18*z, 0, 0, 7); g.fill();
+  const hg = g.createLinearGradient(0, -18*z, 0, 18*z); hg.addColorStop(0, '#d9a066'); hg.addColorStop(1, '#8a5a2b');
+  g.fillStyle = hg; g.beginPath(); g.moveTo(52*z, 0); g.quadraticCurveTo(20*z, -20*z, -40*z, -16*z); g.lineTo(-44*z, 16*z); g.quadraticCurveTo(20*z, 20*z, 52*z, 0); g.fill();
+  g.fillStyle = '#c99a62'; g.beginPath(); g.moveTo(40*z, 0); g.quadraticCurveTo(16*z, -12*z, -34*z, -10*z); g.lineTo(-36*z, 10*z); g.quadraticCurveTo(16*z, 12*z, 40*z, 0); g.fill();
+  g.rotate(-h);                                                    // the sail, swung out by the wind
+  g.rotate(h + .5 + Math.sin(t*1.5)*.05);
+  g.fillStyle = sailPaint(g, 0, -30*z, 0, 30*z, SUITS[save.suit]);
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-10*z, 30*z, -36*z, 34*z); g.lineTo(0, 0); g.fill();
+  g.restore();
+  g.save(); g.translate(x, y);
+  drawDiver(g, -6*z, -6*z, .9*z, SUITS[save.suit], HAIRS[save.hair], t, Math.cos(h) >= 0 ? 1 : -1, 0);
+  g.fillStyle = '#6b4a2a'; g.beginPath(); g.arc(0, 0, 4*z, 0, 7); g.fill();
+  g.restore();
+}
+
+/* ---- drawing: first person, at the wheel ---- */
+function drawSeaFP(t){
+  const B = bt, g = ctx, C = seaSky(), FOC = VW*.9, EYE = 22;
+  const roll = Math.sin(t*1.3)*.018 + (B.btnSteer || 0)*-.02, bob = Math.sin(t*1.7)*4;
+  const HOR = VH*.44 + bob;
+  g.save(); g.translate(VW/2, VH/2); g.rotate(roll); g.translate(-VW/2, -VH/2);
+  // sky
+  const sk = g.createLinearGradient(0, -40, 0, HOR); sk.addColorStop(0, C.top); sk.addColorStop(.7, C.mid); sk.addColorStop(1, C.hor);
+  g.fillStyle = sk; g.fillRect(-60, -60, VW + 120, HOR + 61);
+  if(B.night) drawNightFP(g, B, FOC, HOR);
+  if(B.night){ let md = wrapA(Math.PI*.2 - B.h); if(Math.abs(md) < 1.1){ const mx = VW/2 + Math.tan(md)*FOC, my = HOR*.32;
+    g.fillStyle = '#f4f1dc'; g.beginPath(); g.arc(mx, my, 20, 0, 7); g.fill(); g.fillStyle = C.mid; g.beginPath(); g.arc(mx + 8, my - 4, 18, 0, 7); g.fill(); } }
+  if(B.sunset && !B.night){ g.fillStyle = 'rgba(255,255,255,.8)'; for(let i=0; i<40; i++){ const a = i*2.39, x = ((Math.tan(((a - B.h)%6.283 + 6.283)%6.283 - 3.1416) * 0 + (i*137 - B.h*400) % (VW + 200)) + VW + 200) % (VW + 200) - 100; g.fillRect(x, (i*53) % (HOR*.7), 2, 2); } }
+  // the sun sits at a fixed compass bearing
+  const sunA = B.sunset ? Math.PI*.9 : -Math.PI*.35;
+  let da = sunA - B.h; while(da > Math.PI) da -= Math.PI*2; while(da < -Math.PI) da += Math.PI*2;
+  if(!B.night && Math.abs(da) < 1.2){ const x = VW/2 + Math.tan(da)*FOC, y = B.sunset ? HOR - 30 : HOR*.3;
+    g.globalCompositeOperation = 'lighter'; const sg = g.createRadialGradient(x, y, 0, x, y, 220); sg.addColorStop(0, B.sunset ? 'rgba(255,180,100,.9)' : 'rgba(255,250,225,.9)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
+    g.fillStyle = sg; g.fillRect(x - 220, y - 220, 440, 440); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = B.sunset ? '#ffb070' : '#fffdf2'; g.beginPath(); g.arc(x, y, B.sunset ? 34 : 22, 0, 7); g.fill(); }
+  for(let i=0; i<10; i++){ const ca = i*.63 + .2; let d = ca - B.h; while(d > Math.PI) d -= Math.PI*2; while(d < -Math.PI) d += Math.PI*2;
+    if(Math.abs(d) > 1.1) continue; const x = VW/2 + Math.tan(d)*FOC, y = HOR*(.15 + (i % 3)*.15), s = 1 + (i % 2)*.5;
+    g.fillStyle = B.night ? 'rgba(60,70,110,.45)' : B.sunset ? 'rgba(255,190,200,.7)' : 'rgba(255,255,255,.9)';
+    for(let k=0; k<5; k++){ g.beginPath(); g.arc(x + (k - 2)*22*s, y - Math.sin(k/4*Math.PI)*12*s, (16 + (k % 2)*8)*s, 0, 7); g.fill(); } }
+  // the sea, in rows that rush towards you as you sail
+  const sea = g.createLinearGradient(0, HOR, 0, VH); sea.addColorStop(0, C.sea0); sea.addColorStop(.25, C.sea1); sea.addColorStop(1, C.sea2);
+  g.fillStyle = sea; g.fillRect(-60, HOR, VW + 120, VH - HOR + 60);
+  g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 1.5;
+  for(let z = 30; z < 4000; z *= 1.09){
+    const zz = z - (B.odo % (z*.09)), y = HOR + EYE*FOC/zz; if(y > VH + 20) continue;
+    const k = FOC/zz; g.beginPath();
+    for(let x=-40; x<=VW + 40; x+=24){ const wx = (x - VW/2)/k; const yy = y + Math.sin(wx*.02 + zz*.01 + t*1.3 + B.h*3)*Math.min(6, 2.4*k*4); x === -40 ? g.moveTo(x, yy) : g.lineTo(x, yy); }
+    g.stroke(); }
+  if(!B.sunset){ g.globalCompositeOperation = 'lighter'; for(let i=0; i<26; i++){ const x = (i*97 + t*30) % VW, y = HOR + 6 + ((i*61) % 80)*1.2, a = Math.max(0, Math.sin(t*3 + i)); g.fillStyle = 'rgba(255,255,255,' + a*.6 + ')'; g.fillRect(x, y, 3, 1.5); } g.globalCompositeOperation = 'source-over'; }
+  // everything in the world, far to near
+  const proj = (wx, wy)=>{ const dx = wx - B.x, dy = wy - B.y, c = Math.cos(B.h), s = Math.sin(B.h), f = dx*c + dy*s, side = -dx*s + dy*c;
+    if(f < 18) return null; const k = FOC/f; return {x:VW/2 + side*k, y:HOR + EYE*k, k, f}; };
+  const objs = [];
+  for(const is of ISLES){ const p = proj(is.x, is.y); if(p) objs.push({p, draw:()=>fpIsland(g, is, p, t)}); }
+  for(const it of B.items){ if(it.got) continue; const p = proj(it.x, it.y); if(p && p.f < 1400) objs.push({p, draw:()=>fpItem(g, it, p, t)}); }
+  for(const s of FISH_SPOTS){ const p = proj(s.x, s.y); if(p && p.f < 1600) objs.push({p, draw:()=>{ for(let k=0; k<4; k++){ const ph = (t*.8 + k*.25) % 1;
+    g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.6 + ')'; g.lineWidth = 1.5; g.beginPath(); g.ellipse(p.x + Math.sin(k*2)*40*p.k, p.y, (6 + ph*22)*p.k*3, (2 + ph*6)*p.k*3, 0, 0, 7); g.stroke(); }
+    if(p.f < 700){ g.font = `${Math.round(clamp(30*p.k*3, 14, 40))}px serif`; g.textAlign = 'center'; g.fillText('🎣', p.x, p.y - 40*p.k*3); } }}); }
+  RACE_BUOYS.forEach(([bx, by], i)=>{ const p = proj(bx, by); if(!p) return; objs.push({p, draw:()=>{ const s = Math.min(p.k*1.3, 2.4), next = B.race && (B.race.i % RACE_BUOYS.length) === i;
+    g.fillStyle = next ? '#ffd479' : i === 0 ? '#ff6f9c' : '#ff9a5c'; g.beginPath(); g.ellipse(p.x, p.y - 8*s, 9*s, 12*s, 0, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.fillRect(p.x - 9*s, p.y - 10*s, 18*s, 3*s); if(next){ g.strokeStyle = '#ffd479'; g.lineWidth = 2; g.beginPath(); g.moveTo(p.x, p.y - 22*s); g.lineTo(p.x, p.y - 60*s); g.stroke(); } }}); });
+  for(const d of B.dol){ const p = proj(d.x, d.y); if(!p || p.f > 1500) continue; objs.push({p, draw:()=>{ const s = Math.min(p.k*2, 3), up = d.jump >= 0 ? Math.sin(d.jump*Math.PI) : 0;
+    if(!up){ g.fillStyle = '#4f6f88'; g.beginPath(); g.moveTo(p.x - 6*s, p.y); g.lineTo(p.x, p.y - 12*s); g.lineTo(p.x + 7*s, p.y); g.fill(); return; }
+    g.save(); g.translate(p.x, p.y - up*60*s); g.rotate(-1.2 + d.jump*2.4); const dg = g.createLinearGradient(0, -8*s, 0, 8*s); dg.addColorStop(0, '#5e7f9a'); dg.addColorStop(1, '#d4e4ee');
+    g.fillStyle = dg; g.beginPath(); g.ellipse(0, 0, 26*s, 8*s, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-22*s, 0); g.lineTo(-34*s, -8*s); g.lineTo(-30*s, 0); g.lineTo(-34*s, 8*s); g.fill(); g.restore(); }}); }
+  if(B.whale.up >= 0){ const W = B.whale, p = proj(W.x, W.y); if(p) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.1, 2.2), a = Math.min(1, W.up, 7 - W.up);
+    g.globalAlpha = a; g.fillStyle = '#3d5a73'; g.beginPath(); g.ellipse(p.x, p.y, 90*s, 20*s, 0, Math.PI, 0); g.fill();
+    if(W.up % 2.5 < 1.2){ g.fillStyle = 'rgba(255,255,255,.85)'; for(let k=0; k<10; k++){ g.beginPath(); g.arc(p.x + 30*s + Math.cos(k)*14*s, p.y - 30*s - (W.up % 2.5)*60*s - Math.abs(Math.sin(k))*14*s, 6*s, 0, 7); g.fill(); } }
+    if(W.up > 5){ g.fillStyle = '#3d5a73'; g.beginPath(); g.moveTo(p.x - 60*s, p.y); g.lineTo(p.x - 100*s, p.y - 40*s); g.lineTo(p.x - 60*s, p.y - 20*s); g.lineTo(p.x - 20*s, p.y - 40*s); g.fill(); }
+    g.globalAlpha = 1; }}); }
+  for(const tu of B.turtles){ const p = proj(tu.x, tu.y); if(p && p.f < 900) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.8, 3); g.fillStyle = '#5c8f4a'; g.beginPath(); g.ellipse(p.x, p.y, 12*s, 4*s, 0, Math.PI, 0); g.fill(); g.beginPath(); g.arc(p.x + 12*s, p.y - 2*s, 3*s, 0, 7); g.fill(); }}); }
+  for(const sl of B.seals){ const p = proj(sl.x, sl.y); if(p && p.f < 1400) objs.push({p, draw:()=>{ const s = Math.min(p.k*1.5, 3); g.fillStyle = '#6f7b84'; g.beginPath(); g.ellipse(p.x, p.y, 26*s, 10*s, 0, Math.PI, 0); g.fill();
+    g.fillStyle = '#7d7f88'; g.beginPath(); g.ellipse(p.x - 6*s, p.y - 10*s, 14*s, 8*s, -.2, 0, 7); g.fill(); g.beginPath(); g.arc(p.x + 8*s, p.y - 18*s + Math.sin(t*2 + sl.ph)*2*s, 6*s, 0, 7); g.fill();
+    g.fillStyle = '#10202c'; g.beginPath(); g.arc(p.x + 10*s, p.y - 19*s, 1.2*s, 0, 7); g.fill(); }}); }
+  for(const f of B.fly){ if(f.t <= 0) continue; const p = proj(f.x, f.y); if(p) objs.push({p, draw:()=>{ const s = p.k*3; g.fillStyle = '#cfe9ff'; g.beginPath(); g.ellipse(p.x, p.y - Math.sin(f.t/1.4*Math.PI)*40*s, 8*s, 3*s, 0, 0, 7); g.fill(); }}); }
+  const fo = friendSeaFP(proj, g, t); if(fo) objs.push(fo);
+  objs.sort((a, b)=>b.p.f - a.p.f).forEach(o=>o.draw());
+  for(const gl of B.gulls){ const p = proj(gl.cx + Math.cos(gl.a)*gl.r, gl.cy + Math.sin(gl.a)*gl.r); if(!p) continue;
+    const s = Math.max(.5, p.k*3), y = p.y - 160*p.k*3 - 40, f = Math.sin(t*8 + gl.a*3)*5*s;
+    g.strokeStyle = B.sunset ? '#2b2440' : '#38424e'; g.lineWidth = 2*s; g.beginPath(); g.moveTo(p.x - 12*s, y - f); g.quadraticCurveTo(p.x - 4*s, y - 4*s, p.x, y); g.quadraticCurveTo(p.x + 4*s, y - 4*s, p.x + 12*s, y - f); g.stroke(); }
+  // spray off the bow at speed
+  if(Math.abs(B.v) > 120){ g.fillStyle = 'rgba(255,255,255,.7)'; for(let i=0; i<8; i++){ const a = Math.random(); g.beginPath(); g.arc(VW/2 + (Math.random() - .5)*VW*.3, VH*.74 - a*60, 2 + Math.random()*3, 0, 7); g.fill(); } }
+  // the bow, the rails, the wheel and her hands
+  const bowY = VH*.72;
+  const dg = g.createLinearGradient(0, bowY, 0, VH); dg.addColorStop(0, '#c08a55'); dg.addColorStop(1, '#7a4f2b');
+  g.fillStyle = dg; g.beginPath(); g.moveTo(-60, VH + 60); g.lineTo(VW*.1, VH*.9); g.lineTo(VW/2, bowY); g.lineTo(VW*.9, VH*.9); g.lineTo(VW + 60, VH + 60); g.fill();
+  g.strokeStyle = 'rgba(80,50,25,.45)'; g.lineWidth = 2; for(let k=1; k<6; k++){ g.beginPath(); g.moveTo(VW/2, bowY); g.lineTo(VW*k/6, VH + 10); g.stroke(); }
+  g.strokeStyle = '#e8eef2'; g.lineWidth = 5; g.beginPath(); g.moveTo(VW*.04, VH*.84); g.lineTo(VW/2, bowY - 26); g.lineTo(VW*.96, VH*.84); g.stroke();
+  g.lineWidth = 3; for(let k=0; k<=8; k++){ const u = k/8, x = lerp(VW*.04, VW/2, u), y = lerp(VH*.84, bowY - 26, u); g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 26); g.stroke();
+    const x2 = lerp(VW*.96, VW/2, u), y2 = lerp(VH*.84, bowY - 26, u); g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2, y2 + 26); g.stroke(); }
+  flagPaint(g, VW/2, bowY - 70, 1.6, t);
+  g.strokeStyle = '#e8eef2'; g.lineWidth = 3; g.beginPath(); g.moveTo(VW/2, bowY - 26); g.lineTo(VW/2, bowY - 72); g.stroke();
+  const wr = Math.min(VW, VH)*.16, wx = VW/2, wy = VH + wr*.35, rot = B.h*2;
+  g.save(); g.translate(wx, wy); g.rotate(rot);
+  g.strokeStyle = '#6b4424'; g.lineWidth = wr*.12; g.beginPath(); g.arc(0, 0, wr*.82, 0, 7); g.stroke();
+  g.lineWidth = wr*.07; for(let k=0; k<8; k++){ const a = k*Math.PI/4; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a)*wr*1.12, Math.sin(a)*wr*1.12); g.stroke();
+    g.fillStyle = '#8a5a2b'; g.beginPath(); g.arc(Math.cos(a)*wr*1.12, Math.sin(a)*wr*1.12, wr*.07, 0, 7); g.fill(); }
+  g.fillStyle = '#d9a441'; g.beginPath(); g.arc(0, 0, wr*.16, 0, 7); g.fill();
+  g.restore();
+  g.fillStyle = '#f7dcc6'; [-1, 1].forEach(s=>{ const a = -Math.PI/2 + s*.75 + (B.btnSteer || 0)*.25; g.beginPath(); g.arc(wx + Math.cos(a)*wr*.82, wy + Math.sin(a)*wr*.82, wr*.11, 0, 7); g.fill(); });
+  g.fillStyle = SUITS[save.suit]; [-1, 1].forEach(s=>{ const a = -Math.PI/2 + s*.75 + (B.btnSteer || 0)*.25, hx = wx + Math.cos(a)*wr*.82, hy = wy + Math.sin(a)*wr*.82;
+    g.beginPath(); g.moveTo(hx - wr*.08, hy + wr*.06); g.lineTo(hx + s*wr*.6, VH + 20); g.lineTo(hx + s*wr*.9, VH + 20); g.lineTo(hx + wr*.08, hy + wr*.06); g.fill(); });
+  g.restore();
+  // a compass and the speed
+  const cx = VW - 64, cy = VH - 150;
+  g.fillStyle = 'rgba(3,24,43,.55)'; g.beginPath(); g.arc(cx, cy, 34, 0, 7); g.fill();
+  g.save(); g.translate(cx, cy); g.rotate(-B.h - Math.PI/2);
+  g.fillStyle = '#ff6f6f'; g.beginPath(); g.moveTo(0, -26); g.lineTo(6, 0); g.lineTo(-6, 0); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(0, 26); g.lineTo(6, 0); g.lineTo(-6, 0); g.fill();
+  g.fillStyle = '#ffffff'; g.font = '700 11px Comfortaa, sans-serif'; g.textAlign = 'center'; g.fillText('N', 0, -30);
+  g.restore();
+  g.fillStyle = 'rgba(3,24,43,.55)'; roundRect(g, cx - 34, cy + 42, 68, 12, 6); g.fill();
+  g.fillStyle = B.throttle < 0 ? '#ff8aa0' : '#ffd479'; roundRect(g, cx - 32, cy + 44, 64*Math.abs(B.throttle), 8, 4); g.fill();
+  if(B.sunset){ g.fillStyle = 'rgba(60,20,90,.12)'; g.fillRect(0, 0, VW, VH); }
+}
+function fpIsland(g, is, p, t){
+  const s = p.k*3, w = is.r*p.k*1.1, far = clamp((p.f - 1200)/2200, 0, .7);
+  g.fillStyle = mixHaze('#ecd497', far); g.beginPath(); g.ellipse(p.x, p.y, w, w*.12 + 2, 0, Math.PI, 0); g.fill();
+  if(is.id === 'light'){
+    g.fillStyle = mixHaze('#7d838a', far); g.beginPath(); g.ellipse(p.x, p.y, w*.9, w*.35, 0, Math.PI, 0); g.fill();
+    const tw = w*.18, th = w*1.3;
+    g.fillStyle = mixHaze('#f4f4f4', far); g.beginPath(); g.moveTo(p.x - tw, p.y - w*.3); g.lineTo(p.x - tw*.7, p.y - w*.3 - th); g.lineTo(p.x + tw*.7, p.y - w*.3 - th); g.lineTo(p.x + tw, p.y - w*.3); g.fill();
+    g.fillStyle = mixHaze('#e04a4a', far); for(let k=0; k<3; k++) g.fillRect(p.x - tw*.85 + k*0, p.y - w*.3 - th*(.25 + k*.3), tw*1.7*(1 - (.25 + k*.3)*.3), th*.1);
+    g.fillStyle = sv().lit ? '#fff2a8' : '#555b60'; g.fillRect(p.x - tw*.5, p.y - w*.3 - th - tw*.8, tw, tw*.8);
+    if(sv().lit){ g.globalCompositeOperation = 'lighter'; const a = Math.sin(t*1.2); const gl = g.createRadialGradient(p.x, p.y - w*.3 - th - tw*.4, 1, p.x, p.y - w*.3 - th - tw*.4, w*1.5);
+      gl.addColorStop(0, 'rgba(255,240,170,' + (.5 + a*.3) + ')'); gl.addColorStop(1, 'rgba(255,240,170,0)'); g.fillStyle = gl; g.fillRect(p.x - w*1.5, p.y - w*.3 - th - w*1.5, w*3, w*3); g.globalCompositeOperation = 'source-over'; }
+    return;
+  }
+  g.fillStyle = mixHaze('#5fb15a', far); g.beginPath(); g.ellipse(p.x - w*.1, p.y - w*.06, w*.7, w*.32, 0, Math.PI, 0); g.fill();
+  const palm = (x, h)=>{ g.strokeStyle = mixHaze('#7a5530', far); g.lineWidth = Math.max(1, h*.06); g.beginPath(); g.moveTo(x, p.y - w*.1); g.quadraticCurveTo(x - h*.2, p.y - h*.5, x + h*.1, p.y - h); g.stroke();
+    g.fillStyle = mixHaze('#3f9f4a', far); for(let k=0; k<5; k++){ g.save(); g.translate(x + h*.1, p.y - h); g.rotate(-Math.PI*.95 + k*.45 + Math.sin(t + k)*.05); g.beginPath(); g.ellipse(h*.25, 0, h*.28, h*.06, 0, 0, 7); g.fill(); g.restore(); } };
+  palm(p.x - w*.35, w*.7); palm(p.x + w*.15, w*.85);
+  if(is.id === 'port'){ ['#ff6f6f','#6fb8ff','#ffd479'].forEach((c, k)=>{ const x = p.x + w*(.3 + k*.18), y = p.y - w*.1; g.fillStyle = mixHaze(c, far); g.fillRect(x, y - w*.22, w*.15, w*.22);
+    g.fillStyle = mixHaze('#8a4a3a', far); g.beginPath(); g.moveTo(x - w*.02, y - w*.22); g.lineTo(x + w*.075, y - w*.32); g.lineTo(x + w*.17, y - w*.22); g.fill(); }); }
+  if(is.id === 'dock'){ g.fillStyle = mixHaze('#9b6a3c', far); g.fillRect(p.x - w*.6, p.y - w*.08, w*1.2, w*.06); for(let k=0; k<5; k++) g.fillRect(p.x - w*.55 + k*w*.27, p.y - w*.08, w*.03, w*.12); }
+  if(is.id === 'treasure'){ g.strokeStyle = mixHaze('#c0392b', far); g.lineWidth = Math.max(1, w*.03); g.beginPath(); g.moveTo(p.x + w*.4, p.y - w*.12); g.lineTo(p.x + w*.5, p.y - w*.04); g.moveTo(p.x + w*.5, p.y - w*.12); g.lineTo(p.x + w*.4, p.y - w*.04); g.stroke(); }
+  if(p.f < 1500){ g.font = `700 ${Math.round(clamp(w*.18, 12, 22))}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillStyle = 'rgba(255,255,255,.9)'; g.fillText(is.name, p.x, p.y - w*.95); }
+}
+function mixHaze(hex, k){ const n = parseInt(hex.slice(1), 16), h = [170, 205, 220]; const r = (n >> 16) + (h[0] - (n >> 16))*k, gg = (n >> 8 & 255) + (h[1] - (n >> 8 & 255))*k, b = (n & 255) + (h[2] - (n & 255))*k; return 'rgb(' + (r|0) + ',' + (gg|0) + ',' + (b|0) + ')'; }
+function fpItem(g, it, p, t){
+  const s = p.k*3, y = p.y - Math.sin(t*2 + it.ph)*2*s;
+  if(it.k === 'pearl'){ const r = clamp(10*s, 2, 30), pg = g.createRadialGradient(p.x - r*.3, y - r, 1, p.x, y - r*.7, r); pg.addColorStop(0, '#fff'); pg.addColorStop(.6, '#ffe7a8'); pg.addColorStop(1, 'rgba(255,212,121,0)'); g.fillStyle = pg; g.beginPath(); g.arc(p.x, y - r*.7, r, 0, 7); g.fill(); }
+  else if(it.k === 'shell'){ g.fillStyle = 'rgba(180,255,240,' + (.6 + Math.sin(t*4 + it.ph)*.3) + ')'; g.beginPath(); g.arc(p.x, y, clamp(9*s, 2, 28), Math.PI, 0); g.fill(); }
+  else if(it.k === 'bottle'){ g.fillStyle = 'rgba(120,200,160,.85)'; roundRect(g, p.x - 10*s, y - 8*s, 20*s, 8*s, 3*s); g.fill(); }
+  else { g.fillStyle = '#6f7b84'; g.beginPath(); g.moveTo(p.x - 26*s, y); g.lineTo(p.x - 14*s, y - 26*s); g.lineTo(p.x + 6*s, y - 32*s); g.lineTo(p.x + 24*s, y); g.fill(); }
+}
+function drawBoat(t){
+  if(bt.gaze){ drawStargaze(t); return; }
+  if(bt.view === 'fp') drawSeaFP(t); else drawSeaTop(t);
+  drawInstruments(ctx, t);
+  const B = bt, g = ctx;
+  // minimap
+  const m = Math.min(130, VW*.22), mx = VW - m - 12, my = 58;
+  g.fillStyle = 'rgba(3,24,43,.55)'; roundRect(g, mx, my, m, m, 12); g.fill();
+  for(const is of ISLES){ g.fillStyle = is.id === 'light' ? '#c9ccd2' : '#ecd497'; g.beginPath(); g.arc(mx + is.x/SEA.w*m, my + is.y/SEA.h*m, Math.max(3, is.r/SEA.w*m), 0, 7); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.7)'; for(const s of FISH_SPOTS){ g.fillRect(mx + s.x/SEA.w*m - 1, my + s.y/SEA.h*m - 1, 2, 2); }
+  if(B.race){ const [bx, by] = RACE_BUOYS[B.race.i % RACE_BUOYS.length]; g.fillStyle = '#ffd479'; g.beginPath(); g.arc(mx + bx/SEA.w*m, my + by/SEA.h*m, 3, 0, 7); g.fill(); }
+  g.save(); g.translate(mx + B.x/SEA.w*m, my + B.y/SEA.h*m); g.rotate(B.h);
+  g.fillStyle = '#ff6f9c'; g.beginPath(); g.moveTo(7, 0); g.lineTo(-5, -4); g.lineTo(-5, 4); g.fill(); g.restore();
+  // the fishing line and bobber
+  if(B.fish){ const F = B.fish, cx = VW/2, cy = VH*.55, dip = F.phase === 'bite' ? Math.abs(Math.sin(F.t*18))*14 : Math.sin(F.t*2)*2;
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(VW*.75, VH*.15); g.quadraticCurveTo(VW*.6, VH*.3, cx, cy + dip - 18); g.stroke();
+    g.fillStyle = '#ff4d4d'; g.beginPath(); g.arc(cx, cy + dip - 10, 10, Math.PI, 0); g.fill(); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy + dip - 10, 10, 0, Math.PI); g.fill();
+    for(let k=0; k<2; k++){ const ph = (F.t*.8 + k*.5) % 1; g.strokeStyle = 'rgba(255,255,255,' + (1 - ph)*.6 + ')'; g.beginPath(); g.ellipse(cx, cy, 12 + ph*40, 4 + ph*12, 0, 0, 7); g.stroke(); }
+    const msg = F.phase === 'wait' ? 'Wait for it…' : F.phase === 'bite' ? 'NOW! Tap!' : F.phase === 'miss' ? 'It got away' : '';
+    if(msg) shadowText(g, msg, cx, cy - 70, F.phase === 'bite' ? 34 : 22, F.phase === 'bite' ? '#ffd479' : '#ffffff');
+    if(F.phase === 'caught'){ const info = FISHES[F.kind]; const fy = cy - 60 - Math.min(1, F.t*2)*40;
+      drawFish(g, {x:cx, y:fy, s:30, vx:1, vy:0, ph:0, c:info.c, belly:info.belly, stripe:info.stripe}, t);
+      shadowText(g, info.en + ' · ' + info.ru, cx, fy + 60, 24, '#ffffff'); } }
+  if(B.race){ shadowText(g, `Buoy ${Math.min(B.race.i, RACE_BUOYS.length)} of ${RACE_BUOYS.length} · ${B.race.t.toFixed(1)}s`, VW/2, 80, 20, '#ffd479'); }
+  if(B.flash > 0){ g.fillStyle = 'rgba(255,255,255,' + B.flash*3 + ')'; g.fillRect(0, 0, VW, VH); }
 }
 // the hull, seen from under the water
 function drawBoatHull(g, t){
@@ -1774,7 +2277,499 @@ function drawBoatHull(g, t){
   g.font = '700 16px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = 'rgba(234,249,255,' + (.6 + pl*.4) + ')'; g.fillText('⬆ Climb aboard the boat', x, 176 + pl*4);
 }
-cv.addEventListener('pointerdown', e=>{ if(scene === 'boat' && bt && !overlay) bt.goal = bt.x + (e.clientX - VW*.45); });
+cv.addEventListener('pointerdown', e=>{
+  if(scene !== 'boat' || !bt || overlay || bt.gaze) return;
+  if(fishTap()) return;
+  if(bt.view === 'top'){ const z = clamp(Math.min(VW, VH)/820, .55, 1.15); bt.goal = {x:bt.x + (e.clientX - VW/2)/z, y:bt.y + (e.clientY - VH/2)/z}; }
+});
+
+/* ============================ THE NIGHT SKY ============================
+   Real stars: right ascension (hours) and declination (degrees, J2000) of
+   the bright stars that draw the best-known constellations. The sky is
+   turned to tonight's real sky for where this iPad's time zone is, as seen
+   from about 40° north, and drifts slowly while you sail.
+   ===================================================================== */
+const STARS = {
+  Dubhe:[11.062,61.75,1.8], Merak:[11.031,56.38,2.4], Phecda:[11.897,53.69,2.4], Megrez:[12.257,57.03,3.3], Alioth:[12.900,55.96,1.8], Mizar:[13.399,54.93,2.2], Alkaid:[13.792,49.31,1.9],
+  Polaris:[2.530,89.26,2.0], Kochab:[14.845,74.16,2.1], Pherkad:[15.345,71.83,3.0], Yildun:[17.537,86.59,4.4], EpsUMi:[16.766,82.04,4.2], ZetaUMi:[15.734,77.79,4.3], EtaUMi:[16.292,75.76,5.0],
+  Caph:[0.153,59.15,2.3], Schedar:[0.675,56.54,2.2], GammaCas:[0.945,60.72,2.2], Ruchbah:[1.430,60.24,2.7], Segin:[1.907,63.67,3.4],
+  Betelgeuse:[5.919,7.41,0.5], Rigel:[5.242,-8.20,0.1], Bellatrix:[5.419,6.35,1.6], Saiph:[5.796,-9.67,2.1], Alnitak:[5.679,-1.94,1.8], Alnilam:[5.604,-1.20,1.7], Mintaka:[5.533,-0.30,2.2], Meissa:[5.585,9.93,3.4],
+  Deneb:[20.690,45.28,1.3], Sadr:[20.370,40.26,2.2], Albireo:[19.512,27.96,3.1], Gienah:[20.770,33.97,2.5], DeltaCyg:[19.750,45.13,2.9],
+  Vega:[18.616,38.78,0.0], Sheliak:[18.835,33.36,3.5], Sulafat:[18.982,32.69,3.3], ZetaLyr:[18.746,37.61,4.3], DeltaLyr:[18.908,36.90,4.3],
+  Altair:[19.846,8.87,0.8], Tarazed:[19.771,10.61,2.7], Alshain:[19.922,6.41,3.7],
+  Regulus:[10.140,11.97,1.4], Denebola:[11.818,14.57,2.1], Algieba:[10.333,19.84,2.0], Zosma:[11.235,20.52,2.6], Chertan:[11.237,15.43,3.3], EtaLeo:[10.122,16.76,3.5], Adhafera:[10.278,23.42,3.4], Rasalas:[9.879,26.01,3.9],
+  Antares:[16.490,-26.43,1.0], Dschubba:[16.006,-22.62,2.3], Acrab:[16.091,-19.81,2.6], PiSco:[15.981,-26.11,2.9], TauSco:[16.598,-28.22,2.8], EpsSco:[16.836,-34.29,2.3], MuSco:[16.864,-38.05,3.0],
+  ZetaSco:[16.910,-42.36,3.6], EtaSco:[17.203,-43.24,3.3], Sargas:[17.622,-43.00,1.9], IotaSco:[17.793,-40.13,3.0], KappaSco:[17.708,-39.03,2.4], Shaula:[17.560,-37.10,1.6],
+  Alcyone:[3.791,24.11,2.9], Atlas:[3.819,24.05,3.6], Electra:[3.747,24.11,3.7], Maia:[3.763,24.37,3.9], Merope:[3.772,23.95,4.2], Taygeta:[3.754,24.47,4.3], Pleione:[3.819,24.14,5.1],
+  Sirius:[6.752,-16.72,-1.5], Arcturus:[14.261,19.18,-0.1], Capella:[5.278,46.00,0.1], Aldebaran:[4.599,16.51,0.9], Procyon:[7.655,5.22,0.4], Spica:[13.420,-11.16,1.0], Pollux:[7.755,28.03,1.1], Castor:[7.577,31.89,1.6],
+};
+const CONSTELLATIONS = [
+  {id:'uma', en:'Big Dipper (Great Bear)', ru:'Большая Медведица', tr:'Bol’shaya Medveditsa',
+   lines:[['Dubhe','Merak'],['Merak','Phecda'],['Phecda','Megrez'],['Megrez','Dubhe'],['Megrez','Alioth'],['Alioth','Mizar'],['Mizar','Alkaid']],
+   about:'Seven bright stars shaped like a ladle. In Russian the Dipper is also called «Ковш» (kovsh), a ladle. The two stars at the end of the bowl point straight to the North Star.'},
+  {id:'umi', en:'Little Dipper and the North Star', ru:'Малая Медведица', tr:'Malaya Medveditsa',
+   lines:[['Polaris','Yildun'],['Yildun','EpsUMi'],['EpsUMi','ZetaUMi'],['ZetaUMi','EtaUMi'],['EtaUMi','Pherkad'],['Pherkad','Kochab'],['Kochab','ZetaUMi']],
+   about:'Polaris, the North Star (Полярная звезда, Polyarnaya zvezda), sits at the end of the handle. It almost never moves, so sailors used it to find north.'},
+  {id:'cas', en:'Cassiopeia', ru:'Кассиопея', tr:'Kassiopeya',
+   lines:[['Caph','Schedar'],['Schedar','GammaCas'],['GammaCas','Ruchbah'],['Ruchbah','Segin']],
+   about:'A bright W (or M) on the other side of the North Star from the Big Dipper. In the old story she is a queen sitting on her throne.'},
+  {id:'ori', en:'Orion the Hunter', ru:'Орион', tr:'Orion',
+   lines:[['Betelgeuse','Bellatrix'],['Betelgeuse','Alnitak'],['Bellatrix','Mintaka'],['Alnitak','Alnilam'],['Alnilam','Mintaka'],['Alnitak','Saiph'],['Mintaka','Rigel'],['Saiph','Rigel'],['Meissa','Betelgeuse'],['Meissa','Bellatrix']],
+   about:'Look for three stars in a straight row: Orion’s belt. Betelgeuse at his shoulder glows orange-red; Rigel at his foot is blue-white. Best on winter evenings.'},
+  {id:'cyg', en:'Cygnus the Swan', ru:'Лебедь', tr:'Lebed’',
+   lines:[['Deneb','Sadr'],['Sadr','Albireo'],['Gienah','Sadr'],['Sadr','DeltaCyg']],
+   about:'A swan flying down the Milky Way, also called the Northern Cross. Deneb marks its tail and is one corner of the Summer Triangle.'},
+  {id:'lyr', en:'Lyra the Harp', ru:'Лира', tr:'Lira',
+   lines:[['Vega','ZetaLyr'],['ZetaLyr','Sheliak'],['Sheliak','Sulafat'],['Sulafat','DeltaLyr'],['DeltaLyr','ZetaLyr']],
+   about:'A small harp hanging from Vega, one of the brightest stars in the sky. Vega, Deneb and Altair make the big Summer Triangle.'},
+  {id:'aql', en:'Aquila the Eagle', ru:'Орёл', tr:'Oryol',
+   lines:[['Tarazed','Altair'],['Altair','Alshain']],
+   about:'Bright Altair with a little star on each side, like an eagle’s wings. Altair is the third corner of the Summer Triangle.'},
+  {id:'leo', en:'Leo the Lion', ru:'Лев', tr:'Lev',
+   lines:[['Regulus','EtaLeo'],['EtaLeo','Algieba'],['Algieba','Adhafera'],['Adhafera','Rasalas'],['Algieba','Zosma'],['Zosma','Denebola'],['Denebola','Chertan'],['Chertan','Regulus'],['Zosma','Chertan']],
+   about:'A backwards question mark, called the Sickle, makes the lion’s head. Regulus is his heart. Best in spring.'},
+  {id:'sco', en:'Scorpius', ru:'Скорпион', tr:'Skorpion',
+   lines:[['Acrab','Dschubba'],['Dschubba','PiSco'],['Dschubba','Antares'],['Antares','TauSco'],['TauSco','EpsSco'],['EpsSco','MuSco'],['MuSco','ZetaSco'],['ZetaSco','EtaSco'],['EtaSco','Sargas'],['Sargas','IotaSco'],['IotaSco','KappaSco'],['KappaSco','Shaula']],
+   about:'A scorpion low in the south on summer nights, with a curling tail. Red Antares is its heart.'},
+  {id:'ple', en:'The Pleiades (Seven Sisters)', ru:'Плеяды', tr:'Pleyady',
+   lines:[['Alcyone','Atlas'],['Alcyone','Electra'],['Alcyone','Maia'],['Alcyone','Merope'],['Maia','Taygeta'],['Atlas','Pleione']],
+   about:'A tiny, misty cluster of sisters. Long ago Russians called them «Стожары» (Stozhary). Look just above Orion on winter evenings.'},
+];
+const FAINT = (()=>{ const r = seeded(2024), out = []; for(let i=0; i<(window.LEGACY ? 220 : 520); i++){ const z = r()*2 - 1; out.push([r()*24, Math.asin(z)*180/Math.PI, 4 + r()*2]); } return out; })();
+const SKY_LAT = 40 * Math.PI/180;
+function skyLST(){                              // tonight at 9 pm (or now, if it is already dark), in degrees
+  const d = new Date(); const h = d.getHours();
+  if(h >= 6 && h < 20){ d.setHours(21, 0, 0, 0); }
+  const jd = d.getTime()/86400000 + 2440587.5, lon = -d.getTimezoneOffset()/60*15;
+  return ((280.46061837 + 360.98564736629*(jd - 2451545) + lon) % 360 + 360) % 360;
+}
+function altAz(ra, dec, lst){
+  const H = (lst - ra*15) * Math.PI/180, de = dec*Math.PI/180;
+  const alt = Math.asin(Math.sin(de)*Math.sin(SKY_LAT) + Math.cos(de)*Math.cos(SKY_LAT)*Math.cos(H));
+  const az = Math.atan2(-Math.sin(H)*Math.cos(de), Math.sin(de)*Math.cos(SKY_LAT) - Math.cos(de)*Math.sin(SKY_LAT)*Math.cos(H));
+  return [alt, (az + Math.PI*2) % (Math.PI*2)];
+}
+const wrapA = a=>{ while(a > Math.PI) a -= Math.PI*2; while(a < -Math.PI) a += Math.PI*2; return a; };
+function starSize(mag, k){ return Math.max(.6, (3.2 - mag*.55)) * k; }
+// stars low in the sky, seen from the boat (first person)
+function drawNightFP(g, B, FOC, HOR){
+  const lst = B.lst, head = B.h + Math.PI/2;      // compass bearing the bow points at
+  const P = (ra, dec)=>{ const [alt, az] = altAz(ra, dec, lst); const d = wrapA(az - head); if(alt < 0 || Math.abs(d) > 1.2) return null;
+    return {x:VW/2 + Math.tan(d)*FOC, y:HOR - Math.tan(Math.min(alt, 1.3))*FOC}; };
+  g.fillStyle = 'rgba(255,255,255,.75)';
+  for(const s of FAINT){ const p = P(s[0], s[1]); if(p && p.y > -10) g.fillRect(p.x, p.y, 1.2, 1.2); }
+  g.strokeStyle = 'rgba(170,210,255,.28)'; g.lineWidth = 1;
+  for(const c of CONSTELLATIONS) for(const [a, b] of c.lines){ const p = P(STARS[a][0], STARS[a][1]), q = P(STARS[b][0], STARS[b][1]); if(p && q){ g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); } }
+  for(const k in STARS){ const s = STARS[k], p = P(s[0], s[1]); if(!p) continue; g.fillStyle = k === 'Betelgeuse' || k === 'Antares' ? '#ffc8a0' : '#ffffff'; g.beginPath(); g.arc(p.x, p.y, starSize(s[2], 1), 0, 7); g.fill(); }
+}
+/* the stargazing view: look all around the sky; tap a constellation to learn about it */
+function drawStargaze(t){
+  const B = bt, G = B.gaze, g = ctx, S = Math.min(VW, VH)/1.25;
+  const sk = g.createLinearGradient(0, 0, 0, VH); sk.addColorStop(0, '#05081c'); sk.addColorStop(1, '#14204a');
+  g.fillStyle = sk; g.fillRect(0, 0, VW, VH);
+  const P = (alt, az)=>{ const d = wrapA(az - G.az); if(Math.abs(d)*Math.cos(alt) > 1.4) return null; return {x:VW/2 + d*Math.cos(alt)*S, y:VH/2 - (alt - G.alt)*S}; };
+  const PS = (ra, dec)=>{ const [alt, az] = altAz(ra, dec, B.lst); if(alt < -.05) return null; return P(alt, az); };
+  // the Milky Way, a soft band
+  g.fillStyle = 'rgba(200,210,255,.035)';
+  for(let i=0; i<60; i++){ const ra = i/60*24, dec = 27*Math.sin(i/60*Math.PI*2 + 1.2) + 10; const p = PS(ra, dec); if(p){ g.beginPath(); g.arc(p.x, p.y, 60, 0, 7); g.fill(); } }
+  for(const s of FAINT){ const p = PS(s[0], s[1]); if(!p) continue; const tw = .55 + .45*Math.sin(t*3 + s[0]*7); g.fillStyle = 'rgba(255,255,255,' + tw*.8 + ')'; g.fillRect(p.x, p.y, 1.4, 1.4); }
+  G.centers = [];
+  for(const c of CONSTELLATIONS){
+    const sel = G.sel === c; let cx = 0, cy = 0, n = 0;
+    g.strokeStyle = sel ? 'rgba(255,212,121,.9)' : 'rgba(150,200,255,.4)'; g.lineWidth = sel ? 2.4 : 1.3;
+    for(const [a, b] of c.lines){ const p = PS(STARS[a][0], STARS[a][1]), q = PS(STARS[b][0], STARS[b][1]);
+      if(p && q){ g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); cx += p.x + q.x; cy += p.y + q.y; n += 2; } }
+    if(n){ cx /= n; cy /= n; G.centers.push({c, x:cx, y:cy});
+      g.font = `${sel ? 700 : 600} 13px Nunito, sans-serif`; g.textAlign = 'center'; g.fillStyle = sel ? '#ffd479' : 'rgba(190,220,255,.75)'; g.fillText(c.en, cx, cy + 34); }
+  }
+  for(const k in STARS){ const s = STARS[k], p = PS(s[0], s[1]); if(!p) continue;
+    const r = starSize(s[2], 1.3), gl = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r*3);
+    const col = k === 'Betelgeuse' || k === 'Antares' ? '255,200,160' : k === 'Rigel' || k === 'Vega' ? '200,220,255' : '255,255,255';
+    gl.addColorStop(0, 'rgba(' + col + ',1)'); gl.addColorStop(.3, 'rgba(' + col + ',.6)'); gl.addColorStop(1, 'rgba(' + col + ',0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(p.x, p.y, r*3, 0, 7); g.fill();
+    if(k === 'Polaris'){ g.fillStyle = 'rgba(255,212,121,.85)'; g.font = '600 12px Nunito, sans-serif'; g.textAlign = 'left'; g.fillText('★ North Star', p.x + 8, p.y - 6); } }
+  // the horizon and the sea, with the compass points
+  const hy = VH/2 + G.alt*S;
+  if(hy < VH){ const sea = g.createLinearGradient(0, hy, 0, VH); sea.addColorStop(0, '#1b2a55'); sea.addColorStop(1, '#070b1d'); g.fillStyle = sea; g.fillRect(0, hy, VW, VH - hy);
+    g.strokeStyle = 'rgba(180,200,255,.35)'; g.beginPath(); g.moveTo(0, hy); g.lineTo(VW, hy); g.stroke(); }
+  [['N', 0], ['NE', Math.PI/4], ['E', Math.PI/2], ['SE', Math.PI*.75], ['S', Math.PI], ['SW', Math.PI*1.25], ['W', Math.PI*1.5], ['NW', Math.PI*1.75]].forEach(([n, a])=>{
+    const p = P(0, a); if(p){ g.fillStyle = n.length === 1 ? '#ffd479' : 'rgba(255,212,121,.6)'; g.font = `700 ${n.length === 1 ? 18 : 13}px Comfortaa, sans-serif`; g.textAlign = 'center'; g.fillText(n, p.x, Math.min(VH - 14, p.y + 22)); } });
+  // what you tapped
+  if(G.sel){
+    const c = G.sel, w = Math.min(VW - 32, 560), x = VW/2 - w/2, y = VH - 190;
+    g.fillStyle = 'rgba(3,10,30,.82)'; roundRect(g, x, y, w, 150, 16); g.fill(); g.strokeStyle = 'rgba(255,212,121,.6)'; g.lineWidth = 1.5; g.stroke();
+    g.textAlign = 'left'; g.fillStyle = '#ffd479'; g.font = '700 19px Comfortaa, sans-serif'; g.fillText(c.en, x + 16, y + 28);
+    g.fillStyle = '#eaf9ff'; g.font = '700 16px "PT Sans", Nunito, sans-serif'; g.fillText(c.ru + '  ·  ' + c.tr, x + 16, y + 52);
+    g.fillStyle = '#cfe3ff'; g.font = '14px Nunito, sans-serif'; wrapText(g, c.about, x + 16, y + 76, w - 32, 19);
+  } else {
+    shadowText(g, 'Drag to look around · tap a star picture', VW/2, VH - 40, 17, '#eaf9ff');
+  }
+}
+function wrapText(g, text, x, y, w, lh){ let line = '', yy = y; for(const word of text.split(' ')){ const t2 = line ? line + ' ' + word : word; if(g.measureText(t2).width > w && line){ g.fillText(line, x, yy); line = word; yy += lh; } else line = t2; } g.fillText(line, x, yy); }
+(function(){
+  let drag = null;
+  cv.addEventListener('pointerdown', e=>{ if(scene === 'boat' && bt && bt.gaze && !overlay) drag = {x:e.clientX, y:e.clientY, az:bt.gaze.az, alt:bt.gaze.alt, moved:false}; });
+  cv.addEventListener('pointermove', e=>{ if(!drag || !bt || !bt.gaze) return; const S = Math.min(VW, VH)/1.25;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if(Math.abs(dx) + Math.abs(dy) > 6) drag.moved = true;
+    bt.gaze.az = (drag.az - dx/S + Math.PI*4) % (Math.PI*2); bt.gaze.alt = clamp(drag.alt + dy/S, .1, 1.35); });
+  cv.addEventListener('pointerup', e=>{
+    if(drag && !drag.moved && bt && bt.gaze){
+      let best = null, bd = 90;
+      for(const c of bt.gaze.centers || []){ const d = Math.hypot(c.x - e.clientX, c.y - e.clientY); if(d < bd){ bd = d; best = c.c; } }
+      bt.gaze.sel = best;
+      if(best){ Audio_.sparkle(); setTimeout(()=>Audio_.say(best.ru), 250);
+        const S = sv(); S.stars = S.stars || {}; if(!S.stars[best.id]){ S.stars[best.id] = 1; save.pearls += 3; updateHud(); persist();
+          toast(`New constellation! ${Object.keys(S.stars).length}/${CONSTELLATIONS.length} found · +3 🫧`); } }
+    }
+    drag = null;
+  });
+})();
+
+/* ============================ BOAT INSTRUMENTS ============================ */
+// the radio: Bubble FM plays the game's tunes over a soft bass
+let radioOn = -1;
+function radioStations(){
+  if(radioStations.list) return radioStations.list;
+  const list = [{name:'Korobeiniki', i:1}, {name:'Dance of the Sugar Plum Fairy', i:0}];
+  for(const id of ['minuet','ode','canon','twinkle','jingle','birthday']){
+    const s = SONGS.find(x=>x.id === id); if(!s) continue;
+    const mel = s.notes.map(n=>[n.p ? 440*Math.pow(2, (n.p - 69)/12) : 0, n.d]);
+    const tonic = s.notes[s.notes.length - 1].p % 12, total = s.notes.reduce((a, n)=>a + n.d, 0);
+    const root = 440*Math.pow(2, (36 + tonic - 69)/12), fifth = root*1.5, bass = [];
+    for(let b=0; b<total; b+=2) bass.push([(b/2) % 2 ? fifth : root, 2]);
+    TRACKS.push({name:s.name, by:'Bubble FM', bpm:id === 'canon' ? 70 : id === 'minuet' ? 120 : 110, voice:id === 'canon' || id === 'twinkle' ? 'celesta' : 'pluck', mel, bass});
+    list.push({name:s.name, i:TRACKS.length - 1});
+  }
+  return radioStations.list = list;
+}
+function radioNext(){
+  const L = radioStations();
+  radioOn = radioOn + 1 >= L.length ? -1 : radioOn + 1;
+  if(radioOn < 0){ Music.stop(); toast('📻 Radio off'); }
+  else { Music.start(L[radioOn].i); toast(`📻 Bubble FM ${(98.1 + radioOn*.8).toFixed(1)}: ${L[radioOn].name}`); }
+}
+// GPS: pick an island and follow the arrow
+function gpsMenu(){
+  const B = bt; $('#dockTitle').textContent = '🛰 GPS';
+  const body = $('#dockBody'); body.innerHTML = '';
+  const pos = document.createElement('p'); pos.className = 'sub'; pos.textContent = 'You are at ' + gpsCoords(B.x, B.y) + '. Where to?'; body.appendChild(pos);
+  const grid = document.createElement('div'); grid.className = 'grid2'; body.appendChild(grid);
+  const places = ISLES.map(i=>({name:i.name, x:i.x, y:i.y, r:i.r})).concat([{name:'Race start', x:RACE_BUOYS[0][0], y:RACE_BUOYS[0][1], r:40}],
+    FISH_SPOTS.map((s, k)=>({name:'Fishing spot ' + (k + 1), x:s.x, y:s.y, r:60})));
+  places.sort((a, b)=>Math.hypot(a.x - B.x, a.y - B.y) - Math.hypot(b.x - B.x, b.y - B.y));
+  for(const pl of places){
+    const t = document.createElement('div'); t.className = 'tile' + (B.gps && B.gps.name === pl.name ? ' sel' : '');
+    t.innerHTML = `${pl.name}<span class="cost">${Math.round(Math.hypot(pl.x - B.x, pl.y - B.y))} m · ${compass(Math.atan2(pl.y - B.y, pl.x - B.x))}</span>`;
+    t.onclick = ()=>{ B.gps = pl; openLayer(null); showHud(true); toast('🛰 Heading for ' + pl.name); };
+    grid.appendChild(t);
+  }
+  if(B.gps){ const off = document.createElement('button'); off.type = 'button'; off.className = 'btn ghost'; off.textContent = 'Turn off directions'; off.onclick = ()=>{ B.gps = null; openLayer(null); showHud(true); }; body.appendChild(off); }
+  openLayer('lDock');
+}
+function compass(a){ return ['E','SE','S','SW','W','NW','N','NE'][((Math.round(a/(Math.PI/4)) % 8) + 8) % 8]; }
+function gpsCoords(x, y){
+  const lat = 54 + (SEA.h - y)/SEA.h, lon = 4 - x/SEA.w;
+  const f = v=>Math.floor(v) + '°' + ((v % 1)*60).toFixed(1) + '′';
+  return f(lat) + 'N ' + f(lon) + 'W';
+}
+function drawInstruments(g, t){
+  const B = bt; if(!B || B.gaze) return;
+  const x = 12, w = Math.min(190, VW*.3), y = VH*.36;
+  // fish finder
+  if(B.sonar){
+    const h = 104;
+    g.fillStyle = 'rgba(2,12,24,.82)'; roundRect(g, x, y, w, h + 40, 12); g.fill(); g.strokeStyle = 'rgba(110,230,160,.5)'; g.lineWidth = 1.5; g.stroke();
+    const depth = px=>{ let d = 30 + Math.sin(px*.003)*10 + Math.sin(px*.011 + 2)*4; for(const is of ISLES){ const dd = Math.hypot(B.x - is.x, B.y - is.y); if(dd < is.r + 500) d = Math.min(d, 4 + (dd - is.r)/500*26); } return d; };
+    g.save(); g.beginPath(); g.rect(x + 6, y + 6, w - 12, h); g.clip();
+    g.fillStyle = '#04223a'; g.fillRect(x + 6, y + 6, w - 12, h);
+    const hist = B.sonarHist || (B.sonarHist = []);
+    if(!hist.length || Math.hypot(B.x - hist[hist.length - 1].x, B.y - hist[hist.length - 1].y) > 6 || t - (hist[hist.length - 1].t || 0) > .25){
+      let fish = 0; for(const s of FISH_SPOTS){ const d = Math.hypot(B.x - s.x, B.y - s.y); if(d < 260) fish = Math.max(fish, 1 - d/260); }
+      hist.push({x:B.x, y:B.y, t, d:depth(B.x + B.y), fish:Math.random() < .15 + fish*.7 ? .25 + Math.random()*.6 : 0}); if(hist.length > 60) hist.shift(); }
+    const cw = (w - 12)/60;
+    hist.forEach((hp, i)=>{ const hx = x + 6 + i*cw, dy = y + 6 + Math.min(h - 4, hp.d/40*h);
+      const gg = g.createLinearGradient(0, dy, 0, y + 6 + h); gg.addColorStop(0, '#ffcf5a'); gg.addColorStop(.3, '#c9732a'); gg.addColorStop(1, '#4a2510');
+      g.fillStyle = gg; g.fillRect(hx, dy, cw + .5, y + 6 + h - dy);
+      if(hp.fish){ const fy = y + 6 + hp.fish*(dy - y - 12); g.strokeStyle = '#ff4d6d'; g.lineWidth = 2; g.beginPath(); g.arc(hx, fy + 3, 4, Math.PI*1.15, Math.PI*1.85); g.stroke(); } });
+    g.restore();
+    const last = hist[hist.length - 1], fishNow = hist.slice(-12).some(h2=>h2.fish);
+    g.fillStyle = '#9ff0c0'; g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'left';
+    g.fillText(`📡 Depth ${Math.round(last.d)} m`, x + 10, y + h + 22);
+    if(fishNow){ g.fillStyle = '#ff8aa0'; g.fillText('🐟 Fish below!', x + 10, y + h + 36); }
+  }
+  // GPS readout and directions
+  const gy = y + (B.sonar ? 152 : 0);
+  g.fillStyle = 'rgba(2,12,24,.82)'; roundRect(g, x, gy, w, B.gps ? 62 : 40, 12); g.fill();
+  g.fillStyle = '#bdf7ff'; g.font = '600 12px "JetBrains Mono", monospace'; g.textAlign = 'left';
+  g.fillText(gpsCoords(B.x, B.y), x + 10, gy + 17);
+  g.fillText((Math.abs(B.v)/30).toFixed(1) + ' knots · ' + compass(B.h), x + 10, gy + 33);
+  if(B.gps){
+    const dx = B.gps.x - B.x, dy = B.gps.y - B.y, d = Math.hypot(dx, dy);
+    if(d < (B.gps.r || 40) + 90){ toast('🛰 You have arrived at ' + B.gps.name + '!'); Audio_.good(); B.gps = null; return; }
+    g.fillStyle = '#ffd479'; g.fillText('→ ' + B.gps.name + ' ' + Math.round(d) + ' m', x + 10, gy + 52);
+    // a big arrow showing which way to go
+    const rel = B.view === 'fp' ? wrapA(Math.atan2(dy, dx) - B.h) - Math.PI/2 : Math.atan2(dy, dx);
+    g.save(); g.translate(VW/2, B.view === 'fp' ? 110 : VH/2 - 90); g.rotate(rel);
+    g.fillStyle = 'rgba(255,212,121,.9)'; g.beginPath(); g.moveTo(26, 0); g.lineTo(-12, -16); g.lineTo(-4, 0); g.lineTo(-12, 16); g.closePath(); g.fill();
+    g.restore();
+  }
+  // the radio on the dash
+  if(radioOn >= 0 && B.view === 'fp'){ const L = radioStations()[radioOn];
+    g.fillStyle = 'rgba(40,24,12,.9)'; roundRect(g, VW*.66, VH - 70, 170, 44, 10); g.fill();
+    g.fillStyle = '#ffcf5a'; g.font = '700 11px "JetBrains Mono", monospace'; g.textAlign = 'left';
+    g.fillText('FM ' + (98.1 + radioOn*.8).toFixed(1), VW*.66 + 10, VH - 52);
+    g.fillStyle = '#ffe9b0'; g.font = '600 11px Nunito, sans-serif'; g.fillText(L.name.slice(0, 26), VW*.66 + 10, VH - 36); }
+}
+
+/* ============================ PLAYING TOGETHER ============================
+   Two iPads, two divers. Both enter the same family code and pick different
+   divers; then they find each other (PeerJS's free public broker only makes
+   the introduction) and talk directly over the home Wi-Fi with WebRTC:
+     · see each other in Bubble Town and out on the sea, with name tags
+     · a radar that shows where your sister is, or what she is doing
+     · waves and hearts, and hop aboard each other's boat as crew
+     · a walkie-talkie: hold 🎙️ to talk; when you are together in the game
+       (side by side, or on the same boat) the line opens by itself
+   Voice uses each iPad's own microphone and speaker. Nothing is recorded.
+   ======================================================================== */
+const Net = {peer:null, conn:null, st:'off', code:'', friend:null, sendT:0, mic:null, out:null, inCall:null,
+             holding:false, open:false, theirTalk:false, crewTalk:true, err:''};
+const SCENE_SAYS = {title:'is choosing a diver', yard:'is in the backyard', tunnel:'is digging tunnels', maze:'is in the glowing cave',
+  dive:'is diving down', ocean:'is swimming in Bubble Town', boat:'is out on her boat', run:'is in Coral Run', blocks:'is in the Snow Palace', show:'is dancing'};
+const LAYER_SAYS = {lMusic:'is in the Music Dome', lDance:'is in the Dance Dome', lDraw:'is in the Draw Lab', lHome:'is in her Home dome', lWord:'is at a letter door', lDock:'is visiting an island'};
+function familyCode(){ try{ return localStorage.getItem('bubbletown.family') || ''; }catch(e){ return ''; } }
+function newFamilyCode(){ const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for(let i=0; i<6; i++) c += A[Math.floor(Math.random()*A.length)]; return c; }
+function setFamilyCode(c){ c = (c || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8); try{ if(c) localStorage.setItem('bubbletown.family', c); else localStorage.removeItem('bubbletown.family'); }catch(e){} Net.code = c; netStart(); }
+function peerOpts(){ try{ const o = JSON.parse(localStorage.getItem('bubbletown.peerServer') || 'null'); if(o) return Object.assign({debug:0}, o); }catch(e){} return {debug:0}; }
+function otherDiver(){ return DIVERS.find(d=>d.id !== P); }
+function friendName(){ const o = otherDiver(); return Net.friend && Net.friend.nm ? Net.friend.nm : o ? diverName(o) : 'Your sister'; }
+function netIds(){ return {me:'bubbletown-' + Net.code + '-' + P, them:'bubbletown-' + Net.code + '-' + otherDiver().id}; }
+function netStop(){
+  clearInterval(Net.dialT);
+  try{ if(Net.conn) Net.conn.close(); }catch(e){} try{ if(Net.peer) Net.peer.destroy(); }catch(e){}
+  Net.peer = Net.conn = Net.friend = Net.out = Net.inCall = null; Net.st = 'off'; netUi();
+}
+function netStart(){
+  Net.code = familyCode();
+  netStop();
+  if(!P || !Net.code) return;
+  if(!window.Peer){ Net.st = 'nolib'; netUi(); return; }
+  const ids = netIds();
+  Net.st = 'connecting'; netUi();
+  let peer;
+  try{ peer = Net.peer = new Peer(ids.me, peerOpts()); }catch(e){ Net.st = 'error'; Net.err = String(e); netUi(); return; }
+  peer.on('open', ()=>{ if(Net.st !== 'on') Net.st = 'waiting'; netUi(); netDial(); });
+  peer.on('connection', c=>netUse(c));
+  peer.on('call', call=>{ try{ call.answer(); }catch(e){} netHear(call); });
+  peer.on('error', e=>{
+    if(e.type === 'peer-unavailable') return;                    // she isn't online yet; keep trying
+    if(e.type === 'unavailable-id'){ Net.st = 'same'; netUi(); return; }
+    if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){ Net.st = 'offline'; netUi(); return; }
+    Net.err = e.type || String(e); netUi();
+  });
+  peer.on('disconnected', ()=>{ setTimeout(()=>{ try{ if(Net.peer === peer && !peer.destroyed) peer.reconnect(); }catch(e){} }, 2000); });
+  Net.dialT = setInterval(netDial, 4000);
+}
+// only the diver with the smaller id dials, so the two iPads never race each other
+function netDial(){
+  const ids = netIds();
+  if(!Net.peer || Net.peer.disconnected || Net.peer.destroyed || (Net.conn && Net.conn.open) || ids.me > ids.them) return;
+  try{ netUse(Net.peer.connect(ids.them, {reliable:true})); }catch(e){}
+}
+function netUse(c){
+  c.on('open', ()=>{
+    if(Net.conn && Net.conn !== c && Net.conn.open){ try{ c.close(); }catch(e){} return; }
+    const was = Net.st === 'on'; Net.conn = c; Net.st = 'on';
+    if(!was){ toast(`${friendName()} is here! 👋`); Audio_.great(); }
+    netSend(true); if(Net.mic) netCallOut(); netUi();
+  });
+  c.on('data', netData);
+  c.on('close', ()=>{ if(Net.conn === c){ Net.conn = null; Net.out = null; Net.friend = null; Net.theirTalk = false; Net.st = 'waiting'; toast(`${friendName()} left the game`); netUi(); } });
+  c.on('error', ()=>{});
+}
+function myPlace(){
+  if(scene === 'ocean') return {x:player.x, y:player.y, h:player.face > 0 ? 0 : Math.PI};
+  if(scene === 'boat' && bt) return {x:bt.x, y:bt.y, h:bt.h};
+  return null;
+}
+function netSend(force){
+  if(!Net.conn || !Net.conn.open) return;
+  const now = performance.now(); if(!force && now - Net.sendT < 150) return; Net.sendT = now;
+  const pl = myPlace(), me = DIVERS.find(d=>d.id === P);
+  try{ Net.conn.send({k:'s', sc:scene, ov:overlay || '', x:pl ? Math.round(pl.x) : null, y:pl ? Math.round(pl.y) : null, h:pl ? +pl.h.toFixed(2) : 0,
+    nm:diverName(me), su:save ? save.suit : 0, ha:save ? save.hair : 0, sail:save && save.sea ? save.sea.sail : 'plain',
+    crew:!!(bt && bt.crew), talk:Net.holding || Net.open, face:player.face}); }catch(e){}
+}
+function netData(d){
+  if(!d || typeof d !== 'object') return;
+  if(d.k === 's'){
+    const f = Net.friend || (Net.friend = {fx:d.x, fy:d.y, fh:d.h});
+    const jump = f.sc !== d.sc || f.x === null || d.x === null;
+    Object.assign(f, d, {at:performance.now()});
+    if(jump){ f.fx = d.x; f.fy = d.y; f.fh = d.h; }
+    if(d.talk !== Net.theirTalk){ Net.theirTalk = d.talk; if(d.talk) kshh(); }
+    if(bt && f.crew && f.sc === 'boat' && !f.welcomed){ f.welcomed = 1; toast(`${f.nm} hopped aboard your boat! ⛵`); }
+    if(!f.crew) f.welcomed = 0;
+  } else if(d.k === 'e'){
+    if(Net.friend){ Net.friend.emote = d.e; Net.friend.emoteT = performance.now(); }
+    toast(`${friendName()}: ${d.e}`); Audio_.sweep(600, 1200, .15, 'sine', .08);
+  }
+}
+function netEmote(e){ if(!Net.conn || !Net.conn.open) return; try{ Net.conn.send({k:'e', e}); }catch(x){} Net.myEmote = e; Net.myEmoteT = performance.now(); Audio_.blip(900); }
+function netTick(dt){
+  if(Net.st !== 'on') return;
+  const f = Net.friend;
+  if(f && f.x !== null && f.fx !== null){ const k = Math.min(1, dt*8); f.fx += (f.x - f.fx)*k; f.fy += (f.y - f.fy)*k; f.fh += wrapA(f.h - f.fh)*k; }
+  // the line opens by itself when you are together in the game
+  const near = netNear();
+  const open = !!(Net.mic && Net.crewTalk && near);
+  if(open !== Net.open){ Net.open = open; if(open) toast(`🔊 You can talk to ${friendName()} now`); netMicGate(); }
+  netSend(false);
+}
+function netNear(){
+  const f = Net.friend; if(!f || f.x === null || f.sc !== scene) return false;
+  const pl = myPlace(); if(!pl) return false;
+  if(scene === 'boat' && (bt.crew || f.crew)) return true;
+  return Math.hypot(pl.x - f.x, pl.y - f.y) < (scene === 'boat' ? 350 : 420);
+}
+/* ---- the walkie-talkie ---- */
+function kshh(){ Audio_.noise(.18, 2500, .7, .07, 'bandpass'); }
+async function netMicOn(){
+  if(Net.mic) return true;
+  try{
+    Net.mic = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true, autoGainControl:true}});
+    netMicGate(); if(Net.conn && Net.conn.open) netCallOut(); netUi();
+    return true;
+  }catch(e){ toast('The walkie-talkie needs the microphone. Allow it in Safari, then try again.'); return false; }
+}
+function netMicGate(){ if(!Net.mic) return; const on = Net.holding || Net.open; Net.mic.getAudioTracks().forEach(t=>{ t.enabled = on; }); netSend(true); }
+function netCallOut(){ try{ if(Net.out) Net.out.close(); }catch(e){} try{ Net.out = Net.peer.call(netIds().them, Net.mic); }catch(e){} }
+function netHear(call){
+  Net.inCall = call;
+  call.on('stream', st=>{ const a = $('#walkieAudio'); a.srcObject = st; const p = a.play(); if(p && p.catch) p.catch(()=>{}); });
+  call.on('close', ()=>{ if(Net.inCall === call) Net.inCall = null; });
+}
+addEventListener('pointerdown', ()=>{ const a = $('#walkieAudio'); if(a && a.srcObject && a.paused){ const p = a.play(); if(p && p.catch) p.catch(()=>{}); } });
+(function(){
+  const b = $('#walkieBtn');
+  const down = async e=>{ e.preventDefault(); e.stopPropagation(); if(!Net.mic && !(await netMicOn())) return;
+    Net.holding = true; b.classList.add('on'); kshh(); netMicGate(); };
+  const up = ()=>{ if(!Net.holding) return; Net.holding = false; b.classList.remove('on'); kshh(); netMicGate(); };
+  b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+  document.querySelectorAll('#togetherBar .emo').forEach(x=>x.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); netEmote(x.textContent); }));
+})();
+/* ---- what's on screen ---- */
+function netUi(){
+  const on = Net.st === 'on' && !!P && scene !== 'title';
+  $('#togetherBar').hidden = !on;
+  if($('#lHome').classList.contains('on')) renderTogether();
+}
+function drawFriendTag(g, x, y, f){
+  g.font = '700 13px Comfortaa, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const label = (f.talk ? '🔊 ' : '') + f.nm, w = g.measureText(label).width + 18;
+  g.fillStyle = 'rgba(255,111,156,.85)'; roundRect(g, x - w/2, y - 11, w, 22, 11); g.fill();
+  g.fillStyle = '#ffffff'; g.fillText(label, x, y);
+  if(f.emote && performance.now() - f.emoteT < 3000){ g.font = '34px serif'; g.fillText(f.emote, x, y - 32 - Math.sin(performance.now()/200)*4); }
+}
+function drawFriendOcean(g, t){                          // world coordinates, called inside the ocean camera
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'ocean' || f.fx === null) return;
+  g.save(); g.globalAlpha = .95;
+  drawDiver(g, f.fx, f.fy, 1.5, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, f.face || 1, 1);
+  g.restore();
+  drawFriendTag(g, f.fx, f.fy - 50, f);
+}
+function friendBoatTop(g, sx, sy, h, z, t, f){
+  g.save(); g.translate(sx, sy); g.rotate(h);
+  const hg = g.createLinearGradient(0, -18*z, 0, 18*z); hg.addColorStop(0, '#e0b07a'); hg.addColorStop(1, '#8a5a2b');
+  g.fillStyle = hg; g.beginPath(); g.moveTo(52*z, 0); g.quadraticCurveTo(20*z, -20*z, -40*z, -16*z); g.lineTo(-44*z, 16*z); g.quadraticCurveTo(20*z, 20*z, 52*z, 0); g.fill();
+  g.rotate(.5 + Math.sin(t*1.5)*.05); g.fillStyle = SUITS[f.su] || '#ff6f9c';
+  g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(-10*z, 30*z, -36*z, 34*z); g.lineTo(0, 0); g.fill();
+  g.restore();
+  g.save(); g.translate(sx, sy); drawDiver(g, -6*z, -6*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, Math.cos(h) >= 0 ? 1 : -1, 0); g.restore();
+}
+function drawFriendSeaTop(g, t, sx, sy, z){
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null) return;
+  if(f.crew || (bt && bt.crew)){                          // the same boat: she stands on your deck
+    g.save(); g.translate(VW/2, VH/2); drawDiver(g, 14*z, -4*z, .9*z, SUITS[f.su] || SUITS[0], HAIRS[f.ha] || HAIRS[0], t + 1.3, 1, 0); g.restore();
+    drawFriendTag(g, VW/2 + 14*z, VH/2 - 50*z, f); return;
+  }
+  friendBoatTop(g, sx(f.fx), sy(f.fy), f.fh, z, t, f);
+  drawFriendTag(g, sx(f.fx), sy(f.fy) - 56*z, f);
+}
+function friendSeaFP(proj, g, t){                        // her boat on the water ahead of you
+  const f = Net.friend; if(Net.st !== 'on' || !f || f.sc !== 'boat' || f.fx === null || f.crew || (bt && bt.crew)) return null;
+  const p = proj(f.fx, f.fy); if(!p) return null;
+  return {p, draw:()=>{ const s = Math.min(p.k*1.6, 4);
+    g.fillStyle = '#8a5a2b'; g.beginPath(); g.moveTo(p.x - 50*s, p.y - 10*s); g.lineTo(p.x + 50*s, p.y - 10*s); g.lineTo(p.x + 36*s, p.y + 4*s); g.lineTo(p.x - 36*s, p.y + 4*s); g.fill();
+    g.strokeStyle = '#6b4a2a'; g.lineWidth = Math.max(1, 3*s); g.beginPath(); g.moveTo(p.x, p.y - 10*s); g.lineTo(p.x, p.y - 110*s); g.stroke();
+    g.fillStyle = SUITS[f.su] || '#ff6f9c'; g.beginPath(); g.moveTo(p.x + 3*s, p.y - 106*s); g.quadraticCurveTo(p.x + 50*s, p.y - 60*s, p.x + 44*s, p.y - 16*s); g.lineTo(p.x + 3*s, p.y - 16*s); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(p.x - 3*s, p.y - 100*s); g.quadraticCurveTo(p.x - 34*s, p.y - 60*s, p.x - 36*s, p.y - 18*s); g.lineTo(p.x - 3*s, p.y - 18*s); g.fill();
+    drawFriendTag(g, p.x, p.y - 130*s, f); }};
+}
+// the radar: where she is, or what she's doing
+function drawRadar(t){
+  if(Net.st !== 'on' || !P || scene === 'title') return;
+  const g = ctx, f = Net.friend, R = 46;
+  const cx = VW - R - 14, cy = scene === 'boat' ? 250 : 110;
+  if(scene === 'boat' && bt && bt.gaze) return;
+  g.save();
+  g.fillStyle = 'rgba(2,20,16,.82)'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(110,255,170,.35)'; g.lineWidth = 1;
+  [R*.33, R*.66, R - 2].forEach(r=>{ g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke(); });
+  g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
+  const a = (t*1.6) % (Math.PI*2);
+  const sw = g.createLinearGradient(cx, cy, cx + Math.cos(a)*R, cy + Math.sin(a)*R);
+  g.fillStyle = 'rgba(110,255,170,.22)'; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R - 2, a - .5, a); g.closePath(); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
+  let label;
+  const pl = myPlace();
+  if(f && pl && f.sc === scene && f.x !== null){
+    const dx = f.fx - pl.x, dy = f.fy - pl.y, d = Math.hypot(dx, dy), range = scene === 'boat' ? 2400 : 1800;
+    const k = Math.min(1, d/range) * (R - 8), ang = Math.atan2(dy, dx);
+    let bx = cx + Math.cos(ang)*k, by = cy + Math.sin(ang)*k;
+    const pulse = .6 + .4*Math.sin(t*6);
+    g.fillStyle = 'rgba(255,111,156,' + pulse + ')'; g.beginPath(); g.arc(bx, by, 6, 0, 7); g.fill();
+    label = `${f.nm} · ${Math.round(d/10)} m ${compass(ang)}`;
+  } else if(f){ label = `${f.nm} ${LAYER_SAYS[f.ov] || SCENE_SAYS[f.sc] || 'is playing'}`; }
+  else label = 'Looking for your sister…';
+  g.font = '700 12px Nunito, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'top';
+  const lines = []; let line = '';
+  for(const w of label.split(' ')){ const t2 = line ? line + ' ' + w : w; if(g.measureText(t2).width > 170 && line){ lines.push(line); line = w; } else line = t2; }
+  lines.push(line);
+  const ly = cy - lines.length*9;                       // the words sit to the left of the radar
+  lines.forEach((l, i)=>{ g.fillStyle = 'rgba(2,20,16,.7)'; const w = g.measureText(l).width + 12; roundRect(g, cx - R - 8 - w, ly + i*18, w, 17, 8); g.fill();
+    g.fillStyle = '#b8ffd6'; g.fillText(l, cx - R - 14, ly + 2 + i*18); });
+  if(Net.theirTalk){ g.fillStyle = '#ffd479'; g.textAlign = 'right'; g.font = '700 13px Comfortaa, sans-serif'; g.fillText(`📻 ${f ? f.nm : ''} is talking…`, cx - R - 14, ly + lines.length*18 + 6); }
+  g.restore();
+}
+/* ---- pairing, in the Home dome ---- */
+function renderTogether(){
+  const box = $('#togetherBox'); if(!box) return;
+  box.innerHTML = '';
+  const p = (html, cls)=>{ const e = document.createElement('p'); e.className = cls || 'note'; e.innerHTML = html; box.appendChild(e); return e; };
+  const b = (label, fn, cls)=>{ const x = document.createElement('button'); x.type = 'button'; x.className = 'btn ' + (cls || 'ghost') + ' sm'; x.textContent = label; x.onclick = fn; box.appendChild(x); return x; };
+  const other = otherDiver();
+  if(!Net.code){
+    p(`Play with ${diverName(other)} on another iPad. Make a family code here, then type the same code on the other iPad. Each iPad picks a different diver.`);
+    b('✨ Make a family code', ()=>{ setFamilyCode(newFamilyCode()); renderTogether(); }, 'gold');
+    const inp = document.createElement('input'); inp.className = 'namein'; inp.placeholder = 'or type a code'; inp.maxLength = 8; inp.style.cssText = 'width:150px;margin:8px 8px 0 0;font-size:17px';
+    box.appendChild(inp);
+    b('Join', ()=>{ if(inp.value.trim().length >= 4){ setFamilyCode(inp.value); renderTogether(); } else toast('Type the code from the other iPad'); });
+    return;
+  }
+  p(`Family code <b class="stat" style="font-size:22px;letter-spacing:.12em">${Net.code}</b>`, 'sub');
+  const say = {connecting:'Connecting…', waiting:`Waiting for ${diverName(other)} on the other iPad…`, on:`✅ Playing with ${friendName()}!`,
+    same:`Both iPads picked ${diverName(DIVERS.find(d=>d.id === P))}. On the other iPad, pick ${diverName(other)}.`,
+    offline:'Can’t reach the internet to find the other iPad. Check the Wi-Fi.', nolib:'Playing together could not load. Check the internet, then reopen the game.',
+    error:'Something went wrong connecting (' + Net.err + ').', off:'Off'}[Net.st] || Net.st;
+  p(say);
+  b(Net.mic ? '🎙️ Walkie-talkie is on' : '🎙️ Turn on the walkie-talkie', async ()=>{ await netMicOn(); renderTogether(); }, Net.mic ? 'ghost' : 'gold');
+  const lab = document.createElement('label'); lab.className = 'chk'; lab.style.margin = '8px 10px';
+  const c = document.createElement('input'); c.type = 'checkbox'; c.checked = Net.crewTalk; c.onchange = ()=>{ Net.crewTalk = c.checked; };
+  lab.appendChild(c); lab.appendChild(document.createTextNode(' talk freely when we’re together in the game')); box.appendChild(lab);
+  b('Change code', ()=>{ setFamilyCode(''); renderTogether(); });
+  p('Hold 🎙️ to talk like a walkie-talkie. Both iPads need the internet to find each other the first time; after that they talk straight to each other over your Wi-Fi.');
+}
 
 /* ============================ OCEAN UPDATE ============================ */
 function updateOcean(dt, t){
@@ -1892,6 +2887,7 @@ function drawOceanScene(t){
     drawDiver(g, player.x, player.y - 4, 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, 0);
     g.restore();
   } else drawDiver(g, player.x, player.y - (player.ride ? 4 : 0), 1.5, SUITS[save.suit], HAIRS[save.hair], t, player.face, player.ride ? 0 : player.kick);
+  drawFriendOcean(g, t);
 
   if(player.bonk > 0){                                    // bonk shockwave
     const r = (1 - player.bonk) * 300;
@@ -4320,7 +5316,7 @@ const Music = {
     }
   },
 };
-addEventListener('visibilitychange', ()=>{ if(document.hidden) Music.stop(); else if(scene === 'blocks') Music.start(); });
+addEventListener('visibilitychange', ()=>{ if(document.hidden) Music.stop(); else if(scene === 'blocks' || (scene === 'boat' && radioOn >= 0)) Music.start(); });
 
 /* ======================================================================
    CRYSTAL DROP: a falling-blocks puzzle in the Snow Palace dome, under
@@ -4613,6 +5609,7 @@ function openLayer(id){
 const padScene = ()=>scene === 'ocean' || scene === 'run' || scene === 'tunnel' || scene === 'maze' || scene === 'boat';
 function showHud(on){
   $('#hud').hidden = !on;
+  if(window.netUi) setTimeout(netUi, 0);
   $('#toast').style.top = scene === 'yard' ? '24%' : '';   // keep clear of the dig prompt
   $('#chipUp').hidden = scene !== 'ocean';
   $('#chipBack').textContent = scene === 'yard' ? '‹ Divers' : scene === 'tunnel' ? '‹ Backyard'
@@ -4623,7 +5620,7 @@ function showPads(on){
   $('#pads').hidden = !on;
   // in the tunnels you touch where to dig, so the stick zone would only get in the way
   $('#stickz').hidden = scene === 'tunnel';
-  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' || scene === 'boat' ? 'JUMP' : 'SWIM';
+  $('#padA').textContent = scene === 'tunnel' ? 'DASH' : scene === 'run' ? 'JUMP' : scene === 'boat' ? 'PHOTO' : 'SWIM';
   $('#padB').textContent = scene === 'boat' ? 'HORN' : 'BONK';
   $('#padA').hidden = $('#padB').hidden = scene === 'maze';      // the maze is just steering
 }
@@ -4642,7 +5639,7 @@ $('#chipBack').onclick = ()=>{
 $('#chipUp').onclick = ()=>{ if(scene === 'ocean' && !overlay) goUp(); };
 function goTitle(){
   if(save){ save.lastSeen = Date.now(); persist(); }
-  scene = 'title'; setSkip(null); showHud(false); buildTitle(); openLayer('lTitle');
+  scene = 'title'; setSkip(null); showHud(false); netStop(); buildTitle(); openLayer('lTitle');
 }
 
 /* ---- dome entry: word door first, then the activity ---- */
@@ -5579,9 +6576,10 @@ function openHome(){
     t.onclick = ()=>{ save.mode = id; persist(); openHome(); Audio_.blip(820); };
     mr.appendChild(t);
   });
-  renderAbc(); renderSharkHome();
+  renderAbc(); renderSharkHome(); renderTogether(); $('#seaBox').innerHTML = ''; if(save.sea) seaJournal($('#seaBox'));
   openLayer('lHome');
 }
+$('#dockOut').onclick = ()=>{ openLayer(null); showHud(true); };
 $('#homeClose').onclick = ()=>{
   save.lastSeen = Date.now(); persist();
   if(scene === 'ocean'){
@@ -5664,6 +6662,7 @@ function startProfile(id){
   player.ride = false; race = null;
   save.creatures.forEach(c=>{ c.x = undefined; c.y = undefined; c.ph = c.ph || 0; });
   yardStart('arrive');                 // every visit starts in the backyard
+  netStart();
   save.seen++; save.lastSeen = Date.now(); persist();
 }
 buildTitle();
@@ -5720,6 +6719,7 @@ function step(){
     if(!overlay) updateOcean(dt, t);
     updateSparks(dt); drawOceanScene(t);
   }
+  netTick(dt); drawRadar(t);
   tickToast();
 }
 requestAnimationFrame(frame);
