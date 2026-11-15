@@ -60,6 +60,12 @@ the lawn to lay its floor; take floor away, move the front door, add chimneys. T
 takes its shape from the rooms, and the town map shows that shape too. **Decorate**: furniture (tap the
 floor to place, drag to move, tap to turn), rugs, pictures on the walls, wall colors and floors for each
 room. **Outside**: the finished house with its roof, windows and door, and paint for the walls and roof.
+**Play** (the first tab, and open to visitors too) freezes the design and puts the diver in the house:
+tap the floor and she walks there, around the furniture and through the doorways; tap a thing and she
+walks up and uses it. She sleeps in the bed, takes a bubble bath, sits on the sofa and watches TV (three
+channels), cooks at the stove (five recipes, then eats at the table), reads four short books from the
+bookshelf (with read-aloud), grabs a snack from the fridge, plays the piano, changes outfit at the
+dresser, and more.
 ⟲ Turn spins the view a quarter turn; ↩ Undo steps back. Each girl can visit the other's house but not
 change it, and on connected iPads she sees her sister's changes arrive. Windows are placed automatically.
 The designer is `house.js`, kept apart from `index.html` so a mistake in it cannot stop the game.
