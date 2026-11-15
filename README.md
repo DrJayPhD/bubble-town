@@ -53,6 +53,17 @@ neighbors on Maple Lane each have a favor to ask (find Mrs. Rosa's cat, bring Gr
 the twins' ball), Mo the mail carrier brings a Russian postcard every day, and every neighbor helped
 counts on the treasure chart. Neighbors' lines are read aloud for younger players.
 
+**The girls' houses:** two houses on Maple Lane, across from ours, belong to the two divers, one each.
+Drive up and tap 🚪 Go into, or tap our house in the backyard and choose Visit the houses. The owner has
+three tabs. **Build**: pick a room (living room, bedroom, kitchen, bathroom, playroom, hallway) and drag on
+the lawn to lay its floor; take floor away, move the front door, add chimneys. The outside of the house
+takes its shape from the rooms, and the town map shows that shape too. **Decorate**: furniture (tap the
+floor to place, drag to move, tap to turn), rugs, pictures on the walls, wall colors and floors for each
+room. **Outside**: the finished house with its roof, windows and door, and paint for the walls and roof.
+⟲ Turn spins the view a quarter turn; ↩ Undo steps back. Each girl can visit the other's house but not
+change it, and on connected iPads she sees her sister's changes arrive. Windows are placed automatically.
+The designer is `house.js`, kept apart from `index.html` so a mistake in it cannot stop the game.
+
 **Playing together:** in the Home dome, make a family code on one iPad and type it on the others.
 Each iPad picks a different player: Diver One, Diver Two, **Papa**, **Mama** (grown-ups have their own
 look and saves), or **A friend** (a visiting friend's iPad asks for the code on the title screen; several

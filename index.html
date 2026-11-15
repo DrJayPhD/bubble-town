@@ -8,14 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Bubble Town">
 <meta name="theme-color" content="#03182b">
 <meta name="description" content="An underwater colony game.">
-<style>html,body{margin:0;padding:0;background:#03182b}img{max-width:100%}[hidden]{display:none!important}
-/* ---------- house design ---------- */
-#houseRoom{position:relative;width:100%;height:380px;background:linear-gradient(180deg,#1a3a5a,#0d2840);border-radius:18px;overflow:hidden;border:1.5px solid rgba(125,240,255,.25);margin-bottom:12px}
-.furn{position:absolute;background:rgba(255,255,255,.08);border:1.5px solid rgba(125,240,255,.3);border-radius:12px;user-select:none;touch-action:none}
-#houseCatalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;max-height:160px;overflow:auto;margin-top:8px}
-
-#houseYard{position:relative;width:100%;height:380px;background:linear-gradient(180deg,#4a9a5a,#2d6b3a);border-radius:18px;overflow:hidden;border:1.5px solid rgba(110,230,160,.3);margin-bottom:12px}
-</style>
+<style>html,body{margin:0;padding:0;background:#03182b}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Bubble Town</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -564,28 +557,6 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 })();
 window.LEGACY = !window.PointerEvent;
 </script>
-<!-- HOUSE DESIGN -->
-<div class="layer" id="lHouse"><div class="scrim"></div><div class="port" style="max-width:900px">
-  <p class="eyebrow">House</p>
-  <h2 id="houseTitle">House</h2>
-  <p class="sub" id="houseEditNote"></p>
-  <canvas id="houseCanvas" style="width:100%;height:380px;background:#1a2a3a;border-radius:16px;display:block;touch-action:none"></canvas>
-  <p class="eyebrow" style="margin-top:10px">Furniture</p>
-  <div id="houseCatalog" style="max-height:120px;overflow:auto;margin-bottom:8px"></div>
-  <div class="row end">
-    <button class="btn ghost" id="houseRotate" type="button">Rotate view</button>
-    <button class="btn" id="houseClose" type="button">Back to the yard</button>
-  </div>
-</div></div>
-
-<!-- PROPERTY BOARD -->
-<div class="layer" id="lProperties"><div class="scrim"></div><div class="port" style="max-width:820px">
-  <p class="eyebrow">Street Properties</p>
-  <h2>Buy a house</h2>
-  <p class="sub">The street has several houses. Buy them with pearls, then decorate the ones you own. You can visit any house.</p>
-  <div id="propList" class="grid2" style="margin-bottom:12px"></div>
-  <div class="row end"><button class="btn" id="propClose" type="button">Back</button></div>
-</div></div>
 <script src="vendor/peerjs.safari12.js"></script>
 <script>
 "use strict";
@@ -3285,8 +3256,8 @@ const TOWN_HOUSES = [
   {x:760, y:300, w:150, h:130, c:'#f3d98a', roof:'#b06a3a'},
   {x:980, y:300, w:140, h:130, c:'#cfe8c4', roof:'#5d8a4a'},
   {x:260, y:600, w:150, h:130, c:'#d6ccf2', roof:'#6a58a8'},
-  {x:560, y:600, w:150, h:130, c:'#ffe0b0', roof:'#a8643a'},
-  {x:860, y:600, w:150, h:130, c:'#f0e0c8', roof:'#7a5a40'},
+  {x:560, y:600, w:150, h:130, c:'#ffe0b0', roof:'#a8643a', kid:'sophia',   stop:[635, 500]},   // Diver One's house: see house.js
+  {x:860, y:600, w:150, h:130, c:'#f0e0c8', roof:'#7a5a40', kid:'angelina', stop:[935, 500]},   // Diver Two's house
 ];
 let dv2 = null;
 function startDrive(from){
@@ -3301,7 +3272,7 @@ function startDrive(from){
 function driveBar(){
   const bar = $('#boatBar'); bar.hidden = false;
   const D = dv2, want = [['places', '📍 Places'], ['home', '🏠 Drive home'], ['harbor', '⚓ Harbor'], ['honk', '📯 Honk']];
-  if(D.at && !D.park) want.unshift(D.at.k === 'place' ? ['enter', `🚪 Go into ${D.at.name}`] : ['talk', `👋 Say hi to ${D.at.name}`]);
+  if(D.at && !D.park) want.unshift(D.at.k === 'talk' || D.at.k === 'folk' ? ['talk', `👋 Say hi to ${D.at.name}`] : ['enter', `🚪 Go into ${D.at.name}`]);
   if(D.park === 'garage') want.unshift(['garage', '🏠 Park in the garage']);
   if(D.park === 'lot') want.unshift(['boat', '⛵ Get on the boat']);
   const key = want.map(w=>w[1]).join();
@@ -3315,7 +3286,7 @@ function driveAction(id){
   if(id === 'home') driveTo(570, 385, '🏠 Heading home');
   else if(id === 'harbor') driveTo(1900, 1370, '⚓ Heading to the harbor');
   else if(id === 'places') placesMenu();
-  else if(id === 'enter' && D.at){ D.v = 0; enterPlace(D.at.id); }
+  else if(id === 'enter' && D.at){ D.v = 0; if(D.at.k === 'house') House.open(D.at.id); else enterPlace(D.at.id); }
   else if(id === 'talk' && D.at){ D.v = 0; talkTo(D.at.id); }
   else if(id === 'honk'){ honk(); }
   else if(id === 'garage'){ $('#boatBar').hidden = true; dv2 = null; fadeTo(()=>yardStart('home')); }
@@ -3388,6 +3359,7 @@ function drawDrive(t){
   for(const h of TOWN_HOUSES){
     const x = sx(h.x), y = sy(h.y), w = h.w*z, hh = h.h*z;
     if(x > VW + 50 || x + w < -50 || y > VH + 50 || y + hh < -50) continue;
+    if(h.kid && window.House && House.drawTop(g, h, x, y, w, hh, z)) continue;   // a house the girls designed, drawn in its real shape
     if(h.ours){                                                 // the backyard with the pool, behind the house
       g.fillStyle = '#69b54c'; g.fillRect(x - 20*z, y - 160*z, w + 40*z, 160*z);
       g.fillStyle = '#f6f2ea'; roundRect(g, x + 10*z, y - 130*z, 90*z, 60*z, 10*z); g.fill(); g.fillStyle = '#3fb4cf'; roundRect(g, x + 18*z, y - 122*z, 74*z, 44*z, 8*z); g.fill();
@@ -3538,6 +3510,7 @@ function townAt(D, t){
   if(Math.abs(D.v) > 70) return null;
   let best = null, bd = 1e9;
   for(const p of PLACES){ const d = Math.hypot(D.x - p.stop[0], D.y - p.stop[1]); if(d < 90 && d < bd){ bd = d; best = {k:'place', id:p.id, name:p.name, ic:p.ic}; } }
+  if(window.House) for(const h of TOWN_HOUSES){ if(!h.kid) continue; const d = Math.hypot(D.x - h.stop[0], D.y - h.stop[1]); if(d < 90 && d < bd){ bd = d; best = {k:'house', id:h.kid, name:House.title(h.kid)}; } }
   for(const id in FOLKS){ const f = FOLKS[id]; if(!f.stop && !f.walk) continue; const s = folkStop(id, t), d = Math.hypot(D.x - s[0], D.y - s[1]); if(d < (f.walk ? 120 : 90) && d < bd){ bd = d; best = {k:'folk', id, name:f.name}; } }
   return best;
 }
@@ -3643,7 +3616,7 @@ function drawTownHud(g, t){
     const items = (T.q.rosa === 2 ? '🐈' : '') + (T.q.kims === 2 ? '⚽' : '') + Object.keys(T.bag || {}).map(k=>(GROCERIES.find(x=>x.id === k) || {ic:''}).ic).join('');
     g.fillStyle = 'rgba(3,24,43,.6)'; const w = 16 + items.length*12; roundRect(g, 260, VH - 60, Math.max(60, w), 40, 12); g.fill(); g.fillText(items, 270, VH - 33);
   }
-  if(D.at && !D.park) shadowText(g, D.at.k === 'place' ? `Tap 🚪 Go into ${D.at.name}` : `Tap 👋 Say hi to ${D.at.name}`, VW/2, VH*.2, 22, '#ffffff');
+  if(D.at && !D.park) shadowText(g, D.at.k !== 'folk' ? `Tap 🚪 Go into ${D.at.name}` : `Tap 👋 Say hi to ${D.at.name}`, VW/2, VH*.2, 22, '#ffffff');
 }
 
 /* ---- a neighbor's face, for the conversations ---- */
@@ -3919,6 +3892,7 @@ function placesMenu(){
       t2.onclick = ()=>{ placeLeave(); driveTo(x, y, `${ic} Driving to ${label}`); }; grid.appendChild(t2); };
     add('🏠', 'Home', 570, 385); add('⚓', 'Harbor', 1900, 1370);
     for(const p of PLACES) add(p.ic, p.name, p.stop[0], p.stop[1]);
+    if(window.House) for(const h of TOWN_HOUSES) if(h.kid) add('🏡', House.title(h.kid), h.stop[0], h.stop[1]);
     for(const id of ['rosa', 'ivan', 'kims']) add('🏡', FOLKS[id].name, FOLKS[id].stop[0], FOLKS[id].stop[1]);
   });
 }
@@ -4955,7 +4929,7 @@ function yardRoam(dt){
     if(m.after === 'house'){ m.after = null; Audio_.tone(660, .12, 'sine', .08); Audio_.tone(523, .2, 'sine', .08, .14);
       choose('Our house', 'Where to?', 'The car is parked in the garage, ready to drive to the harbor or around town.',
         {ic:'🚗', label:'Get in the car', desc:'Drive out of the garage', fn:()=>fadeTo(()=>startDrive('garage'))},
-        {ic:'🏡', label:'Go inside', desc:'Decorate the rooms', fn:()=>openHouseChooser()}); }
+        {ic:'🏡', label:'Visit the houses', desc:'Build rooms and decorate', fn:()=>{ if(window.House) House.pick(); else toast('The houses are still loading. Try again in a moment.'); }}); }
     return;
   }
   const sp = (m.mode === 'swim' ? 115 : 175) * S * yScale(m.y);
@@ -7883,254 +7857,6 @@ function startProfile(id){
 }
 buildTitle();
 
-/* ============================ HOUSE DESIGN (simple canvas) ============================ */
-const STREET_HOUSES = [
-  {id:'home',     name:'Family Home',     price:0,   color:'#ffd0dc'},
-  {id:'blue',     name:'Blue Cottage',    price:40,  color:'#7fb7e8'},
-  {id:'yellow',   name:'Sunny House',     price:55,  color:'#f3d98a'},
-  {id:'green',    name:'Garden House',    price:70,  color:'#cfe8c4'},
-  {id:'purple',   name:'Lilac House',     price:85,  color:'#d6ccf2'},
-  {id:'peach',    name:'Peach House',     price:100, color:'#ffe0b0'},
-  {id:'tan',      name:'Stone House',     price:120, color:'#f0e0c8'},
-];
-
-const HOUSES = {
-  sophia:   { name: "Sophia's House",  owner: 'sophia' },
-  angelina: { name: "Angie's House",   owner: 'angelina' }
-};
-
-function loadProperties(){
-  try{ return JSON.parse(localStorage.getItem('bubbletown.properties') || '{}'); }
-  catch(e){ return {}; }
-}
-function saveProperties(p){
-  try{ localStorage.setItem('bubbletown.properties', JSON.stringify(p)); }catch(e){}
-}
-function ownsHouse(houseId){
-  const props = loadProperties();
-  const owner = props[houseId];
-  if(!owner) return P === 'sophia' || P === 'angelina';
-  return owner === P;
-}
-function propertyOwner(houseId){
-  const props = loadProperties();
-  return props[houseId] || null;
-}
-
-const FURNITURE = [
-  {id:'bed',     name:'Bed',        ic:'🛏️', w:80, h:50},
-  {id:'sofa',    name:'Sofa',       ic:'🛋️', w:90, h:40},
-  {id:'table',   name:'Table',      ic:'🪑', w:60, h:40},
-  {id:'lamp',    name:'Lamp',       ic:'💡', w:30, h:50},
-  {id:'plant',   name:'Plant',      ic:'🪴', w:30, h:40},
-  {id:'tv',      name:'TV',         ic:'📺', w:50, h:30},
-  {id:'desk',    name:'Desk',       ic:'💻', w:70, h:40},
-  {id:'chair',   name:'Chair',      ic:'🪑', w:30, h:35},
-  {id:'flower',  name:'Flowers',    ic:'🌸', w:30, h:25},
-  {id:'bush',    name:'Bush',       ic:'🌿', w:40, h:30},
-  {id:'bench',   name:'Bench',      ic:'🪑', w:70, h:25},
-  {id:'mailbox', name:'Mailbox',    ic:'📬', w:25, h:40},
-];
-
-function loadHouse(id){
-  try{ return JSON.parse(localStorage.getItem('bubbletown.house.'+id) || '{"items":[]}'); }
-  catch(e){ return {items:[]}; }
-}
-function saveHouse(id, data){
-  try{ localStorage.setItem('bubbletown.house.'+id, JSON.stringify(data)); }catch(e){}
-}
-
-let currentHouse = null;
-let houseEditing = false;
-let houseAngle = 0.6; // radians
-let houseItems = [];
-let houseDrag = null;
-
-function openHouseChooser(){
-  choose('Houses', 'Decorate your homes or buy more on the street.',
-    '',
-    {ic:'🏠', label:'My houses', desc:'Decorate the ones you own', fn:()=>openProperties()},
-    {ic:'🏘️', label:'Street board', desc:'Buy new houses with pearls', fn:()=>openProperties()}
-  );
-}
-
-function enterHouse(id){
-  currentHouse = id;
-  const street = STREET_HOUSES.find(h=>h.id === id);
-  const name = street ? street.name : (HOUSES[id] ? HOUSES[id].name : id);
-  const owner = propertyOwner(id);
-  houseEditing = !owner || owner === P || (id === 'home' && (P === 'sophia' || P === 'angelina'));
-  const data = loadHouse(id);
-  houseItems = data.items || [];
-  $('#houseTitle').textContent = name + (houseEditing ? ' (yours)' : ' (visiting)');
-  $('#houseEditNote').textContent = houseEditing
-    ? 'Tap furniture to place it. Drag items around. Rotate the view with the button.'
-    : 'You can look around, but only the owner can move furniture.';
-  const catalog = $('#houseCatalog');
-  catalog.innerHTML = '';
-  if(houseEditing){
-    FURNITURE.forEach(f=>{
-      const b = document.createElement('button');
-      b.className = 'tile';
-      b.innerHTML = `<span class="big">${f.ic}</span>${f.name}`;
-      b.onclick = ()=>addFurnitureSimple(f);
-      catalog.appendChild(b);
-    });
-  }
-  openLayer('lHouse');
-  setTimeout(drawHouseCanvas, 50);
-}
-
-function project(x, z){
-  const ca = Math.cos(houseAngle), sa = Math.sin(houseAngle);
-  const px = x * ca - z * sa;
-  const py = (x * sa + z * ca) * 0.5;
-  return {x: px, y: py};
-}
-
-function drawHouseCanvas(){
-  const cv = $('#houseCanvas');
-  if(!cv || !$('#lHouse').classList.contains('on')) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = cv.clientWidth || 600, h = cv.clientHeight || 380;
-  cv.width = w * dpr; cv.height = h * dpr;
-  const g = cv.getContext('2d');
-  g.setTransform(dpr,0,0,dpr,0,0);
-  g.clearRect(0,0,w,h);
-
-  const cx = w/2, cy = h*0.65;
-  const scale = Math.min(w, h) / 280;
-
-  // Floor
-  g.fillStyle = '#3a5a7a';
-  g.beginPath();
-  const corners = [[-120,-80],[120,-80],[120,80],[-120,80]];
-  corners.forEach((c,i)=>{
-    const p = project(c[0], c[1]);
-    const sx = cx + p.x * scale, sy = cy + p.y * scale;
-    i ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
-  });
-  g.closePath(); g.fill();
-  g.strokeStyle = '#7df0ff'; g.lineWidth = 2; g.stroke();
-
-  // Simple walls (back)
-  g.fillStyle = '#5a7a9a';
-  g.beginPath();
-  const wall = [[-120,-80],[120,-80],[120,-80],[ -120,-80]];
-  // back wall as a raised quad
-  const back = [[-120,-80],[120,-80],[120,-40],[-120,-40]];
-  back.forEach((c,i)=>{
-    const p = project(c[0], c[1]);
-    const sx = cx + p.x * scale, sy = cy + p.y * scale - 40*scale;
-    i ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
-  });
-  g.closePath(); g.fill();
-
-  // Furniture
-  houseItems.forEach((it, i)=>{
-    const f = FURNITURE.find(x=>x.id===it.id) || {ic:'?', w:40, h:40};
-    const p = project(it.x || 0, it.z || 0);
-    const sx = cx + p.x * scale, sy = cy + p.y * scale;
-    g.fillStyle = 'rgba(255,255,255,.15)';
-    g.fillRect(sx - f.w*0.3, sy - f.h*0.4, f.w*0.6, f.h*0.5);
-    g.font = '22px system-ui';
-    g.textAlign = 'center';
-    g.fillText(f.ic, sx, sy);
-    if(houseDrag === i){
-      g.strokeStyle = '#ffd479'; g.lineWidth = 2;
-      g.strokeRect(sx - f.w*0.35, sy - f.h*0.5, f.w*0.7, f.h*0.6);
-    }
-  });
-
-  requestAnimationFrame(drawHouseCanvas);
-}
-
-function addFurnitureSimple(f){
-  if(!houseEditing) return;
-  houseItems.push({id:f.id, x:0, z:0});
-  saveHouse(currentHouse, {items: houseItems});
-  Audio_.blip(600);
-  toast('Placed ' + f.name);
-}
-
-function screenToWorld(sx, sy){
-  const cv = $('#houseCanvas');
-  const w = cv.clientWidth || 600, h = cv.clientHeight || 380;
-  const cx = w/2, cy = h*0.65;
-  const scale = Math.min(w, h) / 280;
-  const dx = (sx - cx) / scale, dy = (sy - cy) / scale;
-  const ca = Math.cos(-houseAngle), sa = Math.sin(-houseAngle);
-  const x = dx * ca - (dy*2) * sa;
-  const z = dx * sa + (dy*2) * ca;
-  return {x, z};
-}
-
-$('#houseCanvas').onpointerdown = e => {
-  if(!houseEditing) return;
-  const r = e.target.getBoundingClientRect();
-  const sx = e.clientX - r.left, sy = e.clientY - r.top;
-  // find closest item
-  let best = -1, bd = 40;
-  const w = e.target.clientWidth || 600, h = e.target.clientHeight || 380;
-  const cx = w/2, cy = h*0.65;
-  const scale = Math.min(w, h) / 280;
-  houseItems.forEach((it, i)=>{
-    const p = project(it.x||0, it.z||0);
-    const ix = cx + p.x * scale, iy = cy + p.y * scale;
-    const d = Math.hypot(sx - ix, sy - iy);
-    if(d < bd){ bd = d; best = i; }
-  });
-  houseDrag = best >= 0 ? best : null;
-  e.target.setPointerCapture(e.pointerId);
-};
-$('#houseCanvas').onpointermove = e => {
-  if(houseDrag === null || !houseEditing) return;
-  const r = e.target.getBoundingClientRect();
-  const sx = e.clientX - r.left, sy = e.clientY - r.top;
-  const world = screenToWorld(sx, sy);
-  houseItems[houseDrag].x = world.x;
-  houseItems[houseDrag].z = world.z;
-};
-$('#houseCanvas').onpointerup = () => {
-  if(houseDrag !== null){
-    saveHouse(currentHouse, {items: houseItems});
-  }
-  houseDrag = null;
-};
-
-$('#houseRotate').onclick = ()=>{
-  houseAngle += Math.PI / 4;
-  if(houseAngle > Math.PI*2) houseAngle -= Math.PI*2;
-};
-
-$('#houseClose').onclick = ()=>{
-  openLayer(null);
-  currentHouse = null;
-};
-
-function openProperties(){
-  const props = loadProperties();
-  const box = $('#propList'); box.innerHTML = '';
-  STREET_HOUSES.forEach(h=>{
-    const owned = props[h.id];
-    const mine = owned === P || (!owned && h.id === 'home' && (P === 'sophia' || P === 'angelina'));
-    const tile = document.createElement('div');
-    tile.className = 'tile' + (mine ? ' sel' : '');
-    tile.innerHTML = `<span class="big">🏠</span>${h.name}<span class="cost">${h.price ? h.price + ' 🫧' : 'Free'}${owned ? ' · owned' : ''}</span>`;
-    tile.onclick = ()=>{
-      if(mine || !h.price){ enterHouse(h.id); return; }
-      if(save.pearls < h.price){ toast('Need more pearls'); return; }
-      save.pearls -= h.price; persist(); updateHud();
-      props[h.id] = P; saveProperties(props);
-      toast('You bought ' + h.name);
-      openProperties();
-    };
-    box.appendChild(tile);
-  });
-  openLayer('lProperties');
-}
-$('#propClose').onclick = ()=>openLayer(null);
-
 /* ============================ LOOP ============================ */
 let last = now();
 function frame(){
@@ -8191,6 +7917,8 @@ function step(){
 }
 requestAnimationFrame(frame);
 </script>
+<!-- the house designer lives in its own file, so a mistake there can never stop the game itself -->
+<script src="house.js"></script>
 
 
 </body>
