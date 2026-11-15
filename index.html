@@ -7618,8 +7618,6 @@ function openProperties(){
 }
 $('#propClose').onclick = ()=>openLayer(null);
 
-requestAnimationFrame(frame);
-}
 function step(){
   // a leaked ctx.save() from a bad frame must never distort the next one
   ctx.setTransform(DPR,0,0,DPR,0,0); ctx.globalAlpha = 1;
