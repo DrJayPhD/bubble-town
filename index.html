@@ -550,6 +550,34 @@ canvas,#cv,#pads,#stickz,#pad{touch-action:none}
 })();
 window.LEGACY = !window.PointerEvent;
 </script>
+<!-- HOUSE DESIGN -->
+<div class="layer" id="lHouse"><div class="scrim"></div><div class="port" style="max-width:900px">
+  <p class="eyebrow">House</p>
+  <h2 id="houseTitle">House</h2>
+  <p class="sub" id="houseEditNote"></p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap">
+  <div style="flex:1;min-width:280px">
+    <p class="eyebrow">Interior</p>
+    <div id="houseRoom"></div>
+  </div>
+  <div style="flex:1;min-width:280px">
+    <p class="eyebrow">Exterior / Yard</p>
+    <div id="houseYard"></div>
+  </div>
+</div>
+  <p class="eyebrow" id="houseCatLabel">Furniture</p>
+  <div id="houseCatalog"></div>
+  <div class="row end" style="margin-top:14px"><button class="btn" id="houseClose" type="button">Back to the yard</button></div>
+</div></div>
+
+<!-- PROPERTY BOARD -->
+<div class="layer" id="lProperties"><div class="scrim"></div><div class="port" style="max-width:820px">
+  <p class="eyebrow">Street Properties</p>
+  <h2>Buy a house</h2>
+  <p class="sub">The street has several houses. Buy them with pearls, then decorate the ones you own. You can visit any house.</p>
+  <div id="propList" class="grid2" style="margin-bottom:12px"></div>
+  <div class="row end"><button class="btn" id="propClose" type="button">Back</button></div>
+</div></div>
 <script src="vendor/peerjs.safari12.js"></script>
 <script>
 "use strict";
@@ -7635,33 +7663,5 @@ requestAnimationFrame(frame);
 </script>
 
 
-<!-- HOUSE DESIGN -->
-<div class="layer" id="lHouse"><div class="scrim"></div><div class="port" style="max-width:900px">
-  <p class="eyebrow">House</p>
-  <h2 id="houseTitle">House</h2>
-  <p class="sub" id="houseEditNote"></p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap">
-  <div style="flex:1;min-width:280px">
-    <p class="eyebrow">Interior</p>
-    <div id="houseRoom"></div>
-  </div>
-  <div style="flex:1;min-width:280px">
-    <p class="eyebrow">Exterior / Yard</p>
-    <div id="houseYard"></div>
-  </div>
-</div>
-  <p class="eyebrow" id="houseCatLabel">Furniture</p>
-  <div id="houseCatalog"></div>
-  <div class="row end" style="margin-top:14px"><button class="btn" id="houseClose" type="button">Back to the yard</button></div>
-</div></div>
-
-<!-- PROPERTY BOARD -->
-<div class="layer" id="lProperties"><div class="scrim"></div><div class="port" style="max-width:820px">
-  <p class="eyebrow">Street Properties</p>
-  <h2>Buy a house</h2>
-  <p class="sub">The street has several houses. Buy them with pearls, then decorate the ones you own. You can visit any house.</p>
-  <div id="propList" class="grid2" style="margin-bottom:12px"></div>
-  <div class="row end"><button class="btn" id="propClose" type="button">Back</button></div>
-</div></div>
 </body>
 </html>
