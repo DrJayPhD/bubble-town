@@ -555,19 +555,13 @@ window.LEGACY = !window.PointerEvent;
   <p class="eyebrow">House</p>
   <h2 id="houseTitle">House</h2>
   <p class="sub" id="houseEditNote"></p>
-  <div style="display:flex;gap:12px;flex-wrap:wrap">
-  <div style="flex:1;min-width:280px">
-    <p class="eyebrow">Interior</p>
-    <div id="houseRoom"></div>
+  <canvas id="houseCanvas" style="width:100%;height:380px;background:#1a2a3a;border-radius:16px;display:block;touch-action:none"></canvas>
+  <p class="eyebrow" style="margin-top:10px">Furniture</p>
+  <div id="houseCatalog" style="max-height:120px;overflow:auto;margin-bottom:8px"></div>
+  <div class="row end">
+    <button class="btn ghost" id="houseRotate" type="button">Rotate view</button>
+    <button class="btn" id="houseClose" type="button">Back to the yard</button>
   </div>
-  <div style="flex:1;min-width:280px">
-    <p class="eyebrow">Exterior / Yard</p>
-    <div id="houseYard"></div>
-  </div>
-</div>
-  <p class="eyebrow" id="houseCatLabel">Furniture</p>
-  <div id="houseCatalog"></div>
-  <div class="row end" style="margin-top:14px"><button class="btn" id="houseClose" type="button">Back to the yard</button></div>
 </div></div>
 
 <!-- PROPERTY BOARD -->
@@ -7376,7 +7370,7 @@ function startProfile(id){
 }
 buildTitle();
 
-/* ============================ HOUSE DESIGN ============================ */
+/* ============================ HOUSE DESIGN (simple canvas) ============================ */
 const STREET_HOUSES = [
   {id:'home',     name:'Family Home',     price:0,   color:'#ffd0dc'},
   {id:'blue',     name:'Blue Cottage',    price:40,  color:'#7fb7e8'},
@@ -7402,7 +7396,7 @@ function saveProperties(p){
 function ownsHouse(houseId){
   const props = loadProperties();
   const owner = props[houseId];
-  if(!owner) return P === 'sophia' || P === 'angelina'; // starter home is shared until claimed
+  if(!owner) return P === 'sophia' || P === 'angelina';
   return owner === P;
 }
 function propertyOwner(houseId){
@@ -7411,24 +7405,18 @@ function propertyOwner(houseId){
 }
 
 const FURNITURE = [
-  // Interior
-  {id:'bed',     name:'Bed',        ic:'🛏️', cat:'interior', w:120, h:80},
-  {id:'sofa',    name:'Sofa',       ic:'🛋️', cat:'interior', w:140, h:70},
-  {id:'table',   name:'Table',      ic:'🪑', cat:'interior', w:90,  h:70},
-  {id:'lamp',    name:'Lamp',       ic:'💡', cat:'interior', w:40,  h:70},
-  {id:'rug',     name:'Rug',        ic:'🟫', cat:'interior', w:160, h:100},
-  {id:'plant',   name:'Plant',      ic:'🪴', cat:'interior', w:50,  h:70},
-  {id:'shelf',   name:'Shelf',      ic:'📚', cat:'interior', w:80,  h:100},
-  {id:'tv',      name:'TV',         ic:'📺', cat:'interior', w:90,  h:60},
-  {id:'desk',    name:'Desk',       ic:'💻', cat:'interior', w:100, h:60},
-  {id:'chair',   name:'Chair',      ic:'🪑', cat:'interior', w:50,  h:60},
-  // Exterior
-  {id:'flower',  name:'Flowers',    ic:'🌸', cat:'exterior', w:60,  h:50},
-  {id:'bush',    name:'Bush',       ic:'🌿', cat:'exterior', w:70,  h:50},
-  {id:'swing',   name:'Swing',      ic:'🎠', cat:'exterior', w:100, h:80},
-  {id:'bench',   name:'Bench',      ic:'🪑', cat:'exterior', w:90,  h:40},
-  {id:'mailbox', name:'Mailbox',    ic:'📬', cat:'exterior', w:40,  h:60},
-  {id:'light',   name:'Porch light',ic:'🏮', cat:'exterior', w:40,  h:50},
+  {id:'bed',     name:'Bed',        ic:'🛏️', w:80, h:50},
+  {id:'sofa',    name:'Sofa',       ic:'🛋️', w:90, h:40},
+  {id:'table',   name:'Table',      ic:'🪑', w:60, h:40},
+  {id:'lamp',    name:'Lamp',       ic:'💡', w:30, h:50},
+  {id:'plant',   name:'Plant',      ic:'🪴', w:30, h:40},
+  {id:'tv',      name:'TV',         ic:'📺', w:50, h:30},
+  {id:'desk',    name:'Desk',       ic:'💻', w:70, h:40},
+  {id:'chair',   name:'Chair',      ic:'🪑', w:30, h:35},
+  {id:'flower',  name:'Flowers',    ic:'🌸', w:30, h:25},
+  {id:'bush',    name:'Bush',       ic:'🌿', w:40, h:30},
+  {id:'bench',   name:'Bench',      ic:'🪑', w:70, h:25},
+  {id:'mailbox', name:'Mailbox',    ic:'📬', w:25, h:40},
 ];
 
 function loadHouse(id){
@@ -7441,8 +7429,9 @@ function saveHouse(id, data){
 
 let currentHouse = null;
 let houseEditing = false;
-let dragging = null;
-let dragOff = {x:0,y:0};
+let houseAngle = 0.6; // radians
+let houseItems = [];
+let houseDrag = null;
 
 function openHouseChooser(){
   choose('Houses', 'Decorate your homes or buy more on the street.',
@@ -7459,9 +7448,10 @@ function enterHouse(id){
   const owner = propertyOwner(id);
   houseEditing = !owner || owner === P || (id === 'home' && (P === 'sophia' || P === 'angelina'));
   const data = loadHouse(id);
+  houseItems = data.items || [];
   $('#houseTitle').textContent = name + (houseEditing ? ' (yours)' : ' (visiting)');
   $('#houseEditNote').textContent = houseEditing
-    ? 'Drag furniture from the catalog. Double-tap an item to remove it.'
+    ? 'Tap furniture to place it. Drag items around. Rotate the view with the button.'
     : 'You can look around, but only the owner can move furniture.';
   const catalog = $('#houseCatalog');
   catalog.innerHTML = '';
@@ -7469,129 +7459,158 @@ function enterHouse(id){
     FURNITURE.forEach(f=>{
       const b = document.createElement('button');
       b.className = 'tile';
-      b.innerHTML = `<span class="big">${f.ic}</span>${f.name}<span class="cost">${f.cat}</span>`;
-      b.onclick = ()=>addFurniture(f);
+      b.innerHTML = `<span class="big">${f.ic}</span>${f.name}`;
+      b.onclick = ()=>addFurnitureSimple(f);
       catalog.appendChild(b);
     });
   }
-  renderHouseItems(data.items);
   openLayer('lHouse');
+  setTimeout(drawHouseCanvas, 50);
 }
 
-function renderHouseItems(items){
-  ['houseRoom','houseYard'].forEach(id=>{
-    const zone = $( '#' + id );
-    if(!zone) return;
-    zone.querySelectorAll('.furn').forEach(el=>el.remove());
+function project(x, z){
+  const ca = Math.cos(houseAngle), sa = Math.sin(houseAngle);
+  const px = x * ca - z * sa;
+  const py = (x * sa + z * ca) * 0.5;
+  return {x: px, y: py};
+}
+
+function drawHouseCanvas(){
+  const cv = $('#houseCanvas');
+  if(!cv || !$('#lHouse').classList.contains('on')) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || 600, h = cv.clientHeight || 380;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+
+  const cx = w/2, cy = h*0.65;
+  const scale = Math.min(w, h) / 280;
+
+  // Floor
+  g.fillStyle = '#3a5a7a';
+  g.beginPath();
+  const corners = [[-120,-80],[120,-80],[120,80],[-120,80]];
+  corners.forEach((c,i)=>{
+    const p = project(c[0], c[1]);
+    const sx = cx + p.x * scale, sy = cy + p.y * scale;
+    i ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
   });
-  items.forEach((it, i)=>{
-    const f = FURNITURE.find(x=>x.id===it.id) || {ic:'?', name:'Item', w:60, h:60, cat:'interior'};
-    const zoneId = f.cat === 'exterior' ? 'houseYard' : 'houseRoom';
-    const zone = $('#' + zoneId);
-    if(!zone) return;
-    const el = document.createElement('div');
-    el.className = 'furn';
-    el.style.left = (it.x || 20) + 'px';
-    el.style.top = (it.y || 20) + 'px';
-    el.style.width = f.w + 'px';
-    el.style.height = f.h + 'px';
-    el.innerHTML = `<div style="font-size:28px;text-align:center;line-height:${f.h}px">${f.ic}</div>`;
-    el.dataset.i = i;
-    if(houseEditing){
-      el.style.cursor = 'grab';
-      el.onpointerdown = e=>startDrag(e, el, i);
-      el.ondblclick = ()=>removeFurniture(i);
+  g.closePath(); g.fill();
+  g.strokeStyle = '#7df0ff'; g.lineWidth = 2; g.stroke();
+
+  // Simple walls (back)
+  g.fillStyle = '#5a7a9a';
+  g.beginPath();
+  const wall = [[-120,-80],[120,-80],[120,-80],[ -120,-80]];
+  // back wall as a raised quad
+  const back = [[-120,-80],[120,-80],[120,-40],[-120,-40]];
+  back.forEach((c,i)=>{
+    const p = project(c[0], c[1]);
+    const sx = cx + p.x * scale, sy = cy + p.y * scale - 40*scale;
+    i ? g.lineTo(sx, sy) : g.moveTo(sx, sy);
+  });
+  g.closePath(); g.fill();
+
+  // Furniture
+  houseItems.forEach((it, i)=>{
+    const f = FURNITURE.find(x=>x.id===it.id) || {ic:'?', w:40, h:40};
+    const p = project(it.x || 0, it.z || 0);
+    const sx = cx + p.x * scale, sy = cy + p.y * scale;
+    g.fillStyle = 'rgba(255,255,255,.15)';
+    g.fillRect(sx - f.w*0.3, sy - f.h*0.4, f.w*0.6, f.h*0.5);
+    g.font = '22px system-ui';
+    g.textAlign = 'center';
+    g.fillText(f.ic, sx, sy);
+    if(houseDrag === i){
+      g.strokeStyle = '#ffd479'; g.lineWidth = 2;
+      g.strokeRect(sx - f.w*0.35, sy - f.h*0.5, f.w*0.7, f.h*0.6);
     }
-    zone.appendChild(el);
   });
+
+  requestAnimationFrame(drawHouseCanvas);
 }
 
-function addFurniture(f){
-  const data = loadHouse(currentHouse);
-  data.items.push({id:f.id, x:30, y:30});
-  saveHouse(currentHouse, data);
-  renderHouseItems(data.items);
-  Audio_.blip(600);
-  toast(f.cat === 'exterior' ? 'Added to the yard' : 'Added inside');
-}
-
-function removeFurniture(i){
-  const data = loadHouse(currentHouse);
-  data.items.splice(i, 1);
-  saveHouse(currentHouse, data);
-  renderHouseItems(data.items);
-  Audio_.blip(300);
-}
-
-function startDrag(e, el, i){
+function addFurnitureSimple(f){
   if(!houseEditing) return;
-  e.preventDefault();
-  dragging = {el, i};
-  const r = el.getBoundingClientRect();
-  dragOff.x = e.clientX - r.left;
-  dragOff.y = e.clientY - r.top;
-  el.style.zIndex = 10;
-  el.setPointerCapture(e.pointerId);
-  el.onpointermove = onDrag;
-  el.onpointerup = endDrag;
+  houseItems.push({id:f.id, x:0, z:0});
+  saveHouse(currentHouse, {items: houseItems});
+  Audio_.blip(600);
+  toast('Placed ' + f.name);
 }
 
-function onDrag(e){
-  if(!dragging) return;
-  const zone = dragging.el.parentElement;
-  const rr = zone.getBoundingClientRect();
-  let x = e.clientX - rr.left - dragOff.x;
-  let y = e.clientY - rr.top - dragOff.y;
-  x = Math.max(0, Math.min(rr.width - 40, x));
-  y = Math.max(0, Math.min(rr.height - 40, y));
-  dragging.el.style.left = x + 'px';
-  dragging.el.style.top = y + 'px';
+function screenToWorld(sx, sy){
+  const cv = $('#houseCanvas');
+  const w = cv.clientWidth || 600, h = cv.clientHeight || 380;
+  const cx = w/2, cy = h*0.65;
+  const scale = Math.min(w, h) / 280;
+  const dx = (sx - cx) / scale, dy = (sy - cy) / scale;
+  const ca = Math.cos(-houseAngle), sa = Math.sin(-houseAngle);
+  const x = dx * ca - (dy*2) * sa;
+  const z = dx * sa + (dy*2) * ca;
+  return {x, z};
 }
 
-function endDrag(e){
-  if(!dragging) return;
-  const data = loadHouse(currentHouse);
-  const it = data.items[dragging.i];
-  it.x = parseInt(dragging.el.style.left) || 0;
-  it.y = parseInt(dragging.el.style.top) || 0;
-  saveHouse(currentHouse, data);
-  dragging.el.style.zIndex = '';
-  dragging = null;
-}
+$('#houseCanvas').onpointerdown = e => {
+  if(!houseEditing) return;
+  const r = e.target.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  // find closest item
+  let best = -1, bd = 40;
+  const w = e.target.clientWidth || 600, h = e.target.clientHeight || 380;
+  const cx = w/2, cy = h*0.65;
+  const scale = Math.min(w, h) / 280;
+  houseItems.forEach((it, i)=>{
+    const p = project(it.x||0, it.z||0);
+    const ix = cx + p.x * scale, iy = cy + p.y * scale;
+    const d = Math.hypot(sx - ix, sy - iy);
+    if(d < bd){ bd = d; best = i; }
+  });
+  houseDrag = best >= 0 ? best : null;
+  e.target.setPointerCapture(e.pointerId);
+};
+$('#houseCanvas').onpointermove = e => {
+  if(houseDrag === null || !houseEditing) return;
+  const r = e.target.getBoundingClientRect();
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
+  const world = screenToWorld(sx, sy);
+  houseItems[houseDrag].x = world.x;
+  houseItems[houseDrag].z = world.z;
+};
+$('#houseCanvas').onpointerup = () => {
+  if(houseDrag !== null){
+    saveHouse(currentHouse, {items: houseItems});
+  }
+  houseDrag = null;
+};
 
-// Wire the house close button later
+$('#houseRotate').onclick = ()=>{
+  houseAngle += Math.PI / 4;
+  if(houseAngle > Math.PI*2) houseAngle -= Math.PI*2;
+};
 
+$('#houseClose').onclick = ()=>{
+  openLayer(null);
+  currentHouse = null;
+};
 
 function openProperties(){
-  const box = $('#propList'); box.innerHTML = '';
   const props = loadProperties();
+  const box = $('#propList'); box.innerHTML = '';
   STREET_HOUSES.forEach(h=>{
-    const owner = props[h.id];
-    const mine = owner === P;
-    const free = !owner && h.price === 0;
+    const owned = props[h.id];
+    const mine = owned === P || (!owned && h.id === 'home' && (P === 'sophia' || P === 'angelina'));
     const tile = document.createElement('div');
     tile.className = 'tile' + (mine ? ' sel' : '');
-    let status = free ? 'Starter home' : mine ? 'Yours' : owner ? 'Owned by ' + (owner === 'sophia' ? 'Sophia' : 'Angie') : h.price + ' 🫧';
-    tile.innerHTML = `<span class="big">🏠</span>${h.name}<span class="cost">${status}</span>`;
+    tile.innerHTML = `<span class="big">🏠</span>${h.name}<span class="cost">${h.price ? h.price + ' 🫧' : 'Free'}${owned ? ' · owned' : ''}</span>`;
     tile.onclick = ()=>{
-      if(mine || free){
-        enterHouse(h.id);
-      } else if(!owner && save.pearls >= h.price){
-        if(confirm(`Buy ${h.name} for ${h.price} pearls?`)){
-          props[h.id] = P;
-          save.pearls -= h.price;
-          trackPearls(); persist(); updateHud();
-          saveProperties(props);
-          Audio_.great();
-          toast(`${h.name} is yours!`);
-          openProperties();
-        }
-      } else if(owner){
-        toast('Visiting ' + h.name);
-        enterHouse(h.id);
-      } else {
-        toast('Not enough pearls');
-      }
+      if(mine || !h.price){ enterHouse(h.id); return; }
+      if(save.pearls < h.price){ toast('Need more pearls'); return; }
+      save.pearls -= h.price; persist(); updateHud();
+      props[h.id] = P; saveProperties(props);
+      toast('You bought ' + h.name);
+      openProperties();
     };
     box.appendChild(tile);
   });
@@ -7599,13 +7618,7 @@ function openProperties(){
 }
 $('#propClose').onclick = ()=>openLayer(null);
 
-$('#houseClose').onclick = ()=>{ openLayer(null); currentHouse = null; };
-
-/* ============================ LOOP ============================ */
-let last = now();
-function frame(){
-  try{ step(); }catch(e){ console.error('frame error', e); }
-  requestAnimationFrame(frame);
+requestAnimationFrame(frame);
 }
 function step(){
   // a leaked ctx.save() from a bad frame must never distort the next one
